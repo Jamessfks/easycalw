@@ -1,131 +1,93 @@
-# OpenClaw Concierge + Way Back Home Level 4 stack
+# OpenClaw Concierge — documentation
 
-End-to-end **OpenClaw Concierge**: consultative **Gemini Live** (ADK) session → validated **`ConciergePayload`** → **`build_zip_bytes`** setup ZIP. Includes an **Architect** agent on **A2A** (registry tools) and a **React** UI.
+This repository holds the **architecture and implementation guides** for **OpenClaw Concierge**: a voice-first flow that turns a consultative conversation into a downloadable OpenClaw configuration package.
 
-Reference: [Way Back Home — Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0).
-
----
-
-## What runs where
-
-| Service | Port | Role |
-|--------|------|------|
-| **Architect** (FastAPI + A2A REST) | `8081` | ADK agent + tools over `rulebook/registry.json` (optional Redis mirror) |
-| **Hub** (FastAPI) | `8080` | `POST /generate-config`, `GET /health`, static SPA, `WebSocket /ws/live` |
-| **Redis** (optional) | `6379` | Seed `openclaw:registry_json` for Architect |
+There is **no application code** in this checkout—only specs under [`Documentations/`](Documentations/).
 
 ---
 
-## Prerequisites
+## Start here
 
-- Python **3.11+**, [uv](https://github.com/astral-sh/uv), Node **20+** (for the UI build)
-- **Google Cloud** project with **Vertex AI** enabled
-- **Application Default Credentials**: `gcloud auth application-default login`
-
----
-
-## One-time setup
-
-```bash
-uv sync
-cp env.example .env
-# Edit .env: set GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION, PUBLIC_ARCHITECT_URL, ARCHITECT_URL
-```
-
-Optional Redis:
-
-```bash
-docker compose up -d
-REDIS_HOST=127.0.0.1 ./scripts/seed_redis.sh
-```
-
-Build the SPA (required for `http://127.0.0.1:8080/` UI):
-
-```bash
-cd frontend && npm install && npm run build && cd ..
-```
+| Document | Purpose |
+| :--- | :--- |
+| [**Project Master Specification (V2.1)**](Documentations/Project%20Master%20Specification%20(V2.1)_%20OpenClaw%20Concierge%20Technical%20Architecture.md) | End-to-end technical architecture: three-tier pipeline, security, registry logic, and frontend expectations. |
+| [**Claude Code Implementation Guide**](Documentations/Claude%20Code%20Implementation%20Guide_%20OpenClaw%20Concierge%20(1).md) | How to map each artifact type to implementation work (ADK, FastAPI, React) and what to verify before a demo. |
 
 ---
 
-## Run (two terminals)
+## Architecture (from the Master Specification)
 
-**Terminal A — Architect**
+1. **Discovery (Model 1)** — Google ADK + **Gemini Multimodal Live**: bidirectional voice, consultative “researcher” behavior, hardware steering, tiered transparency (Tier 1–3).
+2. **Extraction (Model 2)** — Google ADK: post-call / structured extraction against a **`schema.json`** data contract.
+3. **Generation (Model 3)** — **FastAPI** backend (spec cites **Gemini 2.5 Pro** for file generation): webhook ingestion, deterministic skill mapping from a **registry**, smart templates, ZIP output (`SOUL.md`, `USER.md`, `AGENTS.md`, `IDENTITY.md`, `setup.sh`, `README.md`, etc.).
 
-```bash
-PYTHONPATH=. uv run uvicorn backend.architect_agent.server:app --host 0.0.0.0 --port 8081
-```
-
-Verify agent card:
-
-```bash
-curl -sS http://127.0.0.1:8081/.well-known/agent.json | head
-```
-
-**Terminal B — Hub**
-
-```bash
-PYTHONPATH=. uv run uvicorn backend.main:app --host 0.0.0.0 --port 8080
-```
-
-Open **http://127.0.0.1:8080/** → **Start live session** → speak or use **Send text**. When the model calls `submit_concierge_payload` successfully, a **Download setup ZIP** link appears.
+The spec also describes **security** (e.g. zero API key storage in the concierge path, OAuth-oriented flows), **tiered transparency**, an **integrated security suite** concept (trust hub, scanner, permission gatekeeper), and a **React** UI (voice start, transcript, processing state, ZIP download).
 
 ---
 
-## Dev UI (Vite proxy)
+## Artifact map (from the Implementation Guide)
 
-```bash
-cd frontend && npm run dev
-```
+When you implement the product, the guide expects these **named artifacts** to drive behavior (they may live in another repo or be added later):
 
-Open **http://127.0.0.1:5173** — WebSocket and API calls proxy to the hub on `8080`.
-
----
-
-## REST-only ZIP (no ADK)
-
-```bash
-curl -sS -X POST http://127.0.0.1:8080/generate-config \
-  -H "Content-Type: application/json" \
-  -d @fixtures/concierge_beginner.json \
-  -o /tmp/openclaw-setup.zip
-unzip -l /tmp/openclaw-setup.zip
-```
+| Role | Artifact | Use |
+| :--- | :--- | :--- |
+| Skill allow-list & mapping | `registry.md` | Backend lookup + conversational grounding |
+| Live agent instruction | `consultative_system_prompt.md` | Model 1 system instruction |
+| Structured output | `schema.json` | Model 2 extraction shape |
+| Generator spec | `smart_markdown_templates.md` | Model 3 template logic |
+| Config accuracy | `openclaw_ref.md` | `openclaw.json` / channel snippets |
 
 ---
 
-## Layout
+## Implementation workflow (summary)
 
-| Path | Role |
-|------|------|
-| `backend/main.py` | Hub: REST + WebSocket + static `frontend/dist` |
-| `backend/hub/live_session.py` | `runner.run_live` bridge |
-| `backend/dispatch_agent/` | Gemini Live + `RemoteA2aAgent` + `submit_concierge_payload` |
-| `backend/architect_agent/` | Registry tools + A2A REST (`A2ARESTFastAPIApplication`) |
-| `backend/generator/` | Jinja2 templates + `build_zip_bytes` |
-| `rulebook/schema.json` | Payload JSON Schema |
-| `rulebook/registry.json` | Allow-listed `clawhub` slugs |
-| `Documentations/prompt.md` | Dispatch system instruction |
-| `docker-compose.yml` | Redis |
-| `demo.sh` | Copy-paste command summary |
+1. Scaffold **React** + **FastAPI** as needed.  
+2. Wire **Model 1 & 2** in Google ADK using the consultative prompt and schema.  
+3. Implement **Model 3**: skill lookup, template-driven generation, ZIP response, and security rules from the specs.  
+4. Build the UI: start call / transcript / processing / download.  
+5. Run the **final verification** checklist in the Implementation Guide (voice behavior, JSON vs schema, `setup.sh` slugs, README snippets).
 
 ---
 
-## Troubleshooting
+## Way Back Home — Level 4 (Google Codelab)
 
-- **403 / permission errors on Vertex** — confirm `GOOGLE_CLOUD_PROJECT`, billing, and `aiplatform.googleapis.com` enabled; retry ADC.
-- **Architect card 404** — use `/.well-known/agent.json` (see curl above); set `PUBLIC_ARCHITECT_URL` to the URL clients use.
-- **`DISPATCH_LIVE_MODEL` not found** — pick a current **live / native audio** model ID for Vertex in your region; update `.env`.
-- **WebSocket closes immediately** — hub checks `GOOGLE_CLOUD_PROJECT`; empty project returns an error frame on connect.
-- **CORS** — adjust `CORS_ORIGINS` in `.env` for non-local frontends.
+Google’s **[Way Back Home — Live Bidirectional Multi-Agent system](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)** is the canonical hands-on walkthrough for the **same class of stack** the Master Specification assumes: **ADK**, **Gemini Live (bidi)**, **FastAPI + WebSockets**, **React**, optional **Redis / Memorystore**, **A2A**, and **Cloud Run** deployment.
+
+### What that codelab builds
+
+| Codelab piece | Role |
+| :--- | :--- |
+| **Dispatch agent** | Primary **Gemini Live** agent: voice/video in real time, orchestrates tools and subordinate agents. |
+| **Architect agent** | Specialist with **structured tools** backed by a **data vault** (Redis lists of “schematics” in the story). Exposed over **A2A** with an **Agent Card** (`/.well-known/agent.json`). |
+| **Agent-as-a-tool** | Dispatch calls Architect via **`RemoteA2aAgent` + `AgentTool`** so Dispatch keeps the live session; Architect returns facts, not the whole conversation. |
+| **Streaming tool** | Background **`async` generator** (e.g. `monitor_for_hazard`) subscribed by the live runner—proactive alerts from **video frames** on the shared **`LiveRequestQueue`**. |
+| **FastAPI `main.py`** | **WebSocket** bridge: PCM audio, JSON text/audio/image → **`LiveRequestQueue`**; **`runner.run_live`**; downstream **`Event`** JSON to the UI (`model_dump_json` / GenAI shapes). |
+| **React frontend** | Captures **mic/camera/screen**, streams media, shows traces / status. |
+| **Prod (optional)** | **Cloud Run** for Dispatch + Architect; **Memorystore (Redis)** + **VPC connector** for the vault; **`ARCHITECT_URL`** wires Dispatch to the deployed Architect. |
+
+Dependencies called out in the lab include **`google-adk`**, **`google-genai`**, **`a2a-sdk`**, **FastAPI**, **uvicorn**, **redis**, **websockets**, **pydantic**, etc.—aligned with a production-style Python agent service.
+
+### How this maps to OpenClaw Concierge (this project’s intent)
+
+The **Concierge** specs describe a *different product* (onboarding ZIP, OpenClaw files, skill registry), but the **plumbing is the same pattern**:
+
+| Codelab | OpenClaw Concierge (per Master Spec / Implementation Guide) |
+| :--- | :--- |
+| Dispatch + Live | **Model 1** — consultative **Gemini Multimodal Live** via ADK. |
+| Architect + Redis “vault” | A **specialist agent or service** over **allow-listed skills / registry** (deterministic slug lookup—not LLM-invented `clawhub` names). A2A is optional but matches the “remote specialist” shape. |
+| Schema-driven handoff | **Model 2** — extraction into **`schema.json`**. |
+| Post-conversation / tool completion → backend | **Model 3** — **FastAPI** + templates → **ZIP** (`SOUL.md`, `setup.sh`, …). |
+| Streaming “sentinel” | **Optional** for Concierge (e.g. proactive UX or safety); not required for the core “conversation → JSON → ZIP” loop. |
+| WebSocket + `run_live` + React | Same **integration style** for a voice-first UI, transcript, and download UX. |
+
+Working through **[Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)** on Google’s **`way-back-home`** repo gives you runnable code and deployment steps; **`Documentations/`** here defines **what** the Concierge should do and **which artifacts** (`registry.md`, `schema.json`, …) must line up when you implement or extend that stack.
 
 ---
 
-## Optional: container build
+## External references
 
-Multi-stage image (install uv + Node, build `frontend/dist`, run hub) is left as a follow-up; mirror [Level 4 section 6](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) for Cloud Run, set **`ARCHITECT_URL`** on the dispatch/hub service to the deployed Architect URL.
+- OpenClaw documentation: [https://docs.openclaw.ai/](https://docs.openclaw.ai/)
 
 ---
 
-## Security
-
-- Do **not** commit `.env`. Never ask users to paste API keys in the voice UI; generated markdown only references `~/.openclaw/openclaw.json` and env vars ([`Documentations/openclaw_ref.md`](Documentations/openclaw_ref.md)).
+*Master Specification and Implementation Guide attributed in those files to Manus AI (2026-03-21).*
