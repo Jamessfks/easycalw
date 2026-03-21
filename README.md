@@ -1,86 +1,75 @@
 # OpenClaw Concierge — documentation
 
-This repository holds the **architecture and implementation guides** for **OpenClaw Concierge**: a voice-first flow that turns a consultative conversation into a downloadable OpenClaw configuration package.
+This repository holds the **full documentation suite** for **OpenClaw Concierge** (**V2.2**): **multi-AI orchestration** that turns a **raw interview transcript** into **`OPENCLAW_ENGINE_SETUP_GUIDE.md`**, plus the **knowledge base** spec for the **optional live Interview Agent**.
 
 There is **no application code** in this checkout—only specs under [`Documentations/`](Documentations/).
 
 ---
 
-## Start here
+## Start here (reading order for humans & coding agents)
 
-| Document | Purpose |
-| :--- | :--- |
-| [**Project Master Specification (V2.1)**](Documentations/Project%20Master%20Specification%20(V2.1)_%20OpenClaw%20Concierge%20Technical%20Architecture.md) | End-to-end technical architecture: three-tier pipeline, security, registry logic, frontend expectations, and **§8** reference alignment with [Way Back Home Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0). |
-| [**Claude Code Implementation Guide**](Documentations/Claude%20Code%20Implementation%20Guide_%20OpenClaw%20Concierge%20(1).md) | How to map each artifact type to implementation work (ADK, FastAPI, React) and what to verify before a demo. |
-
----
-
-## Architecture (from the Master Specification)
-
-1. **Discovery (Model 1)** — Google ADK + **Gemini Multimodal Live**: bidirectional voice, consultative “researcher” behavior, hardware steering, tiered transparency (Tier 1–3).
-2. **Extraction (Model 2)** — Google ADK: post-call / structured extraction against a **`schema.json`** data contract.
-3. **Generation (Model 3)** — **FastAPI** backend (spec cites **Gemini 2.5 Pro** for file generation): webhook ingestion, deterministic skill mapping from a **registry**, smart templates, ZIP output (`SOUL.md`, `USER.md`, `AGENTS.md`, `IDENTITY.md`, `setup.sh`, `README.md`, etc.).
-
-The spec also describes **security** (e.g. zero API key storage in the concierge path, OAuth-oriented flows), **tiered transparency**, an **integrated security suite** concept (trust hub, scanner, permission gatekeeper), and a **React** UI (voice start, transcript, processing state, ZIP download).
+| # | Document | Purpose |
+|---|----------|---------|
+| 1 | **This README** | Index, pipeline summary, action steps. |
+| 2 | [**Project Master Specification (V2.2)**](Documentations/Project%20Master%20Specification%20(V2.1)_%20OpenClaw%20Concierge%20Technical%20Architecture.md) | **Normative** architecture: Input / Output agents, `schema.json`, security, registry, optional Way Back Home §8, **§10** doc index. |
+| 3 | [**Master Execution Blueprint (Kaan To Do) – V2 Deep Dive**](Documentations/Master%20Execution%20Blueprint%20(Kaan%20To%20Do)%20%E2%80%93%20V2%20Deep%20Dive.md) | **`system_knowledge_base/`** layout, `system_prompt.md` / `skill_registry.md` / `domain_knowledge/`, templates, research roadmap, scraper prompts, **registry sync** with runtime. |
+| 4 | [**Claude Code Implementation Guide**](Documentations/Claude%20Code%20Implementation%20Guide_%20OpenClaw%20Concierge%20(1).md) | Wire FastAPI, both agents, optional interview, QA checklist. |
+| 5 | [**AGENTS.md**](Documentations/AGENTS.md) | **AI coding agents:** invariants, paths, build order, do-not rules. |
 
 ---
 
-## Artifact map (from the Implementation Guide)
+## End-to-end vision (V2.2 + knowledge base)
 
-When you implement the product, the guide expects these **named artifacts** to drive behavior (they may live in another repo or be added later):
+```text
+[Optional] Live Interview Agent ← system_knowledge_base/system_prompt.md + domain_knowledge/
+        ↓ transcript (text)
+Input Agent ← input_agent_prompt.md + schema.json
+        ↓ validated JSON
+Output Agent ← registry.md ⟷ skill_registry.md + templates + openclaw_ref.md
+        ↓
+OPENCLAW_ENGINE_SETUP_GUIDE.md
+```
 
-| Role | Artifact | Use |
+**Registry rule:** **`system_knowledge_base/skill_registry.md`** and backend **`registry.md`** must list the **same slugs** (one file or sync at build — see Blueprint).
+
+---
+
+## Two-agent orchestration (runtime)
+
+| Agent | Input | Output |
 | :--- | :--- | :--- |
-| Skill allow-list & mapping | `registry.md` | Backend lookup + conversational grounding |
-| Live agent instruction | `consultative_system_prompt.md` | Model 1 system instruction |
-| Structured output | `schema.json` | Model 2 extraction shape |
-| Generator spec | `smart_markdown_templates.md` | Model 3 template logic |
-| Config accuracy | `openclaw_ref.md` | `openclaw.json` / channel snippets |
+| **Input Agent** | Raw **transcript** | **JSON** validated against `schema.json` |
+| **Output Agent** | JSON + **registry** | **`OPENCLAW_ENGINE_SETUP_GUIDE.md`** |
+
+**Orchestration** (e.g. FastAPI): validate between steps; return Markdown to the client.
 
 ---
 
-## Implementation workflow (summary)
+## Action steps (operator / implementer)
 
-1. Scaffold **React** + **FastAPI** as needed.  
-2. Wire **Model 1 & 2** in Google ADK using the consultative prompt and schema.  
-3. Implement **Model 3**: skill lookup, template-driven generation, ZIP response, and security rules from the specs.  
-4. Build the UI: start call / transcript / processing / download.  
-5. Run the **final verification** checklist in the Implementation Guide (voice behavior, JSON vs schema, `setup.sh` slugs, README snippets).
+1. **Build** `system_knowledge_base/` per the **Master Execution Blueprint** (Step 3.0 in Implementation Guide).  
+2. **Obtain** transcript (paste, upload, ASR, or export from optional live interview).  
+3. **Validate** transcript; run **Input Agent**; **validate JSON** against `schema.json`.  
+4. **Output Agent:** deterministic slug lookup + guide generation.  
+5. **Deliver** `OPENCLAW_ENGINE_SETUP_GUIDE.md`; user runs steps locally (**zero API key storage** in Concierge).
 
 ---
 
-## Way Back Home — Level 4 (Google Codelab)
+## Artifact map (quick reference)
 
-Google’s **[Way Back Home — Live Bidirectional Multi-Agent system](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)** is the canonical hands-on walkthrough for the **same class of stack** the Master Specification assumes: **ADK**, **Gemini Live (bidi)**, **FastAPI + WebSockets**, **React**, optional **Redis / Memorystore**, **A2A**, and **Cloud Run** deployment.
-
-### What that codelab builds
-
-| Codelab piece | Role |
+| Role | Artifact |
 | :--- | :--- |
-| **Dispatch agent** | Primary **Gemini Live** agent: voice/video in real time, orchestrates tools and subordinate agents. |
-| **Architect agent** | Specialist with **structured tools** backed by a **data vault** (Redis lists of “schematics” in the story). Exposed over **A2A** with an **Agent Card** (`/.well-known/agent.json`). |
-| **Agent-as-a-tool** | Dispatch calls Architect via **`RemoteA2aAgent` + `AgentTool`** so Dispatch keeps the live session; Architect returns facts, not the whole conversation. |
-| **Streaming tool** | Background **`async` generator** (e.g. `monitor_for_hazard`) subscribed by the live runner—proactive alerts from **video frames** on the shared **`LiveRequestQueue`**. |
-| **FastAPI `main.py`** | **WebSocket** bridge: PCM audio, JSON text/audio/image → **`LiveRequestQueue`**; **`runner.run_live`**; downstream **`Event`** JSON to the UI (`model_dump_json` / GenAI shapes). |
-| **React frontend** | Captures **mic/camera/screen**, streams media, shows traces / status. |
-| **Prod (optional)** | **Cloud Run** for Dispatch + Architect; **Memorystore (Redis)** + **VPC connector** for the vault; **`ARCHITECT_URL`** wires Dispatch to the deployed Architect. |
+| Interview brain (optional live) | `system_knowledge_base/system_prompt.md` |
+| Approved slugs (content + code) | `system_knowledge_base/skill_registry.md` ↔ `registry.md` |
+| Scoped scenarios | `system_knowledge_base/domain_knowledge/*.md` |
+| Transcript → JSON | `input_agent_prompt.md`, `schema.json` |
+| JSON → guide | `output_agent_prompt.md`, `smart_markdown_templates.md`, `openclaw_ref.md` |
 
-Dependencies called out in the lab include **`google-adk`**, **`google-genai`**, **`a2a-sdk`**, **FastAPI**, **uvicorn**, **redis**, **websockets**, **pydantic**, etc.—aligned with a production-style Python agent service.
+---
 
-### How this maps to OpenClaw Concierge (this project’s intent)
+## Way Back Home — Level 4 (reference only)
 
-The **Concierge** specs describe a *different product* (onboarding ZIP, OpenClaw files, skill registry), but the **plumbing is the same pattern**:
-
-| Codelab | OpenClaw Concierge (per Master Spec / Implementation Guide) |
-| :--- | :--- |
-| Dispatch + Live | **Model 1** — consultative **Gemini Multimodal Live** via ADK. |
-| Architect + Redis “vault” | A **specialist agent or service** over **allow-listed skills / registry** (deterministic slug lookup—not LLM-invented `clawhub` names). A2A is optional but matches the “remote specialist” shape. |
-| Schema-driven handoff | **Model 2** — extraction into **`schema.json`**. |
-| Post-conversation / tool completion → backend | **Model 3** — **FastAPI** + templates → **ZIP** (`SOUL.md`, `setup.sh`, …). |
-| Streaming “sentinel” | **Optional** for Concierge (e.g. proactive UX or safety); not required for the core “conversation → JSON → ZIP” loop. |
-| WebSocket + `run_live` + React | Same **integration style** for a voice-first UI, transcript, and download UX. |
-
-Working through **[Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)** on Google’s [`way-back-home`](https://github.com/google-americas/way-back-home/tree/main/level_4) repo gives you runnable code and deployment steps. The **normative mapping** of that stack to Concierge is now in the Master Specification **§8**; **`Documentations/`** here defines **what** the Concierge should do and **which artifacts** (`registry.md`, `schema.json`, …) must line up when you implement or extend that stack.
+[Way Back Home Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) / [`way-back-home` repo](https://github.com/google-americas/way-back-home/tree/main/level_4) — patterns for multi-agent, ADK, FastAPI, React. Mapped in Master Specification **§8**; normative path here remains **transcript → two agents → setup guide**.
 
 ---
 
@@ -90,4 +79,4 @@ Working through **[Level 4](https://codelabs.developers.google.com/way-back-home
 
 ---
 
-*Master Specification and Implementation Guide attributed in those files to Manus AI (2026-03-21).*
+*Master Specification, Implementation Guide, and Blueprint amended 2026-03-21 for V2.2 + knowledge-base alignment. Add **AGENTS.md** to your Cursor/Claude rules if you want tools to load it automatically.*
