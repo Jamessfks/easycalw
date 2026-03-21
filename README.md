@@ -1,49 +1,95 @@
-# Way Back Home Level 4 + OpenClaw extras
+# OpenClaw Concierge + Way Back Home Level 4 stack
 
-This repo follows **[Way Back Home — Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)** end-to-end:
+End-to-end **OpenClaw Concierge**: consultative **Gemini Live** (ADK) session → validated **`ConciergePayload`** → **`build_zip_bytes`** setup ZIP. Includes an **Architect** agent on **A2A** (registry tools) and a **React** UI.
 
-- **Dispatch** — Google ADK **Gemini Live** (bidi audio/video), **`monitor_for_hazard`** streaming tool, **`execute_architect`** via **A2A**
-- **Architect** — **Redis** schematic vault, **`lookup_schematic_tool`**, A2A **Agent Card** on **:8081**
-- **FastAPI + WebSocket** — `backend/main.py` bridges the React UI to `Runner.run_live`
-- **React** — `frontend/` Volatile Workbench (screen + mic → backend)
-
-Team planning for **OpenClaw Concierge** lives in [`memory.md`](memory.md). A stub **`POST /generate-config`** (minimal zip) remains for that track; the **default demo path** is the Level 4 mission.
+Reference: [Way Back Home — Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0).
 
 ---
 
-## Quick demo (5 steps)
+## What runs where
 
-1. **Install Python deps** (repo root):
+| Service | Port | Role |
+|--------|------|------|
+| **Architect** (FastAPI + A2A REST) | `8081` | ADK agent + tools over `rulebook/registry.json` (optional Redis mirror) |
+| **Hub** (FastAPI) | `8080` | `POST /generate-config`, `GET /health`, static SPA, `WebSocket /ws/live` |
+| **Redis** (optional) | `6379` | Seed `openclaw:registry_json` for Architect |
 
-   ```bash
-   uv sync
-   # or: pip install -r requirements.txt
-   ```
+---
 
-2. **GCP + Vertex** — `cp backend/.env.example backend/.env`, set `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, run `gcloud auth application-default login`.
+## Prerequisites
 
-3. **Redis + seed** (one command):
+- Python **3.11+**, [uv](https://github.com/astral-sh/uv), Node **20+** (for the UI build)
+- **Google Cloud** project with **Vertex AI** enabled
+- **Application Default Credentials**: `gcloud auth application-default login`
 
-   ```bash
-   ./demo.sh
-   ```
+---
 
-   This runs `docker compose up -d` and `./scripts/seed_redis_schematics.sh`.
+## One-time setup
 
-4. **Two terminals**
+```bash
+uv sync
+cp env.example .env
+# Edit .env: set GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION, PUBLIC_ARCHITECT_URL, ARCHITECT_URL
+```
 
-   ```bash
-   # Terminal A — Architect
-   cd backend/architect_agent && ../../.venv/bin/python server.py
+Optional Redis:
 
-   # Terminal B — build UI once, then dispatch
-   cd frontend && npm install && npm run build
-   cd ../backend && ../.venv/bin/python main.py
-   ```
+```bash
+docker compose up -d
+REDIS_HOST=127.0.0.1 ./scripts/seed_redis.sh
+```
 
-5. **Browser** — [http://127.0.0.1:8000](http://127.0.0.1:8000) → **INITIATE UPLINK** → allow **screen + mic** → note **TARGET: &lt;DRIVE&gt;** → say **“start to assemble”** (see [codelab §5–Mission Execution](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)).
+Build the SPA (required for `http://127.0.0.1:8080/` UI):
 
-Optional: `curl -s http://localhost:8081/.well-known/agent.json | head` to verify the Architect card.
+```bash
+cd frontend && npm install && npm run build && cd ..
+```
+
+---
+
+## Run (two terminals)
+
+**Terminal A — Architect**
+
+```bash
+PYTHONPATH=. uv run uvicorn backend.architect_agent.server:app --host 0.0.0.0 --port 8081
+```
+
+Verify agent card:
+
+```bash
+curl -sS http://127.0.0.1:8081/.well-known/agent.json | head
+```
+
+**Terminal B — Hub**
+
+```bash
+PYTHONPATH=. uv run uvicorn backend.main:app --host 0.0.0.0 --port 8080
+```
+
+Open **http://127.0.0.1:8080/** → **Start live session** → speak or use **Send text**. When the model calls `submit_concierge_payload` successfully, a **Download setup ZIP** link appears.
+
+---
+
+## Dev UI (Vite proxy)
+
+```bash
+cd frontend && npm run dev
+```
+
+Open **http://127.0.0.1:5173** — WebSocket and API calls proxy to the hub on `8080`.
+
+---
+
+## REST-only ZIP (no ADK)
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/generate-config \
+  -H "Content-Type: application/json" \
+  -d @fixtures/concierge_beginner.json \
+  -o /tmp/openclaw-setup.zip
+unzip -l /tmp/openclaw-setup.zip
+```
 
 ---
 
@@ -51,27 +97,35 @@ Optional: `curl -s http://localhost:8081/.well-known/agent.json | head` to verif
 
 | Path | Role |
 |------|------|
-| [`docker-compose.yml`](docker-compose.yml) | Local Redis `ozymandias-vault` (:6379) |
-| [`demo.sh`](demo.sh) | Starts Redis + seeds schematics |
-| [`backend/main.py`](backend/main.py) | WebSocket `/ws/{user_id}/{session_id}`, static `frontend/dist`, `POST /generate-config` |
-| [`backend/dispatch_agent/`](backend/dispatch_agent/) | Live dispatch + hazard monitor + A2A client |
-| [`backend/architect_agent/`](backend/architect_agent/) | Redis tool + `to_a2a` server |
-| [`scripts/seed_redis_schematics.sh`](scripts/seed_redis_schematics.sh) | Codelab `RPUSH` ship lists |
-| [`rulebook/`](rulebook/) | OpenClaw concierge stubs (optional) |
+| `backend/main.py` | Hub: REST + WebSocket + static `frontend/dist` |
+| `backend/hub/live_session.py` | `runner.run_live` bridge |
+| `backend/dispatch_agent/` | Gemini Live + `RemoteA2aAgent` + `submit_concierge_payload` |
+| `backend/architect_agent/` | Registry tools + A2A REST (`A2ARESTFastAPIApplication`) |
+| `backend/generator/` | Jinja2 templates + `build_zip_bytes` |
+| `rulebook/schema.json` | Payload JSON Schema |
+| `rulebook/registry.json` | Allow-listed `clawhub` slugs |
+| `Documentations/prompt.md` | Dispatch system instruction |
+| `docker-compose.yml` | Redis |
+| `demo.sh` | Copy-paste command summary |
 
 ---
 
-## Production
+## Troubleshooting
 
-Memorystore + VPC + **Cloud Run** for Architect and Dispatch: **section 6** of the [Level 4 codelab](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0). Set `ARCHITECT_URL` on the Dispatch service to the deployed Architect URL.
+- **403 / permission errors on Vertex** — confirm `GOOGLE_CLOUD_PROJECT`, billing, and `aiplatform.googleapis.com` enabled; retry ADC.
+- **Architect card 404** — use `/.well-known/agent.json` (see curl above); set `PUBLIC_ARCHITECT_URL` to the URL clients use.
+- **`DISPATCH_LIVE_MODEL` not found** — pick a current **live / native audio** model ID for Vertex in your region; update `.env`.
+- **WebSocket closes immediately** — hub checks `GOOGLE_CLOUD_PROJECT`; empty project returns an error frame on connect.
+- **CORS** — adjust `CORS_ORIGINS` in `.env` for non-local frontends.
 
 ---
 
-## OpenClaw stub
+## Optional: container build
 
-```bash
-curl -sS -X POST http://127.0.0.1:8000/generate-config \
-  -H "Content-Type: application/json" \
-  -d '{"user_intent":"demo","selected_skills":"clawhub install demo","hardware_preference":"mac_mini_home","channel_preference":"telegram"}' \
-  -o openclaw-setup.zip
-```
+Multi-stage image (install uv + Node, build `frontend/dist`, run hub) is left as a follow-up; mirror [Level 4 section 6](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) for Cloud Run, set **`ARCHITECT_URL`** on the dispatch/hub service to the deployed Architect URL.
+
+---
+
+## Security
+
+- Do **not** commit `.env`. Never ask users to paste API keys in the voice UI; generated markdown only references `~/.openclaw/openclaw.json` and env vars ([`Documentations/openclaw_ref.md`](Documentations/openclaw_ref.md)).
