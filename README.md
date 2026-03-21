@@ -10,7 +10,7 @@ There is **no application code** in this checkout—only specs under [`Documenta
 
 | Document | Purpose |
 | :--- | :--- |
-| [**Project Master Specification (V2.1)**](Documentations/Project%20Master%20Specification%20(V2.1)_%20OpenClaw%20Concierge%20Technical%20Architecture.md) | End-to-end technical architecture: three-tier pipeline, security, registry logic, and frontend expectations. |
+| [**Project Master Specification (V2.1)**](Documentations/Project%20Master%20Specification%20(V2.1)_%20OpenClaw%20Concierge%20Technical%20Architecture.md) | End-to-end technical architecture: three-tier pipeline, security, registry logic, frontend expectations, and **§8** reference alignment with [Way Back Home Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0). |
 | [**Claude Code Implementation Guide**](Documentations/Claude%20Code%20Implementation%20Guide_%20OpenClaw%20Concierge%20(1).md) | How to map each artifact type to implementation work (ADK, FastAPI, React) and what to verify before a demo. |
 
 ---
@@ -80,7 +80,7 @@ The **Concierge** specs describe a *different product* (onboarding ZIP, OpenClaw
 | Streaming “sentinel” | **Optional** for Concierge (e.g. proactive UX or safety); not required for the core “conversation → JSON → ZIP” loop. |
 | WebSocket + `run_live` + React | Same **integration style** for a voice-first UI, transcript, and download UX. |
 
-Working through **[Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)** on Google’s **`way-back-home`** repo gives you runnable code and deployment steps; **`Documentations/`** here defines **what** the Concierge should do and **which artifacts** (`registry.md`, `schema.json`, …) must line up when you implement or extend that stack.
+Working through **[Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0)** on Google’s [`way-back-home`](https://github.com/google-americas/way-back-home/tree/main/level_4) repo gives you runnable code and deployment steps. The **normative mapping** of that stack to Concierge is now in the Master Specification **§8**; **`Documentations/`** here defines **what** the Concierge should do and **which artifacts** (`registry.md`, `schema.json`, …) must line up when you implement or extend that stack.
 
 ---
 

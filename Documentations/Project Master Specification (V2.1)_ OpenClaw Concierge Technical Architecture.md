@@ -138,10 +138,59 @@ button to initiate a WebRTC voice call via the Google ADK backend.
 
 ---
 
-## 8. Conclusion
+## 8. Reference Architecture Alignment: Way Back Home Level 4
 
-The OpenClaw Concierge represents a significant advancement in AI agent onboarding. By combining a consultative voice interface with a deterministic configuration generation backend, it addresses the critical barrier of complexity in setting up powerful AI agents. The architecture prioritises user experience, security, and transparency, ensuring a robust and reliable solution for a wide range of users.
+This section integrates the public [Way Back Home](https://github.com/google-americas/way-back-home) workshop (Level 4) and the Google Codelab [*Way Back Home — Live Bidirectional Multi-Agent system*](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) into the Concierge specification. It is **not** a requirement to clone that repository for Concierge; it is a **validated reference** for ADK live agents, multi-agent composition, and full-stack patterns that overlap with Sections 2–4 and 7 of this document.
+
+### 8.1 Authoritative sources
+
+| Source | Role |
+|--------|------|
+| [google-americas/way-back-home](https://github.com/google-americas/way-back-home) (`level_4/`) | Runnable tree: `backend/` (e.g. `main.py`, `architect_agent/`, `dispatch_agent/`), `frontend/`, `scripts/`, `pyproject.toml`, `requirements.txt`. |
+| [Codelab instructions](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) | Step-by-step narrative: Redis vault, Architect agent, A2A server, Dispatch bidi agent, streaming hazard tool, FastAPI/WebSocket runner, React client, optional Cloud Run + Memorystore. |
+
+*(Research for this appendix used structured extraction from the codelab page and the GitHub `level_4` directory listing.)*
+
+### 8.2 Level 4 architecture (summary)
+
+The codelab describes a **real-time, bidirectional multi-agent** stack:
+
+*   **Dispatch agent** — Primary **Gemini Live / bidi** agent: voice and (optionally) video in, spoken and textual responses out. Owns the session and user experience.
+*   **Architect agent** — Specialist agent with **no camera**: accepts a drive identifier, runs a **tool** (`lookup_schematic_tool`) against **Redis** (local Docker or **Memorystore** in production), returns structured lists. Exposed over **HTTP** via **A2A** with an **Agent Card** at `/.well-known/agent.json`.
+*   **Agent-to-Agent (A2A)** — Dispatch discovers the Architect via the card; the codelab uses **Agent-as-a-Tool** (`AgentTool`) so Dispatch remains in control rather than handing off to a sub-agent.
+*   **Streaming tool** — `monitor_for_hazard`: async generator subscribed by ADK, consuming frames from the same **`LiveRequestQueue`** as the live model, yielding proactive alerts (analogous in spirit to **continuous guardrails**, not identical to Concierge’s post-call extraction).
+*   **Application shell** — **FastAPI** + **WebSockets**: upstream audio/image/text packaged into the live queue; downstream **events** serialized (e.g. `model_dump_json` with GenAI-style `serverContent` / `toolCall` shapes) to the **React** client.
+*   **Deployment (optional in codelab)** — **Cloud Run** for Architect (port **8081**) and Dispatch hub (port **8080**); **VPC connector** + **Memorystore (Redis)** for the vault; multi-stage **Docker** build (frontend build → Python image).
+
+Major instructional sections in the codelab align with this flow: environment setup → Redis vault + Architect → A2A server → Dispatch + streaming tools → deep dive on **RunConfig** and the **runner** loop → mission execution → optional production deploy and end-to-end check.
+
+### 8.3 Mapping: Level 4 ↔ OpenClaw Concierge
+
+| Way Back Home Level 4 | OpenClaw Concierge (this spec) | Notes |
+|------------------------|---------------------------------|--------|
+| Dispatch + Gemini Live (bidi) | **§2 Model 1** — Consultative discovery | Same family of capability: low-latency voice, multimodal input. Concierge does not require the Level 4 “assembly” scenario or screen-share hazard UI, but the **ADK + Live** integration patterns apply. |
+| Architect + Redis + strict tool output | **§4 Model 3** skill mapping + **§6 `registry.md`** | Level 4 models **deterministic retrieval** (Redis lists) behind a specialist; Concierge models **deterministic mapping** from extracted use cases to `clawhub` slugs via the registry. A future **“Registry Agent”** over A2A would mirror Architect more closely than a single monolithic LLM call. |
+| `AgentTool` / A2A vs sub-agent | **Separation of concerns** | Codelab explicitly keeps Dispatch as session owner. Concierge keeps **voice discovery** (Model 1) separate from **schema extraction** (Model 2) and **file generation** (Model 3); A2A is optional but illustrates **delegation without losing the primary UX agent**. |
+| Post-conversation structured output | **§3 Model 2** — `schema.json` extraction | Level 4 does **not** centre a separate “post-call extraction” step; Concierge **does**. Implementers can still use the same ADK/Gemini stack for Model 2 after the live session ends. |
+| Streaming hazard monitor | **§5.3** — `permission-gatekeeper` / safety | Different mechanism (vision on live frames vs tool interception), same product goal: **proactive safety** and user protection during agent operation. |
+| FastAPI `main.py` + `runner.run_live` | **§4** webhook + **§7** frontend | Level 4 shows **explicit session/runner** management and WebSocket event forwarding; useful when Concierge evolves beyond “call then webhook” into richer live UIs or trace panels. |
+| React media client | **§7** frontend | Level 4 stresses **screen/camera capture** and streaming; Concierge’s UI may stay **voice + transcript + download**, but the **event JSON contract** pattern is transferable. |
+| Cloud Run + Memorystore | **Production hosting** (non-normative) | Optional pattern for hosting ADK services and shared state; align with your org’s security and **zero key storage** policies (**§5.1**). |
+
+### 8.4 Insights for implementers
+
+1.  **Reuse ADK primitives** documented in Level 4 — `RunConfig` (e.g. bidi streaming, transcription, proactivity where appropriate), `LiveRequestQueue`, and the **event loop** — when hardening Model 1 or adding live diagnostics in the React client.
+2.  **Treat the registry as a vault** — Architect’s Redis-backed tool is the reference pattern for **not** asking the live model to memorize fifty skill slugs; Concierge already uses **`registry.md`** + deterministic Python mapping in Model 3.
+3.  **Prefer agent-as-tool or dedicated tools** for facts — The codelab’s split between **Dispatch** (conversation) and **Architect** (data) reinforces the spec’s split between **conversational** layers and **deterministic** generation.
+4.  **Optional A2A** — If Concierge later exposes a remote “configuration specialist” or hosted registry service, the Level 4 **Agent Card** + A2A server pattern is a direct template.
 
 ---
 
-**Generated by Manus AI (2026-03-21)**
+## 9. Conclusion
+
+The OpenClaw Concierge represents a significant advancement in AI agent onboarding. By combining a consultative voice interface with a deterministic configuration generation backend, it addresses the critical barrier of complexity in setting up powerful AI agents. The architecture prioritises user experience, security, and transparency, ensuring a robust and reliable solution for a wide range of users. Where teams need **production-grade live multimodal** and **multi-agent** patterns, [Way Back Home Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) and its [repository](https://github.com/google-americas/way-back-home/tree/main/level_4) serve as an aligned reference implementation on Google ADK, FastAPI, and React.
+
+---
+
+**Generated by Manus AI (2026-03-21)**  
+**Amended (2026-03-21):** Section 8 — Way Back Home Level 4 alignment and mapping; former Section 8 renumbered to Section 9.
