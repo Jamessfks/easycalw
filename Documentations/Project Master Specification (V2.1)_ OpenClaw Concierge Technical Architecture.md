@@ -86,7 +86,7 @@ The Output Agent is responsible for **authoring the setup guide** — the user�
 ### 4.2 Key components
 
 *   **`output_agent_prompt.md`:** System instruction for the Output Agent (authoring voice, section order, must-not-hallucinate-slugs rule).
-*   **Orchestration API (recommended):** FastAPI (or equivalent) endpoint: `POST` transcript or `POST` pre-validated JSON → returns Markdown or `{ "guide_md": "..." }`.
+*   **Orchestration API (recommended):** FastAPI (or equivalent) endpoint: `POST` transcript or `POST` pre-validated JSON → returns raw Markdown **or** JSON, e.g. `{ "guide_markdown": "...", "schema_version": "..." }`. **Document** response shape in your API spec for clients.
 *   **LLM (optional for prose):** e.g. Gemini 2.5 Pro for narrative glue and personalised explanations; **slug list and commands** come from deterministic code + `registry.md`, not from model recall.
 *   **`registry.md`**, **`smart_markdown_templates.md`**, **`openclaw_ref.md`:** Consumed primarily by the Output Agent path. **`registry.md`** MUST list the same **skill slugs** as **`system_knowledge_base/skill_registry.md`** (single source of truth: either one file or a build step that copies/synchronises — see **Master Execution Blueprint** registry sync rule).
 

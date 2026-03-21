@@ -54,7 +54,7 @@ The **Output Agent** performs **deterministic** `clawhub install` resolution fro
 
 ### A. `system_prompt.md` (Interview Agent — optional live path)
 
-**Purpose:** Master instruction for the **live** interviewer only. Focus on **conversation flow** and **decision-making**, not on formatting Model 2 JSON (that is **`input_agent_prompt.md` + `schema.json`** in the Implementation Guide).
+**Purpose:** Master instruction for the **live** interviewer only. Focus on **conversation flow** and **decision-making**, not on emitting the **Input Agent** handoff JSON (that is **`input_agent_prompt.md` + `schema.json`** in the Implementation Guide).
 
 **Must include:**
 
