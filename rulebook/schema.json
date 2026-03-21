@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw-concierge.local/schema/concierge-payload.json",
+  "title": "OpenClawConciergePayload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "user_profile",
+    "hardware_preference",
+    "channel_preference",
+    "agent_persona"
+  ],
+  "properties": {
+    "user_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "technical_level", "time_availability", "pain_points"],
+      "properties": {
+        "role": { "type": "string", "minLength": 1 },
+        "technical_level": {
+          "type": "string",
+          "enum": ["beginner", "intermediate", "advanced"]
+        },
+        "time_availability": { "type": "string", "minLength": 1 },
+        "pain_points": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "hardware_preference": {
+      "type": "string",
+      "description": "Display label or shorthand, e.g. Mac Mini, VPS, mac_mini_home"
+    },
+    "channel_preference": {
+      "type": "string",
+      "description": "telegram | whatsapp | discord | slack (case-insensitive)"
+    },
+    "selected_skills": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+    },
+    "use_cases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "email_management",
+          "daily_briefings",
+          "chat_interaction",
+          "task_management",
+          "web_research",
+          "social_media",
+          "github_integration",
+          "personal_finance"
+        ]
+      }
+    },
+    "agent_persona": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "role", "tone", "goals"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "tone": { "type": "string", "minLength": 1 },
+        "goals": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "advanced_features_requested": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
