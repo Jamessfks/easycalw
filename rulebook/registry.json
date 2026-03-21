@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "description": "Verified skill slugs from Documentations/memory.md (V1 hackathon scope). Backend rejects any slug not listed here.",
+  "skills": [
+    { "slug": "clawemail", "categories": ["email", "communication"] },
+    { "slug": "agent-mail", "categories": ["email", "communication"] },
+    { "slug": "email-summariser", "categories": ["email"] },
+    { "slug": "email-autoreply", "categories": ["email"] },
+    { "slug": "custom-smtp-sender", "categories": ["email"] },
+    { "slug": "briefing", "categories": ["productivity", "news"] },
+    { "slug": "coordinate-meeting", "categories": ["calendar", "productivity"] },
+    { "slug": "brainz-tasks", "categories": ["productivity", "tasks"] },
+    { "slug": "tavily-search", "categories": ["web-browsing", "information-retrieval"] },
+    { "slug": "rss-reader", "categories": ["news", "information-retrieval"] },
+    { "slug": "weather-forecast", "categories": ["news", "productivity"] },
+    { "slug": "whatsapp-connector", "categories": ["communication", "messaging"] },
+    { "slug": "telegram-bot-api", "categories": ["communication", "messaging"] },
+    { "slug": "discord-bot-kit", "categories": ["communication", "messaging"] },
+    { "slug": "slack-integration", "categories": ["communication", "messaging"] },
+    { "slug": "todoist-integration", "categories": ["productivity", "tasks"] },
+    { "slug": "notion-connector", "categories": ["productivity", "tasks"] },
+    { "slug": "linear-mcp", "categories": ["productivity", "tasks"] },
+    { "slug": "trello-board", "categories": ["productivity", "tasks"] },
+    { "slug": "firecrawl-browser", "categories": ["web-browsing"] },
+    { "slug": "web-summarizer", "categories": ["information-retrieval"] },
+    { "slug": "twitter-poster", "categories": ["social-media"] },
+    { "slug": "linkedin-publisher", "categories": ["social-media"] },
+    { "slug": "github-mcp", "categories": ["developer-tools", "git"] },
+    { "slug": "git-cli-agent", "categories": ["developer-tools", "git"] },
+    { "slug": "hledger-agent", "categories": ["finance"] },
+    { "slug": "ynab-connector", "categories": ["finance"] }
+  ]
+}
