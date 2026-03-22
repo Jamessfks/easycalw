@@ -171,3 +171,11 @@
 .prose-dark a:hover {
     border-bottom-color: #22d3ee;
 }
+
+.prose-dark img {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 1.25rem 0;
+    max-width: 100%;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}

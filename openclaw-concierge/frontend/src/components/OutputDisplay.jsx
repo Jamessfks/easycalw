@@ -107,7 +107,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
         const zip = new JSZip();
 
         if (guide) {
-            zip.file('OPENCLAW_ENGINE_SETUP_GUIDE.md', guide);
+            zip.file('OPENCLAW_ONBOARDING_GUIDE.md', guide);
         }
 
         if (refDocs.length > 0) {
