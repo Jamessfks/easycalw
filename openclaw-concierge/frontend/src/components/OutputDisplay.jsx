@@ -1,182 +1,248 @@
 import React, { useState } from 'react';
-import { Copy, Download, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+
+const TABS = [
+    { id: 'guide', label: 'Setup Guide', icon: FileText },
+    { id: 'references', label: 'Reference Docs', icon: BookOpen },
+    { id: 'prompts', label: 'Prompts', icon: MessageSquare },
+];
 
 function CopyButton({ text }) {
     const [copied, setCopied] = useState(false);
-
     const handleCopy = () => {
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
-
     return (
         <button
             onClick={handleCopy}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono
+                       border border-white/10 text-gray-400 hover:text-white hover:border-white/20
+                       transition-all duration-200"
         >
-            {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
             {copied ? 'Copied' : 'Copy'}
         </button>
     );
 }
 
-function DownloadButton({ filename, content }) {
-    const handleDownload = () => {
-        const blob = new Blob([content], { type: 'text/markdown' });
+function MarkdownRenderer({ content }) {
+    if (!content) return null;
+    return (
+        <div className="prose prose-sm prose-dark max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {content}
+            </ReactMarkdown>
+        </div>
+    );
+}
+
+function ReferenceDocCard({ doc, index }) {
+    const [expanded, setExpanded] = useState(index === 0);
+
+    return (
+        <div className="glass rounded-xl overflow-hidden">
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                        <BookOpen size={14} className="text-blue-400" />
+                    </div>
+                    <span className="font-display font-medium text-sm text-white">
+                        {doc.name}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <CopyButton text={doc.content} />
+                    {expanded ? <ChevronDown size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
+                </div>
+            </button>
+            {expanded && (
+                <div className="px-5 pb-5 border-t border-white/[0.04]">
+                    <div className="pt-4">
+                        <MarkdownRenderer content={doc.content} />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const OutputDisplay = ({ guideData, onBack, onRestart }) => {
+    const [activeTab, setActiveTab] = useState('guide');
+
+    if (!guideData || guideData.status === 'error') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-surface-0 text-gray-100 gap-6 px-6">
+                <div className="w-20 h-20 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                    <FileText size={32} className="text-rose-400" />
+                </div>
+                <h2 className="text-2xl font-display font-bold text-white">
+                    {guideData?.status === 'error' ? 'Generation Failed' : 'No Guide Available'}
+                </h2>
+                <p className="text-gray-400 text-sm max-w-md text-center">
+                    {guideData?.message || 'Something went wrong. Please try running the interview again.'}
+                </p>
+                {onRestart && (
+                    <button onClick={onRestart} className="btn-primary mt-2">
+                        Start New Interview
+                    </button>
+                )}
+            </div>
+        );
+    }
+
+    const { outputs } = guideData;
+    const guide = outputs?.setup_guide || '';
+    const refDocs = outputs?.reference_documents || [];
+    const prompts = outputs?.prompts_to_send || '';
+
+    const handleDownloadAll = () => {
+        const allContent = [
+            '# OpenClaw Setup Guide\n\n',
+            guide,
+            '\n\n---\n\n# Reference Documents\n\n',
+            refDocs.map(d => `## ${d.name}\n\n${d.content}`).join('\n\n---\n\n'),
+            '\n\n---\n\n# Prompts to Send\n\n',
+            prompts,
+        ].join('');
+
+        const blob = new Blob([allContent], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = `OPENCLAW_SETUP_GUIDE_${guideData.guide_id}.md`;
         a.click();
         URL.revokeObjectURL(url);
     };
 
     return (
-        <button
-            onClick={handleDownload}
-            className="flex items-center gap-1 px-3 py-1 text-xs bg-cyan-700 hover:bg-cyan-600 rounded transition-colors"
-        >
-            <Download size={12} />
-            {filename}
-        </button>
-    );
-}
+        <div className="min-h-screen bg-surface-0 text-gray-100 relative">
+            {/* Background */}
+            <div className="fixed inset-0 grid-bg opacity-20" />
+            <div className="ambient-glow bg-cyan-500 top-[-50px] right-[30%] opacity-8" />
+            <div className="ambient-glow bg-blue-600 bottom-[20%] left-[10%] opacity-8" />
 
-function MarkdownBlock({ content }) {
-    // Simple Markdown rendering — renders code blocks with copy buttons
-    // For a hackathon, pre-formatted text is sufficient
-    const blocks = content.split(/(```[\s\S]*?```)/g);
-
-    return (
-        <div className="space-y-3">
-            {blocks.map((block, i) => {
-                if (block.startsWith('```')) {
-                    const code = block.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
-                    return (
-                        <div key={i} className="relative group">
-                            <pre className="bg-gray-950 border border-gray-700 rounded p-4 text-sm font-mono text-green-300 overflow-x-auto whitespace-pre-wrap">
-                                {code}
-                            </pre>
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <CopyButton text={code} />
+            {/* Header */}
+            <header className="sticky top-0 z-20 glass border-b border-white/[0.06]">
+                <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        {onBack && (
+                            <button
+                                onClick={onBack}
+                                className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
+                            >
+                                <ArrowLeft size={18} />
+                            </button>
+                        )}
+                        <div>
+                            <p className="section-label mb-0.5">Your Setup Guide</p>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-lg font-display font-bold text-white">
+                                    OpenClaw Configuration
+                                </h1>
+                                <span className="status-badge border-emerald-500/30 text-emerald-400 bg-emerald-500/10 !text-[10px] !py-0.5">
+                                    <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                                    Complete
+                                </span>
                             </div>
                         </div>
-                    );
-                }
-                return (
-                    <div key={i} className="text-gray-200 whitespace-pre-wrap leading-relaxed text-sm">
-                        {block}
                     </div>
-                );
-            })}
-        </div>
-    );
-}
 
-function CollapsibleSection({ title, children, defaultOpen = false }) {
-    const [open, setOpen] = useState(defaultOpen);
+                    <button onClick={handleDownloadAll} className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs">
+                        <Download size={14} />
+                        Download All
+                    </button>
+                </div>
 
-    return (
-        <div className="border border-gray-700 rounded-lg overflow-hidden">
-            <button
-                onClick={() => setOpen(!open)}
-                className="w-full flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-750 text-left font-bold text-sm transition-colors"
-            >
-                {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                {title}
-            </button>
-            {open && <div className="p-4 bg-gray-900">{children}</div>}
-        </div>
-    );
-}
-
-const OutputDisplay = ({ guideData }) => {
-    if (!guideData) {
-        return (
-            <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-gray-100 gap-4">
-                <h1 className="text-2xl font-bold text-red-400">Generation Failed</h1>
-                <p className="text-gray-400 font-mono text-sm">
-                    The setup guide could not be generated. Please try again.
-                </p>
-            </div>
-        );
-    }
-
-    const { setup_guide, reference_documents, prompts_to_send } = guideData;
-
-    return (
-        <div className="min-h-screen bg-gray-900 text-gray-100">
-            {/* Header */}
-            <header className="border-b border-gray-700 bg-gray-950/80 px-6 py-4 backdrop-blur sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto flex items-center justify-between">
-                    <div>
-                        <p className="text-xs font-bold tracking-widest text-gray-400 uppercase">
-                            OpenClaw Concierge
-                        </p>
-                        <h1 className="text-xl font-bold text-cyan-300">
-                            Your Setup Guide
-                        </h1>
-                    </div>
-                    <div className="flex gap-2">
-                        {setup_guide && (
-                            <DownloadButton filename="OPENCLAW_ENGINE_SETUP_GUIDE.md" content={setup_guide} />
-                        )}
-                        {prompts_to_send && (
-                            <DownloadButton filename="prompts_to_send.md" content={prompts_to_send} />
-                        )}
-                    </div>
+                {/* Tabs */}
+                <div className="max-w-5xl mx-auto px-6 flex gap-1">
+                    {TABS.map(tab => {
+                        const isActive = activeTab === tab.id;
+                        const TabIcon = tab.icon;
+                        const hasContent = tab.id === 'guide' ? !!guide :
+                                          tab.id === 'references' ? refDocs.length > 0 :
+                                          !!prompts;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-display font-medium
+                                    rounded-t-lg transition-all duration-200 border-b-2
+                                    ${isActive
+                                        ? 'border-cyan-400 text-white bg-white/[0.03]'
+                                        : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'
+                                    }
+                                    ${!hasContent ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                disabled={!hasContent}
+                            >
+                                <TabIcon size={14} />
+                                {tab.label}
+                                {tab.id === 'references' && refDocs.length > 0 && (
+                                    <span className="text-[10px] font-mono bg-surface-2 px-1.5 py-0.5 rounded-full">
+                                        {refDocs.length}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </header>
 
             {/* Content */}
-            <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-                {/* Main Setup Guide */}
-                {setup_guide && (
-                    <section>
-                        <h2 className="text-lg font-bold text-cyan-400 mb-4">
-                            Setup Guide
-                        </h2>
-                        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-                            <MarkdownBlock content={setup_guide} />
+            <main className="relative z-10 max-w-5xl mx-auto px-6 py-8">
+                {activeTab === 'guide' && (
+                    <div className="animate-fade-in">
+                        <div className="flex justify-end mb-4">
+                            <CopyButton text={guide} />
                         </div>
-                    </section>
+                        <div className="glass rounded-2xl p-8">
+                            <MarkdownRenderer content={guide} />
+                        </div>
+                    </div>
                 )}
 
-                {/* Reference Documents */}
-                {reference_documents && reference_documents.length > 0 && (
-                    <section>
-                        <h2 className="text-lg font-bold text-cyan-400 mb-4">
-                            Reference Documents ({reference_documents.length})
-                        </h2>
-                        <div className="space-y-2">
-                            {reference_documents.map((doc, i) => (
-                                <CollapsibleSection key={i} title={doc.name}>
-                                    <div className="flex justify-end mb-3">
-                                        <DownloadButton filename={doc.name} content={doc.content} />
-                                    </div>
-                                    <MarkdownBlock content={doc.content} />
-                                </CollapsibleSection>
-                            ))}
-                        </div>
-                    </section>
+                {activeTab === 'references' && (
+                    <div className="space-y-3 animate-fade-in">
+                        {refDocs.map((doc, i) => (
+                            <ReferenceDocCard key={doc.name} doc={doc} index={i} />
+                        ))}
+                        {refDocs.length === 0 && (
+                            <div className="text-center py-20 text-gray-500">
+                                No reference documents were generated.
+                            </div>
+                        )}
+                    </div>
                 )}
 
-                {/* Prompts to Send */}
-                {prompts_to_send && (
-                    <section>
-                        <h2 className="text-lg font-bold text-cyan-400 mb-4">
-                            Initialization Prompts
-                        </h2>
-                        <p className="text-gray-400 text-sm mb-4">
-                            Copy and send these prompts to your OpenClaw instance after setup is complete.
-                        </p>
-                        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-                            <MarkdownBlock content={prompts_to_send} />
+                {activeTab === 'prompts' && (
+                    <div className="animate-fade-in">
+                        <div className="flex justify-end mb-4">
+                            <CopyButton text={prompts} />
                         </div>
-                    </section>
+                        <div className="glass rounded-2xl p-8">
+                            <MarkdownRenderer content={prompts} />
+                        </div>
+                    </div>
                 )}
             </main>
+
+            {/* Footer */}
+            <footer className="relative z-10 text-center py-10 border-t border-white/[0.04]">
+                {onRestart && (
+                    <button onClick={onRestart} className="btn-ghost text-xs">
+                        Start a new interview →
+                    </button>
+                )}
+                <p className="text-[11px] font-mono text-gray-600 mt-4">
+                    Guide ID: {guideData.guide_id} • Generated by EasyClaw AI Concierge
+                </p>
+            </footer>
         </div>
     );
 };

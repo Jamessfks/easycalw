@@ -1,48 +1,46 @@
-import { useState } from 'react';
-import StartScreen from './StartScreen';
+import { useState, useCallback } from 'react';
+import EasyClawLanding from './EasyClawLanding';
 import InterviewView from './InterviewView';
 import SetupGuideView from './SetupGuideView';
 
 function App() {
-    const [phase, setPhase] = useState('start'); // start | interview | loading | output
-    const [guideData, setGuideData] = useState(null);
+    const [phase, setPhase] = useState('landing');
+    const [transcriptData, setTranscriptData] = useState(null);
 
-    const handleInterviewComplete = async (formattedTranscript) => {
-        setPhase('loading');
+    const handleStartInterview = useCallback(() => {
+        setPhase('interview');
+    }, []);
 
-        try {
-            // Trigger guide generation via RocketRide pipeline
-            const res = await fetch('/generate-guide', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ formatted_transcript: formattedTranscript }),
-            });
-            const result = await res.json();
+    const handleInterviewComplete = useCallback((transcript) => {
+        setTranscriptData(transcript);
+        setPhase('processing');
+    }, []);
 
-            if (result.status === 'complete') {
-                setGuideData(result.outputs);
-                setPhase('output');
-            } else {
-                console.error('Guide generation failed:', result.message);
-                setGuideData(null);
-                setPhase('output');
-            }
-        } catch (err) {
-            console.error('Failed to generate guide:', err);
-            setGuideData(null);
-            setPhase('output');
-        }
-    };
+    const handleRestart = useCallback(() => {
+        setTranscriptData(null);
+        setPhase('landing');
+    }, []);
 
-    if (phase === 'start') {
-        return <StartScreen onStart={() => setPhase('interview')} />;
+    if (phase === 'landing') {
+        return <EasyClawLanding onStart={handleStartInterview} />;
     }
 
     if (phase === 'interview') {
-        return <InterviewView onInterviewComplete={handleInterviewComplete} />;
+        return (
+            <InterviewView
+                onInterviewComplete={handleInterviewComplete}
+                onBack={() => setPhase('landing')}
+            />
+        );
     }
 
-    return <SetupGuideView guideReady={phase === 'output'} guideData={guideData} />;
+    return (
+        <SetupGuideView
+            transcriptData={transcriptData}
+            onBack={handleRestart}
+            onRestart={handleRestart}
+        />
+    );
 }
 
 export default App;
