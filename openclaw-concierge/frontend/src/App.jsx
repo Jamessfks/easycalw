@@ -1,15 +1,27 @@
 import { useState } from 'react';
+import EasyClawLanding from './EasyClawLanding';
 import InterviewView from './InterviewView';
 import SetupGuideView from './SetupGuideView';
 
-function App() {
-    const [phase, setPhase] = useState('interview'); // interview | loading | output
+export default function App() {
+    const [phase, setPhase] = useState('landing');
 
-    if (phase === 'interview') {
-        return <InterviewView onInterviewComplete={() => setPhase('loading')} />;
+    if (phase === 'landing') {
+        return <EasyClawLanding onStart={() => setPhase('interview')} />;
     }
 
-    return <SetupGuideView guideReady={phase === 'output'} />;
-}
+    if (phase === 'interview') {
+        return (
+            <InterviewView
+                onBack={() => setPhase('landing')}
+                onInterviewComplete={() => setPhase('guide')}
+            />
+        );
+    }
 
-export default App;
+    return (
+        <SetupGuideView
+            onBack={() => setPhase('landing')}
+        />
+    );
+}

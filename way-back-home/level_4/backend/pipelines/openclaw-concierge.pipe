@@ -1,0 +1,288 @@
+{
+  "viewport": {
+    "x": 98,
+    "y": 67,
+    "zoom": 0.72
+  },
+  "version": "1.0",
+  "name": "OpenClaw Concierge — Vapi ➜ ADK Pipeline",
+  "description": "Vapi voice interview (Agent 1) ➜ Gemini Input Agent ➜ ADK Output Agent (Agent 2) ➜ OPENCLAW_ENGINE_SETUP_GUIDE.md",
+  "components": [
+    {
+      "id": "annotation_phase1",
+      "provider": "annotation",
+      "config": {},
+      "ui": {
+        "position": {
+          "x": 80,
+          "y": 20
+        },
+        "measured": {
+          "width": 150,
+          "height": 36
+        },
+        "data": {
+          "provider": "annotation",
+          "class": "annotation",
+          "type": "annotation",
+          "content": "Agent 1 — Vapi Voice Interview\n(replaces ADK BIDI LiveRequestQueue)"
+        },
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "annotation_user",
+      "provider": "annotation",
+      "config": {},
+      "ui": {
+        "position": {
+          "x": 140,
+          "y": 220
+        },
+        "measured": {
+          "width": 150,
+          "height": 36
+        },
+        "data": {
+          "provider": "annotation",
+          "class": "annotation",
+          "type": "annotation",
+          "content": "User ↔ Vapi Voice Call\n(phone / web client)"
+        },
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "source_1",
+      "provider": "webhook",
+      "name": "Vapi End-of-Call Webhook",
+      "config": {
+        "hideForm": true,
+        "mode": "Source",
+        "parameters": {
+          "endpoint": "/vapi-webhook"
+        },
+        "type": "webhook"
+      },
+      "ui": {
+        "position": {
+          "x": 420,
+          "y": 120
+        },
+        "measured": {
+          "width": 160,
+          "height": 145
+        },
+        "data": {
+          "provider": "webhook",
+          "class": "source",
+          "type": "default"
+        },
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "python_1",
+      "provider": "python",
+      "name": "Input Agent — Gemini Transcript Formatter",
+      "config": {
+        "file": "rocketride_input_agent_node.py",
+        "function": "rocketride_input_agent"
+      },
+      "ui": {
+        "position": {
+          "x": 340,
+          "y": 340
+        },
+        "measured": {
+          "width": 160,
+          "height": 47
+        },
+        "data": {
+          "provider": "python",
+          "class": "other",
+          "type": "default"
+        },
+        "formDataValid": true
+      },
+      "input": [
+        {
+          "lane": "text",
+          "from": "source_1"
+        }
+      ]
+    },
+    {
+      "id": "annotation_bridge",
+      "provider": "annotation",
+      "config": {},
+      "ui": {
+        "position": {
+          "x": 560,
+          "y": 350
+        },
+        "measured": {
+          "width": 150,
+          "height": 36
+        },
+        "data": {
+          "provider": "annotation",
+          "class": "annotation",
+          "type": "annotation",
+          "content": "anchor report JSON\n→ batch Runner invoke"
+        },
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "annotation_phase2",
+      "provider": "annotation",
+      "config": {},
+      "ui": {
+        "position": {
+          "x": 80,
+          "y": 490
+        },
+        "measured": {
+          "width": 150,
+          "height": 36
+        },
+        "data": {
+          "provider": "annotation",
+          "class": "annotation",
+          "type": "annotation",
+          "content": "Agent 2 — OpenClaw Setup Phase\n(ADK Batch Runner)"
+        },
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "python_2",
+      "provider": "python",
+      "name": "Output Agent — ADK Config Builder",
+      "config": {
+        "file": "rocketride_adk_node.py",
+        "function": "rocketride_node_execute"
+      },
+      "ui": {
+        "position": {
+          "x": 320,
+          "y": 460
+        },
+        "measured": {
+          "width": 160,
+          "height": 47
+        },
+        "data": {
+          "provider": "python",
+          "class": "other",
+          "type": "default"
+        },
+        "formDataValid": true
+      },
+      "input": [
+        {
+          "lane": "text",
+          "from": "python_1"
+        }
+      ]
+    },
+    {
+      "id": "annotation_knowledge_1",
+      "provider": "annotation",
+      "config": {},
+      "ui": {
+        "position": {
+          "x": 540,
+          "y": 480
+        },
+        "measured": {
+          "width": 150,
+          "height": 36
+        },
+        "data": {
+          "provider": "annotation",
+          "class": "annotation",
+          "type": "annotation",
+          "content": "openclaw_ref.md\ntemplates · registry"
+        },
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "annotation_knowledge_2",
+      "provider": "annotation",
+      "config": {},
+      "ui": {
+        "position": {
+          "x": 620,
+          "y": 590
+        },
+        "measured": {
+          "width": 150,
+          "height": 36
+        },
+        "data": {
+          "provider": "annotation",
+          "class": "annotation",
+          "type": "annotation",
+          "content": "setup_requirements.md\ndomain_knowledge/*.md"
+        },
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "response_1",
+      "provider": "response",
+      "name": "Pipeline Response",
+      "config": {
+        "lanes": []
+      },
+      "ui": {
+        "position": {
+          "x": 340,
+          "y": 720
+        },
+        "measured": {
+          "width": 160,
+          "height": 44
+        },
+        "data": {
+          "provider": "response",
+          "class": "infrastructure",
+          "type": "default"
+        },
+        "formDataValid": true
+      },
+      "input": [
+        {
+          "lane": "text",
+          "from": "python_2"
+        }
+      ]
+    },
+    {
+      "id": "annotation_output",
+      "provider": "annotation",
+      "config": {},
+      "ui": {
+        "position": {
+          "x": 340,
+          "y": 810
+        },
+        "measured": {
+          "width": 150,
+          "height": 36
+        },
+        "data": {
+          "provider": "annotation",
+          "class": "annotation",
+          "type": "annotation",
+          "content": "→ OPENCLAW_ENGINE_SETUP_GUIDE.md\n(ZIP · GET /download/{job_id})"
+        },
+        "formDataValid": true
+      }
+    }
+  ],
+  "project_id": "openclaw-concierge-v1"
+}
