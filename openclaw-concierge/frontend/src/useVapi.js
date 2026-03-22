@@ -75,8 +75,16 @@ export default function useVapi() {
                 };
 
                 if (entry.isFinal) {
-                    // Append final entry to display transcript and accumulator
-                    setTranscript(prev => [...prev, entry]);
+                    // Replace trailing partial of same role, or append if none exists
+                    setTranscript(prev => {
+                        const lastIdx = prev.length - 1;
+                        if (lastIdx >= 0 && !prev[lastIdx].isFinal && prev[lastIdx].role === role) {
+                            const updated = [...prev];
+                            updated[lastIdx] = entry;
+                            return updated;
+                        }
+                        return [...prev, entry];
+                    });
                     fullTranscriptRef.current = [...fullTranscriptRef.current, entry];
 
                     // Update voice state based on who just finished speaking
