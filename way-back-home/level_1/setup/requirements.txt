@@ -1,0 +1,4 @@
+# Level 1 Setup: Star Catalog Creation
+# These dependencies are only needed for workshop preparation
+
+google-cloud-bigquery>=3.0.0

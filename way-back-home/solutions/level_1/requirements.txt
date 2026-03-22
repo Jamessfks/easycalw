@@ -1,0 +1,20 @@
+# Level 1: Way Back Home - Root Dependencies
+#
+# These dependencies are needed for:
+# - generate_evidence.py (crash site evidence generation)
+# - setup/setup_star_catalog.py (BigQuery star catalog)
+#
+# The MCP server and agent have their own requirements.txt files
+# for Cloud Run deployment.
+
+# Google Gemini SDK - For evidence generation with Nano Banana
+google-genai>=1.0.0
+
+# Google Cloud BigQuery - For star catalog setup
+google-cloud-bigquery>=3.0.0
+
+# Image processing
+Pillow>=10.0.0
+
+# HTTP client for API calls to Mission Control
+requests>=2.31.0

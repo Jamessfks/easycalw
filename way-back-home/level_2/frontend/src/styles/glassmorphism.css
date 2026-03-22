@@ -1,0 +1,35 @@
+/* Glassmorphism utility classes */
+
+.glass {
+    @apply bg-space-700/50 backdrop-blur-sm;
+}
+
+.glass-elevated {
+    @apply bg-space-600/60 backdrop-blur-md;
+}
+
+.glass-border {
+    @apply border border-white/10;
+}
+
+.glass-card {
+    @apply glass glass-border rounded-lg;
+}
+
+.glass-panel {
+    @apply glass-elevated glass-border rounded-lg shadow-lg;
+}
+
+/* Holographic effects */
+.holographic-border {
+    @apply border border-accent-cyan/30 shadow-glow-sm-cyan;
+    transition: all 0.3s ease;
+}
+
+.holographic-border:hover {
+    @apply border-accent-cyan/60;
+}
+
+.holographic-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink;
+}

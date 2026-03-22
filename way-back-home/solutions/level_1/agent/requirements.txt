@@ -1,0 +1,32 @@
+# Level 1: Mission Analysis AI - Multi-Agent System Dependencies
+
+# Google ADK - Agent framework with MCP support
+# Provides: Agent, ParallelAgent, CallbackContext, ToolContext, MCPToolset, etc.
+google-adk>=0.1.0
+
+# Google Gemini SDK - For local FunctionTools (star feature extraction)
+google-genai>=1.0.0
+
+# Google Cloud BigQuery (fallback for direct queries if needed)
+google-cloud-bigquery>=3.0.0
+
+# Google Auth (for Google Cloud MCP server for BigQuery OAuth token)
+google-auth>=2.0.0
+
+# MCP Protocol SDK (for client connections)
+mcp>=1.0.0
+
+# HTTP clients
+# httpx is required for async HTTP in before_agent_callback
+httpx>=0.25.0
+requests>=2.31.0
+
+# Web server for A2A deployment
+uvicorn>=0.24.0
+starlette>=0.32.0
+
+# Async support
+anyio>=4.0.0
+
+# Environment variables
+python-dotenv>=1.0.0

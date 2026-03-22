@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Way Back Home - Global Styles
+   Soft pastel space aesthetic
+   ============================================ */
+
+@layer base {
+  :root {
+    /* Color tokens */
+    --color-lavender: #C4B5E0;
+    --color-mint: #A8E6CF;
+    --color-terracotta: #E8A87C;
+    --color-peach: #F8B4B4;
+    --color-cream: #FFF8F0;
+    --color-orange: #FF9F43;
+    --color-void: #1A1625;
+    
+    /* Typography */
+    --font-display: 'Outfit', system-ui, sans-serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-space-void text-space-cream antialiased;
+    font-family: var(--font-body);
+  }
+  
+  /* Custom selection color */
+  ::selection {
+    @apply bg-space-orange/30 text-space-cream;
+  }
+}
+
+@layer components {
+  /* Glass morphism panels */
+  .glass-panel {
+    @apply bg-space-void-light/60 backdrop-blur-xl border border-space-lavender/20 rounded-2xl;
+    box-shadow: 
+      0 4px 30px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  
+  .glass-panel-light {
+    @apply bg-space-cream/10 backdrop-blur-xl border border-space-cream/20 rounded-2xl;
+  }
+  
+  /* Glowing buttons */
+  .btn-glow {
+    @apply relative px-6 py-3 rounded-full font-display font-medium transition-all duration-300;
+    @apply bg-space-orange text-space-void;
+    @apply hover:shadow-glow-orange hover:scale-105;
+    @apply active:scale-95;
+  }
+  
+  .btn-glow-secondary {
+    @apply relative px-6 py-3 rounded-full font-display font-medium transition-all duration-300;
+    @apply bg-space-lavender/20 text-space-lavender border border-space-lavender/30;
+    @apply hover:bg-space-lavender/30 hover:shadow-glow-lavender;
+    @apply active:scale-95;
+  }
+  
+  /* Floating card style */
+  .floating-card {
+    @apply glass-panel p-6;
+    @apply transform transition-all duration-500;
+    @apply hover:-translate-y-1 hover:shadow-2xl;
+  }
+  
+  /* Progress bar */
+  .progress-bar {
+    @apply h-2 bg-space-void-lighter rounded-full overflow-hidden;
+  }
+  
+  .progress-bar-fill {
+    @apply h-full bg-gradient-to-r from-space-mint to-space-orange rounded-full;
+    @apply transition-all duration-700 ease-out;
+  }
+  
+  /* Coordinate badge */
+  .coord-badge {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full;
+    @apply bg-space-void-lighter/80 text-space-mint font-mono text-sm;
+    @apply border border-space-mint/20;
+  }
+  
+  /* Avatar marker on map */
+  .avatar-marker {
+    @apply relative w-10 h-10 rounded-full overflow-hidden;
+    @apply border-2 border-space-cream shadow-lg;
+    @apply transition-all duration-300;
+    @apply hover:scale-125 hover:z-50;
+    @apply cursor-pointer;
+  }
+  
+  .avatar-marker.current-user {
+    @apply border-space-orange shadow-glow-orange;
+    @apply ring-2 ring-space-orange/50 ring-offset-2 ring-offset-space-void;
+  }
+  
+  /* Level badge */
+  .level-badge {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full;
+    @apply bg-space-lavender/20 text-space-lavender;
+    @apply font-display text-sm font-medium;
+  }
+  
+  .level-badge.completed {
+    @apply bg-space-mint/20 text-space-mint;
+  }
+  
+  .level-badge.current {
+    @apply bg-space-orange/20 text-space-orange;
+    @apply animate-pulse-soft;
+  }
+}
+
+@layer utilities {
+  /* Text gradient utility */
+  .text-gradient-space {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, var(--color-lavender), var(--color-peach), var(--color-orange));
+  }
+  
+  /* Noise texture overlay */
+  .noise-overlay {
+    position: relative;
+  }
+  
+  .noise-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+  
+  /* Stars background pattern */
+  .stars-pattern {
+    background-image: 
+      radial-gradient(2px 2px at 20px 30px, white, transparent),
+      radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+      radial-gradient(1px 1px at 90px 40px, white, transparent),
+      radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 160px 120px, white, transparent);
+    background-size: 200px 200px;
+    background-position: 0 0;
+    animation: drift 60s linear infinite;
+  }
+  
+  /* Glow effect on text */
+  .text-glow {
+    text-shadow: 0 0 20px currentColor;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================
+   Three.js Canvas Styles
+   ============================================ */
+
+.three-canvas {
+  position: fixed !important;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Ensure UI floats above canvas */
+.ui-layer {
+  position: relative;
+  z-index: 10;
+}
+
+/* Loading screen */
+.loading-screen {
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  @apply bg-space-void;
+}
+
+.loading-spinner {
+  @apply w-16 h-16 border-4 border-space-lavender/20 border-t-space-orange rounded-full;
+  animation: spin 1s linear infinite;
+}

@@ -1,0 +1,56 @@
+# Level 1: Location Analyzer MCP Server
+# Cloud Build configuration for deployment to Cloud Run
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/location-analyzer:latest'
+      - '.'
+
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/location-analyzer:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'location-analyzer'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/location-analyzer:latest'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--service-account'
+      - '${_SERVICE_ACCOUNT}'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '300'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '3'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=${_REGION}'
+      - '--labels'
+      - 'app=way-back-home,level=1,component=mcp-server,dev-tutorial=multi-modal'
+
+substitutions:
+  _REGION: us-central1
+  _REPO_NAME: way-back-home
+  _SERVICE_ACCOUNT: ""  # Set via command line: --substitutions=_SERVICE_ACCOUNT=$SERVICE_ACCOUNT
+
+options:
+  logging: CLOUD_LOGGING_ONLY

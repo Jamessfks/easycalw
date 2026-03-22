@@ -1,0 +1,59 @@
+# Way Back Home - Git Ignore
+
+# Generated configuration (contains user-specific data)
+config.json
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+
+# Generated avatar images
+outputs/
+
+# Firebase
+.firebase/
+firebase-debug.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# Python lib directories (but NOT frontend/lib which contains source code)
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
