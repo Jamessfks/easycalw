@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Firebase ID Token (All-in-One)</title>
+    <!-- Use the compat libraries for easier syntax with the provided code -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+
+        textarea {
+            width: 90%;
+            font-family: monospace;
+        }
+
+        .token-box {
+            margin-top: 15px;
+        }
+
+        .token-box h3 {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Get Firebase ID Token via Google Sign-In</h1>
+    <p>This page handles the entire flow in the browser.</p>
+    <button id="googleSignInButton">Sign in with Google & Get Firebase ID Token</button>
+    <button id="signOutButton" style="display: none;">Sign Out</button>
+
+    <div id="userInfo" style="display: none; margin-top: 20px;">
+        <strong>User Status:</strong> <span id="userStatus"></span>
+    </div>
+
+    <div id="firebaseTokenSection" class="token-box" style="display: none;">
+        <h3>Your Firebase Authentication ID Token:</h3>
+        <p>This is the token you need for your backend or other Firebase services.</p>
+        <textarea id="firebaseIdTokenOutput" rows="6" readonly></textarea>
+
+        <div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px;">
+            <h3>Generate Create Event Command</h3>
+            <p>Enter the details below to generate the curl command.</p>
+
+            <div style="margin-bottom: 10px;">
+                <label for="eventCode">Event Code (e.g., boston):</label><br>
+                <input type="text" id="eventCode" placeholder="boston" style="width: 300px; padding: 5px;">
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label for="eventName">Event Name (e.g., Way Back Home Boston):</label><br>
+                <input type="text" id="eventName" placeholder="Way Back Home Boston"
+                    style="width: 300px; padding: 5px;">
+            </div>
+
+            <h4>Generated Curl Command:</h4>
+            <textarea id="curlCommandOutput" rows="10" readonly></textarea>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- IMPORTANT: REPLACE WITH YOUR FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        // --------------------------------------------------
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        // Get references to HTML elements
+        const googleSignInButton = document.getElementById('googleSignInButton');
+        const signOutButton = document.getElementById('signOutButton');
+        const userInfo = document.getElementById('userInfo');
+        const userStatus = document.getElementById('userStatus');
+        const firebaseTokenSection = document.getElementById('firebaseTokenSection');
+        const firebaseIdTokenOutput = document.getElementById('firebaseIdTokenOutput');
+
+        // Event input references
+        const eventCodeInput = document.getElementById('eventCode');
+        const eventNameInput = document.getElementById('eventName');
+        const curlCommandOutput = document.getElementById('curlCommandOutput');
+
+        let currentToken = "";
+
+        function updateCurlCommand() {
+            const eventCode = eventCodeInput.value || "boston";
+            const eventName = eventNameInput.value || "Way Back Home Boston";
+
+            const command = `curl -X POST https://way-back-home-api-789872749985.us-central1.run.app/admin/events \\
+  -H "Authorization: Bearer ${currentToken}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"code": "${eventCode}", "name": "${eventName}"}'`;
+
+            curlCommandOutput.value = command;
+        }
+
+        // Add listeners to update command when inputs change
+        eventCodeInput.addEventListener('input', updateCurlCommand);
+        eventNameInput.addEventListener('input', updateCurlCommand);
+
+        googleSignInButton.addEventListener('click', async () => {
+            try {
+                // This single command handles the pop-up and signs the user into Firebase
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user; // This is the Firebase user object
+                console.log("Successfully signed into Firebase:", user);
+
+                // Now, get the Firebase ID Token from the Firebase user object
+                console.log("Retrieving Firebase ID Token...");
+                currentToken = await user.getIdToken(true); // forceRefresh = true
+
+                // Update the UI
+                userStatus.textContent = `Signed in as: ${user.displayName} (UID: ${user.uid})`;
+                firebaseIdTokenOutput.value = currentToken;
+
+                // Initial update of the curl command
+                updateCurlCommand();
+
+                // Show/hide relevant elements
+                userInfo.style.display = 'block';
+                firebaseTokenSection.style.display = 'block';
+                googleSignInButton.style.display = 'none';
+                signOutButton.style.display = 'block';
+
+            } catch (error) {
+                console.error("Error during sign-in or token retrieval:", error);
+                alert(`Error: ${error.message}`);
+            }
+        });
+
+        signOutButton.addEventListener('click', async () => {
+            await auth.signOut();
+            console.log("User signed out.");
+
+            // Reset the UI
+            userStatus.textContent = '';
+            firebaseIdTokenOutput.value = '';
+            curlCommandOutput.value = '';
+            currentToken = "";
+
+            userInfo.style.display = 'none';
+            firebaseTokenSection.style.display = 'none';
+            googleSignInButton.style.display = 'block';
+            signOutButton.style.display = 'none';
+        });
+
+    </script>
+</body>
+
+</html>
