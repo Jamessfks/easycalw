@@ -543,13 +543,22 @@ async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
 
     elif msg_type == "end-of-call-report":
         artifact = message.get("artifact", {})
-        transcript = artifact.get("transcript", "")
-        logger.info(f"[WEBHOOK] End of call — transcript length: {len(transcript)} chars")
+        # VAPI returns structured messages array: [{role, message, time}, ...]
+        messages = artifact.get("messages", [])
+        if messages:
+            transcript_text = "\n".join(
+                f"{'User' if m.get('role') == 'user' else 'Agent'}: {m.get('message', '')}"
+                for m in messages
+                if m.get("message")
+            )
+        else:
+            # Fallback: plain transcript string
+            transcript_text = artifact.get("transcript", "")
+        logger.info(f"[WEBHOOK] End of call — transcript length: {len(transcript_text)} chars")
 
-        # Format transcript, then kick off guide generation in background
+        # Format and kick off guide generation in background
         try:
-            formatted = await format_transcript(transcript)
-            guide_id = formatted[:8].replace(" ", "")  # simple ID from content
+            formatted = await format_transcript(transcript_text)
             import uuid
             guide_id = str(uuid.uuid4())[:8]
             guide_store[guide_id] = {"guide_id": guide_id, "status": "generating"}
