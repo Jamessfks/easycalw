@@ -1,0 +1,122 @@
+steps:
+  # ==============================================================================
+  # BACKEND
+  # ==============================================================================
+  
+  # 1. Build Backend Image
+  # We still use the backend/Dockerfile for this
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/survivor-backend', './backend']
+    id: 'build-backend'
+
+  # 2. Push Backend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/survivor-backend']
+    id: 'push-backend'
+
+  # 3. Deploy Backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'survivor-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/survivor-backend'
+      - '--region'
+      - '$_REGION'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'PROJECT_ID=$PROJECT_ID,LOCATION=$_REGION,GOOGLE_API_KEY=$_GOOGLE_API_KEY,AGENT_ENGINE_ID=$_AGENT_ENGINE_ID,USE_MEMORY_BANK=$_USE_MEMORY_BANK,GCS_BUCKET_NAME=$_GCS_BUCKET_NAME,INSTANCE_ID=$_INSTANCE_ID,DATABASE_ID=$_DATABASE_ID,GRAPH_NAME=$_GRAPH_NAME,GOOGLE_GENAI_USE_VERTEXAI=$_GOOGLE_GENAI_USE_VERTEXAI'
+    id: 'deploy-backend'
+
+  # 4. Get Backend URL and save to shared workspace
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        gcloud run services describe survivor-backend --region $_REGION --format 'value(status.url)' > /workspace/backend_url.txt
+        echo "Backend URL: $(cat /workspace/backend_url.txt)"
+    id: 'get-backend-url'
+
+  # ==============================================================================
+  # FRONTEND
+  # ==============================================================================
+
+  # 5. Install Frontend Dependencies
+  - name: 'node:18'
+    dir: 'frontend'
+    entrypoint: npm
+    args: ['install']
+    id: 'install-frontend'
+
+  # 6. Build Frontend (injecting VITE_API_URL from step 4)
+  - name: 'node:18'
+    dir: 'frontend'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        export VITE_API_URL=$(cat /workspace/backend_url.txt)
+        if [ -z "$VITE_API_URL" ]; then
+          echo "Error: Backend URL is empty"
+          exit 1
+        fi
+        echo "Building with API URL: $VITE_API_URL"
+        npm run build
+    id: 'build-frontend-assets'
+
+  # 7. Build Frontend Container
+  # This uses frontend/Dockerfile which COPYs the local 'dist' folder we just built
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/survivor-frontend', './frontend']
+    id: 'build-frontend-image'
+
+  # 8. Push Frontend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/survivor-frontend']
+    id: 'push-frontend'
+
+  # 9. Deploy Frontend
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'survivor-frontend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/survivor-frontend'
+      - '--region'
+      - '$_REGION'
+      - '--allow-unauthenticated'
+    id: 'deploy-frontend'
+
+  # 10. Output Frontend URL
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        echo "------------------------------------------------"
+        echo "DEPLOYMENT COMPLETE"
+        echo "------------------------------------------------"
+        echo "Backend: $(cat /workspace/backend_url.txt)"
+        echo "Frontend: $(gcloud run services describe survivor-frontend --region $_REGION --format 'value(status.url)')"
+        echo "------------------------------------------------"
+    id: 'final-output'
+
+# Define substitution variables (these are passed from the CLI/Trigger)
+substitutions:
+  _REGION: 'us-central1'
+  _GOOGLE_API_KEY: ''
+  _AGENT_ENGINE_ID: ''
+  _USE_MEMORY_BANK: 'TRUE'
+  _GCS_BUCKET_NAME: ''
+  _INSTANCE_ID: 'survivor-network'
+  _DATABASE_ID: 'graph-db'
+  _GRAPH_NAME: 'SurvivorGraph'
+  _GOOGLE_GENAI_USE_VERTEXAI: 'TRUE'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

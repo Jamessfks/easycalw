@@ -1,0 +1,5 @@
+{
+    "api_base_url": "https://api.waybackhome.dev",
+    "map_base_url": "https://waybackhome.dev",
+    "default_event_code": "sandbox"
+}
