@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive } from 'lucide-react';
 
 const TABS = [
     { id: 'guide', label: 'Setup Guide', icon: FileText },
@@ -102,21 +102,30 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const refDocs = outputs?.reference_documents || [];
     const prompts = outputs?.prompts_to_send || '';
 
-    const handleDownloadAll = () => {
-        const allContent = [
-            '# OpenClaw Setup Guide\n\n',
-            guide,
-            '\n\n---\n\n# Reference Documents\n\n',
-            refDocs.map(d => `## ${d.name}\n\n${d.content}`).join('\n\n---\n\n'),
-            '\n\n---\n\n# Prompts to Send\n\n',
-            prompts,
-        ].join('');
+    const handleDownloadAll = async () => {
+        const { default: JSZip } = await import('jszip');
+        const zip = new JSZip();
 
-        const blob = new Blob([allContent], { type: 'text/markdown' });
+        if (guide) {
+            zip.file('OPENCLAW_ENGINE_SETUP_GUIDE.md', guide);
+        }
+
+        if (refDocs.length > 0) {
+            const refFolder = zip.folder('reference_documents');
+            refDocs.forEach(doc => {
+                refFolder.file(doc.name, doc.content);
+            });
+        }
+
+        if (prompts) {
+            zip.file('prompts_to_send.md', prompts);
+        }
+
+        const blob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `OPENCLAW_SETUP_GUIDE_${guideData.guide_id}.md`;
+        a.download = `openclaw_setup_${guideData.guide_id}.zip`;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -155,8 +164,8 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                     </div>
 
                     <button onClick={handleDownloadAll} className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs">
-                        <Download size={14} />
-                        Download All
+                        <Archive size={14} />
+                        Download .zip
                     </button>
                 </div>
 

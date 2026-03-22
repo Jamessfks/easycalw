@@ -35,7 +35,7 @@ const FEATURES = [
     { icon: Settings, title: 'Complete Output', desc: 'Guides, reference docs, and prompts' },
 ];
 
-export default function EasyClawLanding({ onStart }) {
+export default function EasyClawLanding({ onStart, onDemo }) {
     return (
         <div className="min-h-screen bg-surface-0 relative overflow-hidden">
             {/* Background grid */}
@@ -82,12 +82,18 @@ export default function EasyClawLanding({ onStart }) {
                     </p>
 
                     {/* CTA */}
-                    <div className="animate-fade-up opacity-0 delay-300 mt-10 flex items-center gap-4">
+                    <div className="animate-fade-up opacity-0 delay-300 mt-10 flex flex-col sm:flex-row items-center gap-4">
                         <button onClick={onStart} className="btn-primary flex items-center gap-2.5 text-base">
                             <Mic size={18} />
                             Start Voice Interview
                             <ArrowRight size={16} className="ml-1" />
                         </button>
+                        {onDemo && (
+                            <button onClick={onDemo} className="btn-ghost flex items-center gap-2 text-sm">
+                                <FileText size={16} />
+                                Preview Demo Output
+                            </button>
+                        )}
                     </div>
 
                     {/* Hero visual — orbiting mic */}
