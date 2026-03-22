@@ -1,18 +1,18 @@
 # OpenClaw Concierge
 
-A two-phase AI system that interviews users via voice and generates a personalized OpenClaw engine setup guide. Uses [Vapi](https://vapi.ai/) for voice infrastructure and a backend agent for guide generation.
+A two-phase AI system that interviews users via voice and generates a personalized OpenClaw engine setup guide. Uses [Vapi](https://vapi.ai/) for voice infrastructure and [RocketRide](https://github.com/rocketride-org/rocketride-server) for LLM pipeline orchestration.
 
 ---
 
 ## How it works
 
 ```
-User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → Formatter → Setup Guide Agent → Output
+User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → RocketRide Formatter → RocketRide Guide Pipeline → Output
 ```
 
 1. **Interview Phase** — The user has a voice conversation with a Vapi-powered AI agent. Vapi handles all audio streaming, speech recognition, text-to-speech, interruption handling, and turn-taking. Our frontend displays a two-panel UI (agent avatar + live transcript).
-2. **Formatter** — A single LLM call cleans up the raw transcript into structured Markdown.
-3. **Setup Guide Creation Phase** — A backend agent reads the formatted transcript and generates a personalized setup guide, reference documents, and initialization prompts.
+2. **Formatter** — A RocketRide pipeline (single LLM call via Anthropic Claude) cleans up the raw transcript into structured Markdown.
+3. **Setup Guide Creation Phase** — Three sequential RocketRide pipelines generate the setup guide, reference documents, and initialization prompts.
 
 **Output:**
 - `OPENCLAW_ENGINE_SETUP_GUIDE.md` — the main setup guide
@@ -26,9 +26,10 @@ User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → Formatter → S
 | # | Document | Purpose |
 |---|----------|---------|
 | 1 | **This README** | Project overview |
-| 2 | [`docs/architecture.md`](docs/architecture.md) | Technical architecture, Vapi integration, project structure, data flow |
+| 2 | [`docs/architecture.md`](docs/architecture.md) | Technical architecture, Vapi integration, RocketRide pipelines, data flow |
 | 3 | [`docs/design-considerations.md`](docs/design-considerations.md) | Engineering decisions, UI specs, debates, open questions |
-| 4 | [`docs/AGENTS.md`](docs/AGENTS.md) | Instructions for AI coding agents (invariants, build order, do-not rules) |
+| 4 | [`docs/rocketride-reference.md`](docs/rocketride-reference.md) | RocketRide integration: installation, pipeline architecture, SDK usage |
+| 5 | [`docs/AGENTS.md`](docs/AGENTS.md) | Instructions for AI coding agents (invariants, build order, do-not rules) |
 
 ---
 
@@ -36,9 +37,12 @@ User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → Formatter → S
 
 ```
 backend/
-├── main.py                    # FastAPI: Vapi webhook + formatter + guide generation endpoints
-├── setup_guide_agent/         # Phase 2: backend-only guide generation
-├── formatter.py               # Transcript cleanup LLM call
+├── main.py                    # FastAPI: Vapi webhook + RocketRide pipeline endpoints
+├── setup_guide_agent/         # Phase 2: 3-step RocketRide guide pipeline
+│   ├── agent.py               # Pipeline orchestration
+│   ├── system_prompt.md       # Placeholder (other team delivers)
+│   └── setup_references.md    # Placeholder (other team delivers)
+├── formatter.py               # RocketRide formatter pipeline
 └── vapi_config.py             # Vapi assistant ID, keys, webhook handling
 
 frontend/
@@ -59,8 +63,9 @@ way-back-home/level_4/         # Reference implementation (UI layout patterns on
 ## Build order
 
 1. **Interview Phase** — Connect Vapi SDK to frontend, build two-panel UI
-2. **Formatter** — Single LLM endpoint for transcript cleanup
-3. **Setup Guide Creation** — Backend agent + output display UI
+2. **RocketRide Engine** — Docker container + Python SDK + env vars
+3. **Formatter** — RocketRide pipeline for transcript cleanup
+4. **Setup Guide Creation** — 3-step RocketRide pipeline + output display UI
 
 See [`docs/AGENTS.md`](docs/AGENTS.md) for detailed build instructions.
 
@@ -75,8 +80,22 @@ See [`docs/AGENTS.md`](docs/AGENTS.md) for detailed build instructions.
 | Python | >= 3.11 | Backend |
 | `uv` | any recent | Python package manager |
 | Node.js | 20+ | Frontend |
-| Docker | any recent | Redis (for Way Back Home reference) |
+| Docker | any recent | RocketRide engine + Redis (for Way Back Home reference) |
 | `gcloud` CLI | any recent | Google Cloud authentication |
+
+### RocketRide engine
+
+```bash
+# Start the RocketRide engine (runs on port 5565)
+docker run -d --name rocketride-engine -p 5565:5565 \
+  ghcr.io/rocketride-org/rocketride-engine:latest
+```
+
+Then copy `backend/.env.template` to `backend/.env` and fill in your Anthropic API key:
+```bash
+cp backend/.env.template backend/.env
+# Edit backend/.env and set ROCKETRIDE_APIKEY_ANTHROPIC=<your-key>
+```
 
 ### Google Cloud authentication
 
@@ -100,4 +119,4 @@ App-level env vars (PORT, REDIS_HOST, MODEL_ID, etc.) have sensible defaults and
 
 ---
 
-*OpenClaw Concierge v4.0 — 2026-03-22*
+*OpenClaw Concierge v4.1 — 2026-03-22*

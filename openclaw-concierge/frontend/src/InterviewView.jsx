@@ -5,16 +5,16 @@ import AgentPresence from './components/AgentPresence';
 import Transcript from './components/Transcript';
 
 export default function InterviewView({ onInterviewComplete }) {
-    const { callStatus, voiceState, transcript, startCall, endCall } = useVapi();
+    const { callStatus, voiceState, transcript, formattedTranscript, startCall, endCall } = useVapi();
 
-    // Notify parent when interview ends
+    // Notify parent when interview ends and transcript is formatted
     React.useEffect(() => {
-        if (callStatus === 'ended' && onInterviewComplete) {
+        if (callStatus === 'ended' && formattedTranscript && onInterviewComplete) {
             // Small delay to let the user see the "complete" state
-            const timer = setTimeout(() => onInterviewComplete(), 3000);
+            const timer = setTimeout(() => onInterviewComplete(formattedTranscript), 3000);
             return () => clearTimeout(timer);
         }
-    }, [callStatus, onInterviewComplete]);
+    }, [callStatus, formattedTranscript, onInterviewComplete]);
 
     return (
         <div className="w-screen h-screen bg-gray-900 text-gray-100 flex flex-col overflow-hidden">

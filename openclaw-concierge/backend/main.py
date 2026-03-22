@@ -35,6 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# In-memory store for generated guides (good enough for hackathon — no database needed)
+guide_store: dict[str, dict] = {}
+
 
 # ========================================
 # Request Models
@@ -79,9 +82,15 @@ async def vapi_webhook(request: Request):
         artifact = message.get("artifact", {})
         transcript = artifact.get("transcript", "")
         logger.info(f"[WEBHOOK] End of call — transcript length: {len(transcript)} chars")
-        # TODO: Trigger formatter + Phase 2 pipeline
-        # formatted = await format_transcript(transcript)
-        # result = await generate_guide(formatted)
+
+        # Trigger formatter → guide generation pipeline
+        try:
+            formatted = await format_transcript(transcript)
+            result = await generate_guide(formatted)
+            guide_store[result["guide_id"]] = result
+            logger.info(f"[WEBHOOK] Guide generated: {result['guide_id']}")
+        except Exception as e:
+            logger.error(f"[WEBHOOK] Pipeline failed: {e}")
 
     return {"ok": True}
 
@@ -100,12 +109,14 @@ async def format_endpoint(req: FormatRequest):
 
 @app.post("/generate-guide")
 async def generate_guide_endpoint(req: GenerateGuideRequest):
-    """Triggers Phase 2: Setup Guide Creation Agent.
+    """Triggers Phase 2: Setup Guide Creation Agent via RocketRide pipeline.
 
-    Stub — not yet implemented.
+    Runs 3 sequential LLM calls (main guide, reference docs, prompts)
+    and returns the assembled result.
     """
     logger.info(f"[GUIDE] Received formatted transcript ({len(req.formatted_transcript)} chars)")
     result = await generate_guide(req.formatted_transcript)
+    guide_store[result["guide_id"]] = result
     return result
 
 
@@ -113,12 +124,14 @@ async def generate_guide_endpoint(req: GenerateGuideRequest):
 async def get_guide(guide_id: str):
     """Retrieve generated output (guide + reference docs + prompts).
 
-    Stub — not yet implemented.
+    Returns the guide from the in-memory store, or a not_found status.
     """
+    if guide_id in guide_store:
+        return guide_store[guide_id]
     return {
         "guide_id": guide_id,
-        "status": "not_implemented",
-        "message": "Guide retrieval not yet implemented. Build Phase 2 first.",
+        "status": "not_found",
+        "message": "Guide not found. It may still be generating or the ID is invalid.",
     }
 
 

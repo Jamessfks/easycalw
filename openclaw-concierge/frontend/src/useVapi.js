@@ -8,6 +8,7 @@ export default function useVapi() {
     const [callStatus, setCallStatus] = useState('idle'); // idle | connecting | active | ended
     const [voiceState, setVoiceState] = useState('idle'); // idle | user-speaking | agent-thinking | agent-speaking
     const [transcript, setTranscript] = useState([]);      // Array of { role, text, timestamp, isFinal }
+    const [formattedTranscript, setFormattedTranscript] = useState(null); // Result from /format
     const fullTranscriptRef = useRef([]);                   // Accumulated for POST on call-end
     const vapiRef = useRef(null);
 
@@ -26,7 +27,7 @@ export default function useVapi() {
             setCallStatus('ended');
             setVoiceState('idle');
 
-            // POST accumulated transcript to backend as fallback
+            // POST accumulated transcript to formatter
             const accumulated = fullTranscriptRef.current;
             if (accumulated.length > 0) {
                 const transcriptText = accumulated
@@ -38,7 +39,16 @@ export default function useVapi() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ transcript: transcriptText }),
-                }).catch(err => console.error('Failed to POST transcript:', err));
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        setFormattedTranscript(data.formatted);
+                    })
+                    .catch(err => {
+                        console.error('Failed to POST transcript:', err);
+                        // Fallback: use raw transcript
+                        setFormattedTranscript(transcriptText);
+                    });
             }
         });
 
@@ -103,6 +113,7 @@ export default function useVapi() {
         if (vapiRef.current && callStatus === 'idle') {
             setCallStatus('connecting');
             setTranscript([]);
+            setFormattedTranscript(null);
             fullTranscriptRef.current = [];
             vapiRef.current.start(VAPI_ASSISTANT_ID);
         }
@@ -118,6 +129,7 @@ export default function useVapi() {
         callStatus,
         voiceState,
         transcript,
+        formattedTranscript,
         startCall,
         endCall,
     };

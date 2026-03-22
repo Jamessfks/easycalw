@@ -199,19 +199,19 @@ If the user wants a different result, they start a completely new session.
 - **Format:** All contracts and outputs use **Markdown** (not JSON). Previous docs referencing JSON schemas are outdated.
 - **Domain knowledge:** The other team is generating this. For demo/prototype purposes, synthetic data is acceptable.
 
-### 4.3 Setup Guide Creation Agent — SDK/Framework Evaluation (OPEN)
+### 4.3 Setup Guide Creation Agent — SDK/Framework: RocketRide (DECIDED)
 
-The agent that creates the OpenClaw Setup Guide needs tool access to the skill registry. Which SDK/framework to use is **not yet decided**. Candidates to evaluate for the hackathon:
+**RocketRide** was selected as the pipeline orchestration layer for both the Formatter and the Setup Guide Creation Agent.
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **Claude Code SDK** (Anthropic) | Travis has custom skill already built for it; native tool-use support | Locks us into Anthropic models for this agent |
-| **Google ADK** (same as Interview Agent) | Consistent stack with Phase 1; already in the project | May be overkill for a non-interactive background agent |
-| **LangChain / LangGraph** | Flexible, model-agnostic, large ecosystem | Extra dependency, learning curve if team isn't familiar |
-| **Direct API call + function calling** | Simplest, no framework overhead | More manual wiring for tool definitions and orchestration |
-| **CrewAI / AutoGen** | Multi-agent patterns built-in | Heavyweight for a single background agent |
+| Evaluated | Decision |
+|-----------|----------|
+| Claude Code SDK | Not selected — RocketRide uses Anthropic Claude via `llm_anthropic` nodes instead |
+| Google ADK | Not selected — overkill for non-interactive background agent |
+| LangChain / LangGraph | Not selected — extra dependency |
+| Direct API + function calling | Not selected — less visibility than RocketRide pipelines |
+| **RocketRide** | **Selected** — hackathon requirement, declarative pipelines, built-in monitoring, Anthropic Claude via `llm_anthropic` nodes |
 
-**Decision needed before implementation of Phase 2.** Does not block Phase 1 or the Formatter step.
+RocketRide runs via Docker (`ghcr.io/rocketride-org/rocketride-engine:latest` on port 5565) and is called from the backend via the Python SDK (`pip install rocketride`). See [`docs/rocketride-reference.md`](rocketride-reference.md) for full details.
 
 ---
 
@@ -238,13 +238,13 @@ These questions from the original discussion are now answered:
 
 1. **Barge-in UI behavior:** When the user talks while the agent is speaking, Vapi handles the audio interruption — but how should the **UI** reflect the overlap? Do both waveforms show simultaneously? Does the agent's waveform cut out immediately when Vapi fires `speech-end` for the agent?
 
-2. **Formatter LLM call details:** Which model do we use for the formatter? Is it the same model as the Interview Agent or a cheaper/faster one? What's the prompt?
+2. ~~**Formatter LLM call details:**~~ **RESOLVED — Anthropic Claude** via RocketRide `llm_anthropic` node. Prompt in `backend/formatter.py`.
 
 3. **Setup Guide Creation Agent's system prompt ownership:** Is the other team also responsible for this agent's system prompt, or just the Interview Agent's? The Setup Guide Creation Agent has its own knowledge base with different needs.
 
-4. **Session storage:** Where do we store the transcript, formatted transcript, and generated outputs (guide + reference docs + prompts)? Local browser storage? A backend database? This affects whether the user can access their outputs later.
+4. ~~**Session storage:**~~ **RESOLVED — In-memory dict** on the backend (`guide_store` in `main.py`). No database needed for hackathon. Frontend retrieves via `GET /guide/{id}`.
 
-5. **SDK/framework for Setup Guide Agent:** Which option from §4.3 do we go with? Needs to be decided before Phase 2 implementation begins.
+5. ~~**SDK/framework for Setup Guide Agent:**~~ **RESOLVED — RocketRide** selected. See §4.3.
 
 ---
 
@@ -258,20 +258,21 @@ These questions from the original discussion are now answered:
 - Live transcript rendering fed by Vapi `message` events
 - No pause/resume for MVP — single Vapi call per session
 
-### Step 2: Interview Formatter
-- Single LLM call endpoint
+### Step 2: Interview Formatter (RocketRide pipeline)
+- RocketRide pipeline: `webhook → llm_anthropic → response`
 - Input: raw transcript text
 - Output: `INTERVIEW_TRANSCRIPT.md` (clean Markdown)
 - Grammar cleanup, no intent changes
+- Graceful fallback if RocketRide engine is unavailable
 
-### Step 3: OpenClaw Setup Guide Creation Phase
-- Background agent execution (no user interaction)
+### Step 3: OpenClaw Setup Guide Creation Phase (RocketRide pipelines)
+- 3 sequential RocketRide pipelines via Anthropic Claude
+- Background execution (no user interaction)
 - Loading UI with progress indication (~5 min wait)
-- Agent has access to: OpenClaw Skill (Travis's custom tool), setup guide files
-- SDK/framework TBD — decide before starting this step (see §4.3)
+- System prompt + references loaded from placeholder files (other team delivers real ones)
 - Output rendering: three sections (main guide, reference docs, prompts to send)
 - Copy buttons on prompts and code blocks
-- Download functionality (individual files + full zip)
+- Download functionality (individual files)
 
 ---
 
