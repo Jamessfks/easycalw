@@ -1,0 +1,66 @@
+%% OpenClaw Concierge — System Flow (v4.0 — Vapi)
+%% Phase 1: Interview via Vapi (ASR + LLM + TTS handled by Vapi Cloud)
+%% Formatter: Single LLM call (transcript cleanup)
+%% Phase 2: Setup Guide Creation Agent (backend-only)
+
+flowchart TB
+  subgraph Phase1["Phase 1 — Interview (Vapi)"]
+    U["User\n(mic + speaker)"]
+    FE1["InterviewView.jsx\n(two-panel layout)"]
+    VSDK["Vapi React SDK\n(@vapi-ai/web)"]
+    U <--> FE1
+    FE1 <--> VSDK
+
+    subgraph VAPI["Vapi Cloud"]
+      ASR["ASR\n(e.g. Deepgram)"]
+      LLM["Interview Agent LLM\n(configured in Vapi)"]
+      TTS["TTS\n(e.g. ElevenLabs)"]
+      ASR --> LLM
+      LLM --> TTS
+    end
+
+    VSDK <-.->|"WebRTC\n(handled by SDK)"| VAPI
+  end
+
+  REPORT["End-of-call report\n(complete transcript)"]
+  FMT["Interview Formatter\n(single LLM call)\ntranscript → clean Markdown"]
+
+  subgraph Phase2["Phase 2 — OpenClaw Setup Guide Creation"]
+    SGA["Setup Guide Creation Agent\n(backend-only)"]
+    SKILL[("OpenClaw Skill\n(Travis's custom tool)")]
+    GUIDES[("Setup guide files\n(researched)")]
+    SGA <--> SKILL
+    SGA <--> GUIDES
+  end
+
+  subgraph Output["Generated Output"]
+    GUIDE["OPENCLAW_ENGINE_SETUP_GUIDE.md"]
+    REFS["reference_documents/"]
+    PROMPTS["prompts_to_send.md"]
+  end
+
+  FE2["SetupGuideView.jsx\n(loading → output display)"]
+
+  VAPI --> REPORT
+  REPORT --> FMT
+  FMT --> SGA
+  SGA --> GUIDE
+  SGA --> REFS
+  SGA --> PROMPTS
+  GUIDE --> FE2
+  REFS --> FE2
+  PROMPTS --> FE2
+
+  classDef user fill:#fff8e1,stroke:#f9a825,stroke-width:2px
+  classDef phase1 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+  classDef vapi fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+  classDef fmt fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+  classDef phase2 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+  classDef output fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+
+  class U,FE1 user
+  class VSDK phase1
+  class ASR,LLM,TTS vapi
+  class REPORT,FMT fmt
+  class SGA,SKILL,GUIDES phase2
+  class GUIDE,REFS,PROMPTS,FE2 output
