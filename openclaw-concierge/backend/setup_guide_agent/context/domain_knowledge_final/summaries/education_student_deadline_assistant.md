@@ -1,0 +1,10 @@
+### 63. Student Homework and Deadline Assistant
+
+- **Industry:** Education
+- **Target Persona:** College or university students who often juggle multiple courses with overlapping deadlines and complex syllabi. These students typically feel overwhelmed by manual tracking and seek a reliable, automated system that provides proactive reminders to help them stay organised and reduce last-minute stress. They usually have moderate technical skills and are comfortable using chat platforms like Discord for daily communication.
+- **The Execution Story:** At the beginning of each semester, students upload their course syllabi in PDF format to OpenClaw. The AI agent parses these documents to extract key dates such as assignment deadlines, exam schedules, and project milestones. It then compiles this information into a comprehensive master calendar that integrates with the student’s existing calendar apps. Throughout the semester, the agent sends timely, proactive reminders via Discord to alert students several days before each deadline, allowing ample time for preparation. This workflow significantly reduces missed deadlines and improves time management, helping students maintain academic performance while balancing other commitments.
+- **Tools & Integrations Mentioned:** OpenClaw, PDF parsing tools, Discord messaging platform, Calendar integration (Google Calendar, Outlook, or similar)
+- **Setup Notes & Warnings:** Intermediate setup difficulty due to the need for accurate PDF parsing and calendar synchronisation. The most challenging aspect is ensuring the AI correctly interprets varied syllabus formats, which can lead to errors in deadline extraction. Users must manually verify the initial calendar entries to prevent missed or incorrect deadlines. Overreliance on the AI without cross-checking can result in scheduling mistakes, so it is advisable to maintain a backup manual system. There are no significant cost implications beyond standard OpenClaw usage, but users should be mindful of privacy when uploading academic documents.
+
+- **Source Type:** Blog
+- **Link:** https://www.getopenclaw.ai/for/students

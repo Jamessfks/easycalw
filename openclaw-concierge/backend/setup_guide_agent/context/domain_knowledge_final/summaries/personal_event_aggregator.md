@@ -1,0 +1,10 @@
+### 15. Local Event Aggregator and Planner
+
+- **Industry:** Personal Entertainment
+- **Target Persona:** Individuals who are enthusiastic about staying informed on local happenings but find it time-consuming and inconvenient to visit multiple event websites and social media groups each week. These users typically have moderate technical skills and seek an automated solution to streamline event discovery without constant manual searching.
+- **The Execution Story:** The user initiated the workflow by configuring OpenClaw to automatically scrape a variety of local event sources, including official event calendars, Facebook community groups, and popular ticketing platforms. This scraping process runs on a weekly schedule, gathering event details such as dates, locations, and descriptions. OpenClaw then processes and curates the data into a concise, easy-to-read list of weekend activities tailored to the user's preferences. Finally, the agent sends this curated event summary via email, ensuring the user receives timely updates without needing to visit multiple websites. This automation significantly reduces the time spent on event research and improves local engagement.
+- **Tools & Integrations Mentioned:** OpenClaw, Web scraping tools (custom CSS selector scripts), Email provider (SMTP or third-party email service)
+- **Setup Notes & Warnings:** This is an intermediate-level setup requiring familiarity with web scraping techniques and scheduling automated tasks. The most challenging aspect is maintaining the scraping scripts, as website layout changes by local venues or event platforms can cause the CSS selectors to fail, necessitating manual updates to the scraping logic. Users should also be aware of potential legal considerations around scraping certain websites and ensure compliance with terms of service. Additionally, sending automated emails may require configuring SMTP settings or integrating with a reliable email service to avoid deliverability issues.
+
+- **Source Type:** Reddit
+- **Link:** https://www.reddit.com/r/openclaw/comments/1r7p2k1/built_a_local_event_aggregator_for_my_city/

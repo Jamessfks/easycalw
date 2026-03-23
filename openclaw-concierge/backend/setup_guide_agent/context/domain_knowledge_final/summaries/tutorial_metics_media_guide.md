@@ -1,0 +1,10 @@
+### 41. Ultimate Beginner's Guide to OpenClaw by Metics Media
+
+- **Industry:** General Education
+- **Target Persona:** This guide is designed specifically for complete beginners who have little to no prior experience with autonomous agents or AI software. It is ideal for users who prefer a visual and structured walkthrough to understand both the conceptual foundations and practical installation steps. The target user may have basic computer skills but limited technical comfort, seeking a clear, approachable introduction to OpenClaw.
+- **The Execution Story:** The video begins by explaining the core concepts behind autonomous agents, demystifying how they operate and interact with users. It then transitions into a detailed, step by step demonstration of installing OpenClaw on both Windows and Mac platforms. For Windows users, the guide emphasises the use of Windows Subsystem for Linux (WSL) to mitigate common compatibility issues. Throughout the walkthrough, the presenter highlights key configuration settings, dependency installations, and troubleshooting tips to ensure a smooth setup. By the end, viewers gain a functional OpenClaw environment ready for basic autonomous agent tasks, empowering them to explore further customisations independently.
+- **Tools & Integrations Mentioned:** OpenClaw, Windows Subsystem for Linux (WSL)
+- **Setup Notes & Warnings:** This tutorial is beginner friendly, making it accessible to users with minimal technical background. However, Windows users should be aware that native installation often leads to pathing and dependency conflicts, which can be frustrating and time-consuming to resolve. The video strongly recommends using WSL as a more stable and compatible environment for running OpenClaw on Windows machines. Users should also ensure their systems meet minimum requirements and have administrative privileges for installing necessary components. While no significant costs are involved, attention to detail during setup is crucial to avoid common pitfalls that could impede functionality.
+
+- **Source Type:** YouTube
+- **Link:** https://www.youtube.com/watch?v=Qtoum-9SJ9g

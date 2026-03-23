@@ -1,0 +1,10 @@
+### 14. Recipe Generator from Fridge Photos
+
+- **Industry:** Home Cooking
+- **Target Persona:** Individuals who are passionate about reducing food waste and prefer to cook meals using ingredients they already have at home. These users may have limited time for grocery shopping and appreciate practical, easy-to-follow recipe suggestions. They typically have a moderate level of comfort with smartphone photography and basic app usage but may not be highly technical.
+- **The Execution Story:** The workflow begins when the user takes a clear photo of the contents inside their fridge and sends this image to OpenClaw. The AI agent employs advanced image recognition technology to analyse the photo and identify visible ingredients. Based on the recognised items, OpenClaw then generates three diverse recipe options that utilise these ingredients, enabling the user to cook meals without needing to visit the store. This process helps minimise food waste and saves time by making meal planning more efficient. The final output is a concise list of recipes tailored to the user’s available ingredients, often including preparation steps and cooking tips.
+- **Tools & Integrations Mentioned:** OpenClaw, Image recognition software
+- **Setup Notes & Warnings:** The setup is suitable for beginners, requiring only basic familiarity with taking photos and sending them through the chosen interface. The most challenging aspect is ensuring the photo is clear and well-lit to improve ingredient detection accuracy. Users should be aware that image recognition technology is not flawless; for example, the agent might confuse similar-looking items such as a jar of mayonnaise for a jar of alfredo sauce, which could result in inappropriate recipe suggestions. It is important to carefully review and verify the ingredient list extracted by the agent before proceeding with cooking. There are no significant cost or security concerns, but users should handle personal kitchen photos with usual privacy considerations.
+
+- **Source Type:** Blog
+- **Link:** https://chris.eidhof.nl/post/llm-month-food-assistant/

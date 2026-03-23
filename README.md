@@ -1,82 +1,122 @@
-# OpenClaw Concierge — documentation
+# OpenClaw Concierge
 
-This repository holds the **full documentation suite** for **OpenClaw Concierge** (**V2.2**): **multi-AI orchestration** that turns a **raw interview transcript** into **`OPENCLAW_ENGINE_SETUP_GUIDE.md`**, plus the **knowledge base** spec for the **optional live Interview Agent**.
-
-There is **no application code** in this checkout—only specs under [`Documentations/`](Documentations/).
+A two-phase AI system that interviews users via voice and generates a personalized OpenClaw engine setup guide. Uses [Vapi](https://vapi.ai/) for voice infrastructure and [RocketRide](https://github.com/rocketride-org/rocketride-server) for LLM pipeline orchestration.
 
 ---
 
-## Start here (reading order for humans & coding agents)
+## How it works
+
+```
+User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → RocketRide Formatter → RocketRide Guide Pipeline → Output
+```
+
+1. **Interview Phase** — The user has a voice conversation with a Vapi-powered AI agent. Vapi handles all audio streaming, speech recognition, text-to-speech, interruption handling, and turn-taking. Our frontend displays a two-panel UI (agent avatar + live transcript).
+2. **Formatter** — A RocketRide pipeline (single LLM call via Anthropic Claude) cleans up the raw transcript into structured Markdown.
+3. **Setup Guide Creation Phase** — Three sequential RocketRide pipelines generate the setup guide, reference documents, and initialization prompts.
+
+**Output:**
+- `OPENCLAW_ENGINE_SETUP_GUIDE.md` — the main setup guide
+- `reference_documents/` — sub-setup docs for conditional steps
+- `prompts_to_send.md` — messages to initialize the user's OpenClaw agent
+
+---
+
+## Documentation
 
 | # | Document | Purpose |
 |---|----------|---------|
-| 1 | **This README** | Index, pipeline summary, action steps. |
-| 2 | [**Project Master Specification (V2.2)**](Documentations/Project%20Master%20Specification%20(V2.1)_%20OpenClaw%20Concierge%20Technical%20Architecture.md) | **Normative** architecture: Input / Output agents, `schema.json`, security, registry, optional Way Back Home §8, **§10** doc index. |
-| 3 | [**Master Execution Blueprint (Kaan To Do) – V2 Deep Dive**](Documentations/Master%20Execution%20Blueprint%20(Kaan%20To%20Do)%20%E2%80%93%20V2%20Deep%20Dive.md) | **`system_knowledge_base/`** layout, `system_prompt.md` / `skill_registry.md` / `domain_knowledge/`, templates, research roadmap, scraper prompts, **registry sync** with runtime. |
-| 4 | [**Claude Code Implementation Guide**](Documentations/Claude%20Code%20Implementation%20Guide_%20OpenClaw%20Concierge%20(1).md) | Wire FastAPI, both agents, optional interview, QA checklist. |
-| 5 | [**AGENTS.md**](Documentations/AGENTS.md) | **AI coding agents:** invariants, paths, build order, do-not rules. |
+| 1 | **This README** | Project overview |
+| 2 | [`docs/architecture.md`](docs/architecture.md) | Technical architecture, Vapi integration, RocketRide pipelines, data flow |
+| 3 | [`docs/design-considerations.md`](docs/design-considerations.md) | Engineering decisions, UI specs, debates, open questions |
+| 4 | [`docs/rocketride-reference.md`](docs/rocketride-reference.md) | RocketRide integration: installation, pipeline architecture, SDK usage |
+| 5 | [`docs/AGENTS.md`](docs/AGENTS.md) | Instructions for AI coding agents (invariants, build order, do-not rules) |
 
 ---
 
-## End-to-end vision (V2.2 + knowledge base)
+## Project structure
 
-```text
-[Optional] Live Interview Agent ← system_knowledge_base/system_prompt.md + domain_knowledge/
-        ↓ transcript (text)
-Input Agent ← input_agent_prompt.md + schema.json
-        ↓ validated JSON
-Output Agent ← registry.md ⟷ skill_registry.md + templates + openclaw_ref.md
-        ↓
-OPENCLAW_ENGINE_SETUP_GUIDE.md
+```
+backend/
+├── main.py                    # FastAPI: Vapi webhook + RocketRide pipeline endpoints
+├── setup_guide_agent/         # Phase 2: 3-step RocketRide guide pipeline
+│   ├── agent.py               # Pipeline orchestration
+│   ├── system_prompt.md       # Placeholder (other team delivers)
+│   └── setup_references.md    # Placeholder (other team delivers)
+├── formatter.py               # RocketRide formatter pipeline
+└── vapi_config.py             # Vapi assistant ID, keys, webhook handling
+
+frontend/
+├── src/
+│   ├── InterviewView.jsx      # Two-panel: agent avatar + live transcript
+│   ├── SetupGuideView.jsx     # Loading → output display
+│   └── useVapi.js             # Vapi SDK hook (replaces all WebSocket/audio code)
+└── public/
+    ├── agent-listening.png    # Avatar (listening state)
+    └── agent-talking.png      # Avatar (talking state)
+
+system_knowledge_base/          # Provided by another team
+way-back-home/level_4/         # Reference implementation (UI layout patterns only)
 ```
 
-**Registry rule:** **`system_knowledge_base/skill_registry.md`** and backend **`registry.md`** must list the **same slugs** (one file or sync at build — see Blueprint).
+---
+
+## Build order
+
+1. **Interview Phase** — Connect Vapi SDK to frontend, build two-panel UI
+2. **RocketRide Engine** — Docker container + Python SDK + env vars
+3. **Formatter** — RocketRide pipeline for transcript cleanup
+4. **Setup Guide Creation** — 3-step RocketRide pipeline + output display UI
+
+See [`docs/AGENTS.md`](docs/AGENTS.md) for detailed build instructions.
 
 ---
 
-## Two-agent orchestration (runtime)
+## Developer setup
 
-| Agent | Input | Output |
-| :--- | :--- | :--- |
-| **Input Agent** | Raw **transcript** | **JSON** validated against `schema.json` |
-| **Output Agent** | JSON + **registry** | **`OPENCLAW_ENGINE_SETUP_GUIDE.md`** |
+### Prerequisites
 
-**Orchestration** (e.g. FastAPI): validate between steps; return Markdown to the client.
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Python | >= 3.11 | Backend |
+| `uv` | any recent | Python package manager |
+| Node.js | 20+ | Frontend |
+| Docker | any recent | RocketRide engine + Redis (for Way Back Home reference) |
+| `gcloud` CLI | any recent | Google Cloud authentication |
+
+### RocketRide engine
+
+```bash
+# Start the RocketRide engine (runs on port 5565)
+docker run -d --name rocketride-engine -p 5565:5565 \
+  ghcr.io/rocketride-org/rocketride-engine:latest
+```
+
+Then copy `backend/.env.template` to `backend/.env` and fill in your Anthropic API key:
+```bash
+cp backend/.env.template backend/.env
+# Edit backend/.env and set ROCKETRIDE_APIKEY_ANTHROPIC=<your-key>
+```
+
+### Google Cloud authentication
+
+This project uses **gcloud CLI project configuration** for all Google Cloud auth — **not `.env` files with API keys or project IDs**.
+
+```bash
+# One-time setup
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project YOUR_PROJECT_ID
+```
+
+The Google ADK and Gemini SDKs resolve credentials automatically via [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials). ADC checks, in order:
+1. `GOOGLE_APPLICATION_CREDENTIALS` env var (if set)
+2. User credentials from `gcloud auth application-default login`
+3. Service account credentials (if running on GCP)
+
+**No `.env` file is needed for Google Cloud auth.** The Way Back Home reference (`way-back-home/level_4/`) has `load_dotenv()` calls but no `.env` file — it relies entirely on gcloud CLI config. Its `scripts/init.sh` stores the project ID in `~/project_id.txt` and runs `gcloud config set project`.
+
+App-level env vars (PORT, REDIS_HOST, MODEL_ID, etc.) have sensible defaults and only need overriding for non-standard setups.
 
 ---
 
-## Action steps (operator / implementer)
-
-1. **Build** `system_knowledge_base/` per the **Master Execution Blueprint** (Step 3.0 in Implementation Guide).  
-2. **Obtain** transcript (paste, upload, ASR, or export from optional live interview).  
-3. **Validate** transcript; run **Input Agent**; **validate JSON** against `schema.json`.  
-4. **Output Agent:** deterministic slug lookup + guide generation.  
-5. **Deliver** `OPENCLAW_ENGINE_SETUP_GUIDE.md`; user runs steps locally (**zero API key storage** in Concierge).
-
----
-
-## Artifact map (quick reference)
-
-| Role | Artifact |
-| :--- | :--- |
-| Interview brain (optional live) | `system_knowledge_base/system_prompt.md` |
-| Approved slugs (content + code) | `system_knowledge_base/skill_registry.md` ↔ `registry.md` |
-| Scoped scenarios | `system_knowledge_base/domain_knowledge/*.md` |
-| Transcript → JSON | `input_agent_prompt.md`, `schema.json` |
-| JSON → guide | `output_agent_prompt.md`, `smart_markdown_templates.md`, `openclaw_ref.md` |
-
----
-
-## Way Back Home — Level 4 (reference only)
-
-[Way Back Home Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) / [`way-back-home` repo](https://github.com/google-americas/way-back-home/tree/main/level_4) — patterns for multi-agent, ADK, FastAPI, React. Mapped in Master Specification **§8**; normative path here remains **transcript → two agents → setup guide**.
-
----
-
-## External references
-
-- OpenClaw documentation: [https://docs.openclaw.ai/](https://docs.openclaw.ai/)
-
----
-
-*Master Specification, Implementation Guide, and Blueprint amended 2026-03-21 for V2.2 + knowledge-base alignment. Add **AGENTS.md** to your Cursor/Claude rules if you want tools to load it automatically.*
+*OpenClaw Concierge v4.1 — 2026-03-22*

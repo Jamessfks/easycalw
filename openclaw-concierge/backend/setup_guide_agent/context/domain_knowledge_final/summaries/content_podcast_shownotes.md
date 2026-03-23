@@ -1,0 +1,10 @@
+### 58. Podcast Show Notes Generator
+
+- **Industry:** Podcasting
+- **Target Persona:** Independent podcasters who find the post production tasks of writing detailed show notes and identifying accurate timestamps time-consuming and tedious. These podcasters typically have moderate technical skills and are looking for a solution to streamline their workflow without needing extensive coding knowledge.
+- **The Execution Story:** The podcaster begins by uploading the raw audio file of their episode into a designated folder monitored by OpenClaw. Upon detecting the new file, OpenClaw automatically transcribes the audio content using integrated transcription tools. It then processes the transcript to generate SEO optimised show notes that summarise the episode’s key points effectively. Next, the system extracts important timestamps linked to significant moments in the episode, which are used to create a structured outline. Finally, OpenClaw drafts promotional social media posts based on the episode content, ready for the podcaster to review and publish. This automation reduces manual post production time significantly, allowing the podcaster to focus more on content creation.
+- **Tools & Integrations Mentioned:** OpenClaw, Audio transcription services (e.g., Whisper or similar), Local file system monitoring utilities
+- **Setup Notes & Warnings:** Intermediate level setup requiring familiarity with configuring file monitoring and transcription APIs. The most challenging aspect is ensuring accurate transcription quality, as automated systems can struggle with heavy accents, overlapping speech, and specialised technical jargon common in podcast discussions. It is essential to carefully review and edit the generated timestamps and show notes to correct any errors or hallucinated words that could render timestamp descriptions confusing or irrelevant. Additionally, users should consider the cost implications of transcription API usage and maintain data security for their audio files during processing.
+
+- **Source Type:** Blog
+- **Link:** https://medium.com/@podcasterpro/automating-my-podcast-workflow-with-openclaw-3829a1b2c3d4

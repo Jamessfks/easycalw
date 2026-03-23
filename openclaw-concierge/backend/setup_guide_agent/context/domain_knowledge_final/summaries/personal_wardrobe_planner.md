@@ -1,0 +1,10 @@
+### 13. Personal Wardrobe and Outfit Planner
+
+- **Industry:** Personal Style / Organisation
+- **Target Persona:** Fashion enthusiasts and style-conscious individuals who want to digitise their entire wardrobe for effortless daily outfit planning. These users typically seek a convenient way to receive personalised outfit recommendations that consider current weather conditions, and they have a moderate level of technical comfort to engage with app setup and photo cataloguing.
+- **The Execution Story:** Inspired by the movie Clueless, the user began by meticulously photographing each item in their wardrobe to create a comprehensive digital catalogue. Every morning, OpenClaw automatically retrieves the local weather forecast via a weather API and analyses the conditions such as temperature and precipitation. Based on this data and the catalogue of clothing items, the AI generates a stylish, weather-appropriate outfit recommendation tailored to the user’s preferences and available garments. The user can then review the suggested outfit and make adjustments if desired. This workflow streamlines daily dressing decisions, saving time and reducing wardrobe overwhelm.
+- **Tools & Integrations Mentioned:** OpenClaw AI platform, Image recognition technology for clothing identification, Weather API for real-time forecast data
+- **Setup Notes & Warnings:** Intermediate complexity setup requiring patience and attention to detail during the initial wardrobe digitisation process, which is time-consuming and manual. The most challenging aspect is ensuring every clothing item is photographed and catalogued accurately to enable reliable outfit suggestions. Users must consistently update the catalogue with new purchases to prevent the system from becoming outdated and less effective. There are no significant cost implications beyond standard API usage fees, but users should be mindful of data privacy when storing images of their wardrobe.
+
+- **Source Type:** Reddit
+- **Link:** https://www.reddit.com/r/openclaw/comments/1r9m4x2/i_built_a_clueless_style_wardrobe_app_with_openclaw/

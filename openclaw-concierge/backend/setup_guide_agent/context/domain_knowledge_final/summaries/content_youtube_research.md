@@ -1,0 +1,10 @@
+### 57. YouTube Creator Research Assistant
+
+- **Industry:** Content Creation
+- **Target Persona:** This persona is a YouTuber or video essayist who dedicates significant time to researching topics and analysing competitor videos to create well-informed and engaging scripts. They often struggle with the time-consuming nature of gathering and organising relevant information and may have moderate technical skills, comfortable with using AI tools but not necessarily coding themselves.
+- **The Execution Story:** The YouTube creator initiates the workflow by providing OpenClaw with a topic or keyword related to their upcoming video. OpenClaw then performs web scraping to collect relevant articles, blog posts, and competitor video transcripts. Next, the agent summarises the gathered content, extracting key points and insights while compiling a detailed research document. This document includes summaries of competitor videos and relevant external information, enabling the creator to quickly understand the landscape without manually sifting through hours of content. The final output is a comprehensive, well-organised research dossier that the creator uses to efficiently script their video, significantly reducing pre-production time and improving content quality.
+- **Tools & Integrations Mentioned:** OpenClaw, Web scraping tools, Document generation software
+- **Setup Notes & Warnings:** The setup requires an intermediate level of technical knowledge, particularly in configuring web scraping parameters and managing data flows into document generation tools. The most challenging aspect is ensuring data quality and avoiding information overload. A critical warning is the risk of hallucination creep, where the AI may blend facts inaccurately when summarising multiple sources, potentially leading to misinformation. To mitigate this, it is essential to configure the agent to always cite its sources clearly, allowing the creator to verify claims before finalising their script and recording.
+
+- **Source Type:** Reddit
+- **Link:** https://www.reddit.com/r/NewTubers/comments/1q9m4x2/openclaw_is_my_new_research_assistant/
