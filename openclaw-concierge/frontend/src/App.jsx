@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import EasyClawLanding from './EasyClawLanding';
 import InterviewView from './InterviewView';
 import SetupGuideView from './SetupGuideView';
 import OutputDisplay from './components/OutputDisplay';
 import LoadingScreen from './components/LoadingScreen';
+import GuidePageView from './GuidePageView';
 
-function App() {
+function MainFlow() {
     const [phase, setPhase] = useState('landing');
     const [transcriptData, setTranscriptData] = useState(null);
     const [mockGuide, setMockGuide] = useState(null);
@@ -71,6 +73,17 @@ function App() {
             onBack={handleRestart}
             onRestart={handleRestart}
         />
+    );
+}
+
+function App() {
+    return (
+        <BrowserRouter>
+            <Routes>
+                <Route path="/view/:guideId" element={<GuidePageView />} />
+                <Route path="*" element={<MainFlow />} />
+            </Routes>
+        </BrowserRouter>
     );
 }
 
