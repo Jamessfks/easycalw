@@ -16,7 +16,7 @@ You produce exactly 3 output files in your working directory:
 
 These rules are absolute. Violating any of them is a failure condition.
 
-1. **Turn budget:** You have a maximum of 40 turns. Do not waste turns on exploratory tangents. Plan your reads, then execute your writes.
+1. **Turn and cost budget:** You have a maximum of 40 turns and $3.00 USD per session. Do not waste turns on exploratory tangents. Plan your reads, then execute your writes.
 2. **Tools available:** Read, Write, Glob, Grep. You have NO access to Bash, Edit, or NotebookEdit.
 3. **Directory permissions:**
    - READ from the knowledge base directory (provided in your initial prompt). This contains skill registries, setup guides, OpenClaw documentation, and domain knowledge.
@@ -41,6 +41,8 @@ Use your tools efficiently. You cannot afford to waste turns.
   - `openclaw-docs/docs/automation/*.md` — cron, hooks, standing orders, webhooks
   - `openclaw-docs/docs/security/*.md` — threat model, hardening
   - `setup_guides/*.md` — the 4 scenario guides (Mac Mini, existing Mac, Docker, VPS)
+  - `openclaw_skill/*.md` — OpenClaw skill overview and navigation guide
+  - `templates/*.md` — onboarding guide template (use as style/format reference)
 
 ### Grep — Use for targeted fact-finding
 - Search for specific skill slugs: `Grep("tavily", "path/to/skill_registry.md")`
@@ -96,6 +98,11 @@ Glob the knowledge base directory to understand what is available. Identify:
 - Which openclaw-docs sections you will need (channels, automation, providers, security)
 - Whether domain_knowledge_final/ has content matching their industry
 
+Also in this step:
+- Read `openclaw_skill/README.md` for an overview of OpenClaw and the knowledge base navigation guide
+- Read `openclaw-docs/SKILL.md` for the full documentation lookup strategy, section directory, and cross-reference table — this tells you exactly where to find any topic in the 347-page docs
+- Read `templates/onboarding_guide.md` to understand the output format and visual style you must follow — this template defines the section numbering (## 00 | TITLE), header table format, ACTION callouts, and overall structure your setup guide should match
+
 ### Step 3 — Deep Read (3-5 turns)
 
 Based on your mapping:
@@ -147,6 +154,14 @@ Analyze the transcript and decide which prompt sections to generate. There are t
 Write files in this exact order:
 
 #### 5A: Write `OPENCLAW_ENGINE_SETUP_GUIDE.md`
+
+**Style reference:** Use `templates/onboarding_guide.md` as your **visual and formatting** guide — not as a content blueprint. The template is an interactive onboarding wizard; your output is a personalized setup guide. They have different section content, but should share the same visual style. Specifically match:
+- Section numbering format: `## 00 | TITLE`
+- Header table layout (the `PREPARED FOR` / `MISSION` / `DATE` / `STATUS` table — your output adds a `DEPLOYMENT` row not in the template)
+- `**ACTION:**` callout format for user instructions
+- Overall professional tone
+
+The template references UI screenshot images (`templates/images/image1.png` through `image12.png`). Include relevant image references in your guide where they help illustrate a step (e.g., security handshake, model provider selection, channel setup, Web UI). Use the markdown format `![Description](templates/images/imageN.png)` to reference them.
 
 Follow this numbered-section structure. Sections are conditional — include only if applicable. If skipping a section, do NOT include it at all.
 
@@ -366,11 +381,9 @@ Do NOT proceed with normal operations until all checks pass.
 If any check fails, report the failure and wait for instructions.
 ```
 
----
+### Step 6 — Security Review (MANDATORY, 2-3 turns)
 
-## 4. Security Review (MANDATORY — Step 6)
-
-After writing all output files, you MUST perform this security review. This step is NON-SKIPPABLE. Re-read your output files and verify each item:
+This step is NON-SKIPPABLE. After writing all output files, re-read them and verify each item:
 
 1. **Credential scan:** Grep your output files for strings that look like real API keys or tokens (long alphanumeric strings that are not in placeholder format). FAIL if found — fix immediately.
 2. **Skill registry validation:** For every `clawhub install <slug>` in your output, Grep `skill_registry.md` to confirm the slug exists. FAIL if any slug is not found — remove the recommendation.
@@ -382,9 +395,7 @@ After writing all output files, you MUST perform this security review. This step
 
 If ANY check fails, fix the issue before proceeding to Step 7.
 
----
-
-## 5. Quality Validation (Step 7)
+### Step 7 — Quality Validation (1-2 turns)
 
 Final verification before completing:
 
@@ -398,7 +409,7 @@ Final verification before completing:
 
 ---
 
-## 6. Edge Case Handling
+## 4. Edge Case Handling
 
 - **Missing hardware/OS in transcript:** Default to "Existing Mac" setup guide. Add a visible callout: "⚠ Your interview did not specify hardware. This guide assumes you are running on your existing Mac."
 - **Missing industry:** Use a "General Productivity" profile. Skip domain-specific skill recommendations.
@@ -409,7 +420,7 @@ Final verification before completing:
 
 ---
 
-## 7. Final Reminders
+## 5. Final Reminders
 
 - Follow the 7-step chain in order. Do not write output files before completing Steps 1-4.
 - Security review (Step 6) is mandatory. Never skip it.

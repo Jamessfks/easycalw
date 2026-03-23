@@ -631,13 +631,60 @@ async def get_guide(guide_id: str):
     - status: "complete" — outputs ready
     - status: "error" — something failed
     - status: "not_found" — invalid guide_id
+
+    Falls back to reading from disk if guide is not in memory
+    (e.g. after a server restart).
     """
     if guide_id in guide_store:
         return guide_store[guide_id]
+
+    # Fallback: try to recover from disk
+    guide_dir = os.path.join(
+        os.environ.get("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides"), guide_id
+    )
+    guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
+    if os.path.isfile(guide_file):
+        result = _load_guide_from_disk(guide_id, guide_dir)
+        guide_store[guide_id] = result  # cache for subsequent requests
+        return result
+
     return {
         "guide_id": guide_id,
         "status": "not_found",
         "message": "Guide not found. It may still be generating or the ID is invalid.",
+    }
+
+
+def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
+    """Read a completed guide from its output directory on disk."""
+
+    def _read(path: str) -> str:
+        try:
+            with open(path, "r") as f:
+                return f.read()
+        except FileNotFoundError:
+            return ""
+
+    setup_guide = _read(os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md"))
+    prompts = _read(os.path.join(guide_dir, "prompts_to_send.md"))
+
+    ref_docs = []
+    ref_dir = os.path.join(guide_dir, "reference_documents")
+    if os.path.isdir(ref_dir):
+        for fname in sorted(os.listdir(ref_dir)):
+            fpath = os.path.join(ref_dir, fname)
+            if os.path.isfile(fpath):
+                ref_docs.append({"name": fname, "content": _read(fpath)})
+
+    return {
+        "guide_id": guide_id,
+        "status": "complete",
+        "message": "Guide recovered from disk.",
+        "outputs": {
+            "setup_guide": setup_guide,
+            "reference_documents": ref_docs,
+            "prompts_to_send": prompts,
+        },
     }
 
 
