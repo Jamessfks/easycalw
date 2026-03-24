@@ -80,14 +80,14 @@ const AgentPresence = ({ voiceState = 'idle', callStatus = 'idle' }) => {
                 )}
 
                 {/* Avatar */}
-                <div className={`w-48 h-48 rounded-full bg-surface-2 border-2 ${config.ringColor}
+                <div className={`w-56 h-56 rounded-full bg-surface-2 border-2 ${config.ringColor}
                     flex items-center justify-center shadow-xl ${config.glowColor}
                     transition-all duration-500 ${voiceState === 'agent-speaking' ? 'animate-float' : ''}`}
                 >
                     <img
                         src={avatarSrc}
                         alt="AI Agent"
-                        className="w-36 h-36 object-contain drop-shadow-lg transition-transform duration-300"
+                        className="w-44 h-44 object-contain drop-shadow-lg transition-transform duration-300"
                     />
                 </div>
             </div>

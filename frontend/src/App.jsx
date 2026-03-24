@@ -1,11 +1,14 @@
 import { useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import EasyClawLanding from './EasyClawLanding';
 import InterviewView from './InterviewView';
 import SetupGuideView from './SetupGuideView';
 import OutputDisplay from './components/OutputDisplay';
 import LoadingScreen from './components/LoadingScreen';
 import GuidePageView from './GuidePageView';
+
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 function MainFlow() {
     const [phase, setPhase] = useState('landing');
@@ -21,10 +24,11 @@ function MainFlow() {
         setPhase('processing');
     }, []);
 
-    const handleMockDemo = useCallback(async () => {
+    const handleMockDemo = useCallback(async (demoId = 'demo-restaurant') => {
         setPhase('mock-loading');
         try {
-            const res = await fetch('/mock-generate');
+            const res = await fetch(`${API_BASE}/mock-generate?demo_id=${encodeURIComponent(demoId)}`);
+            if (!res.ok) throw new Error(`Server returned ${res.status}`);
             const data = await res.json();
             setMockGuide(data);
             setPhase('mock-output');
@@ -34,6 +38,11 @@ function MainFlow() {
         }
     }, []);
 
+    const handleResume = useCallback((formattedTranscript) => {
+        setTranscriptData(formattedTranscript);
+        setPhase('processing');
+    }, []);
+
     const handleRestart = useCallback(() => {
         setTranscriptData(null);
         setMockGuide(null);
@@ -41,7 +50,7 @@ function MainFlow() {
     }, []);
 
     if (phase === 'landing') {
-        return <EasyClawLanding onStart={handleStartInterview} onDemo={handleMockDemo} />;
+        return <EasyClawLanding onStart={handleStartInterview} onDemo={handleMockDemo} onResume={handleResume} />;
     }
 
     if (phase === 'interview') {
@@ -78,12 +87,14 @@ function MainFlow() {
 
 function App() {
     return (
-        <BrowserRouter>
-            <Routes>
-                <Route path="/view/:guideId" element={<GuidePageView />} />
-                <Route path="*" element={<MainFlow />} />
-            </Routes>
-        </BrowserRouter>
+        <ErrorBoundary>
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/view/:guideId" element={<GuidePageView />} />
+                    <Route path="*" element={<MainFlow />} />
+                </Routes>
+            </BrowserRouter>
+        </ErrorBoundary>
     );
 }
 

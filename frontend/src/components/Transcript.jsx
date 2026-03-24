@@ -1,8 +1,19 @@
-import React, { useEffect, useRef } from 'react';
-import { MessageSquare } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MessageSquare, Copy, Check } from 'lucide-react';
 
 const Transcript = ({ entries = [] }) => {
     const endRef = useRef(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyTranscript = () => {
+        const text = entries
+            .filter(e => e.isFinal)
+            .map(e => `${e.role === 'user' ? 'User' : 'Agent'}: ${e.text}`)
+            .join('\n');
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     useEffect(() => {
         endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,9 +37,22 @@ const Transcript = ({ entries = [] }) => {
             {/* Header */}
             <div className="px-6 py-3 border-b border-white/[0.04] flex items-center justify-between shrink-0">
                 <p className="section-label">Live Transcript</p>
-                <span className="text-[11px] font-mono text-gray-600">
-                    {entries.filter(e => e.isFinal).length} messages
-                </span>
+                <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-mono text-gray-600">
+                        {entries.filter(e => e.isFinal).length} messages
+                    </span>
+                    {entries.some(e => e.isFinal) && (
+                        <button
+                            onClick={handleCopyTranscript}
+                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-mono
+                                       border border-white/10 text-gray-500 hover:text-white hover:border-white/20
+                                       transition-all duration-200"
+                        >
+                            {copied ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
+                            {copied ? 'Copied' : 'Copy'}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Messages */}

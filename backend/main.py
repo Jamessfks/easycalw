@@ -1,15 +1,26 @@
 import os
 import json
+import uuid
+import shutil
+import asyncio
 import logging
+from datetime import datetime, timezone, timedelta
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, field_validator
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from sse_starlette.sse import EventSourceResponse
 
 from formatter import format_transcript
 from setup_guide_agent.agent import generate_guide
+from mock_data import DEMO_GUIDES, compute_scorecard
 
 # Load environment variables
 load_dotenv()
@@ -25,459 +36,96 @@ logger = logging.getLogger(__name__)
 # Application Initialization
 # ========================================
 
-app = FastAPI(title="OpenClaw Concierge")
+app = FastAPI(title="EasyClaw API")
+
+# CORS — configurable via env, defaults to permissive for development
+_cors_origins = os.getenv("CORS_ORIGINS", "*")
+_allowed_origins = (
+    ["*"] if _cors_origins == "*" else [o.strip() for o in _cors_origins.split(",")]
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# In-memory store for generated guides (good enough for hackathon — no database needed)
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Request size limit
+MAX_TRANSCRIPT_BYTES = 100 * 1024  # 100KB
+
+# Guide cleanup
+_GUIDE_OUTPUT_DIR = os.environ.get("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides")
+_GUIDE_MAX_AGE_DAYS = int(os.environ.get("GUIDE_MAX_AGE_DAYS", "7"))
+
+# In-memory store for generated guides
+# Persists to disk as JSON so guides survive server restarts
 guide_store: dict[str, dict] = {}
-
-MOCK_SETUP_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
-
-**Your Agent. Your Hardware. Your Soul.**
-
----
-
-**PREPARED FOR:** Alex Chen
-**MISSION:** Automate restaurant operations across 3 locations — scheduling, suppliers, and daily briefings
-**DATE:** March 22, 2026
-**STATUS:** [ INITIALIZING DEPLOYMENT ]
-
----
-
-## 00 | PRE-FLIGHT CHECKLIST
-
-Before you begin, ensure you have the following ready:
-
-| | Requirement |
-|---|---|
-| [ ] | OpenAI Account (for Codex OAuth) |
-| [ ] | Telegram Account (for channel) |
-| [ ] | Google Gemini API Key (for web search) |
-| [ ] | Terminal access on your machine |
-
----
-
-## 01 | THE SECURITY HANDSHAKE
-
-When you launch `openclaw-onboard` in your terminal, OpenClaw greets you with its security manifesto. This establishes the "Personal-by-Default" boundary.
-
-OpenClaw is designed for a single trusted operator. Read the security recommendations carefully.
-
-![Security Handshake](/guide-images/01-security-handshake.png)
-
-> **ACTION:** Select "Yes" to acknowledge and continue. You are now the sole operator of this boundary.
-
----
-
-## 02 | SELECTING YOUR MODEL PROVIDER
-
-OpenClaw supports multiple AI providers. Based on your interview, we recommend **OpenAI Codex** for the most reliable reasoning capabilities for restaurant operations.
-
-![Select Model Provider](/guide-images/02-model-provider.png)
-
-> **ACTION:** Select "OpenAI" from the list of providers.
-
-### Authentication Method
-
-Choose how to authenticate with OpenAI. The Codex (ChatGPT OAuth) option is the fastest QuickStart method.
-
-![Authentication Method](/guide-images/02-auth-method.png)
-
-> **ACTION:** Select "OpenAI Codex (ChatGPT OAuth)" for the fastest setup.
-
-### OpenAI Login
-
-A browser window will open for you to authenticate with your OpenAI/ChatGPT account.
-
-![OpenAI Login](/guide-images/02-openai-login.png)
-
-> **ACTION:** Sign in with your OpenAI account credentials (email, Google, Apple, or Microsoft).
-
-### Model Selection
-
-After authentication, select your preferred model. We recommend `gpt-5.2-codex` for the best balance of speed and capability.
-
-![Model Selection](/guide-images/02-model-selection.png)
-
-> **ACTION:** Select `openai-codex/gpt-5.2-codex` or your preferred model.
-
----
-
-## 03 | CONNECTING YOUR CHANNEL
-
-Your agent needs a place to communicate with you. Based on your interview, we recommend **Telegram** for its stability, ease of use, and excellent bot API.
-
-![Channel Selection](/guide-images/03-channel-selection.png)
-
-> **ACTION:** Select "Telegram (Bot API)" from the channel list.
-
-### Telegram BotFather Protocol
-
-Follow these steps to create your Telegram bot:
-
-1. Open Telegram and search for **@BotFather**
-2. Send the command `/newbot`
-3. Follow the prompts to name your bot (e.g., "RestaurantConcierge")
-4. Copy the API Token provided by BotFather
-5. Paste the token back into your terminal when prompted
-
-Your Telegram Bot Token: ____________________
-
----
-
-## 04 | SEARCH CONFIGURATION
-
-To allow your agent to search the web for supplier pricing, health code updates, and food trends, we configure a search provider. We recommend **Gemini (Google Search)** for reliable, AI-synthesized results.
-
-![Search Provider](/guide-images/04-search-provider.png)
-
-> **ACTION:** Select "Gemini (Google Search)" from the search provider list.
-
-### API Key Entry
-
-Enter your Gemini API key. You can get one from [Google AI Studio](https://aistudio.google.com).
-
-![API Key Entry](/guide-images/04-api-key-entry.png)
-
-> **ACTION:** Paste your Gemini API key and press Enter.
-
----
-
-## 05 | SKILLS & HOOKS CONFIGURATION
-
-OpenClaw supports optional skills and hooks that extend your agent's capabilities. For your restaurant business, we recommend installing these after initial setup.
-
-### Skill Dependencies
-
-Skills tailored to your needs (install later via Web UI):
-
-![Skill Dependencies](/guide-images/05-skill-dependencies.png)
-
-| Skill | Purpose |
-|-------|---------|
-| `gog` | Google Workspace — Gmail, Calendar, Drive |
-| `summarize` | Summarize supplier emails, reviews, reports |
-| `tavily-web-search` | AI-optimized web search |
-| `todoist` | Task management for daily ops |
-| `notion` | Menu planning and SOPs |
-| `openai-whisper` | Transcribe supplier calls |
-
-> **ACTION:** Select "Skip for now" to continue. Skills can be configured later via the Web UI.
-
-### Enable Hooks
-
-Hooks allow your agent to perform actions on boot, log commands, and maintain session memory.
-
-![Enable Hooks](/guide-images/05-enable-hooks.png)
-
-> **ACTION:** Select "Skip for now" or enable specific hooks based on your needs.
-
----
-
-## 06 | HATCHING YOUR AGENT
-
-This is the final terminal step. We're now moving from the command line to the OpenClaw Web UI.
-
-![Hatching Your Agent](/guide-images/06-hatching-agent.png)
-
-> **ACTION:** Select "Open the Web UI" to launch your agent's control panel.
-
----
-
-## 07 | THE OPENCLAW WEB UI
-
-Your browser will open to `http://127.0.0.1:18789` where your OpenClaw control panel lives.
-
-![OpenClaw Web UI](/guide-images/07-web-ui.png)
-
-**STATUS: READY FOR INJECTION**
-
-### Web UI Features
-
-| Feature | Description |
-|---------|-------------|
-| **Chat** | Direct conversation with your agent |
-| **Channels** | Manage Telegram, Discord, and other connections |
-| **Agents** | Configure agent behaviors and skills |
-| **Sessions** | View conversation history and logs |
-| **Config** | Advanced settings and API configurations |
-
----
-
-## 08 | THE AGENT 2 HANDOFF
-
-With the Web UI running, **Agent 2 now takes over** to inject your personalized configuration. Paste in the files it gives you.
-
-![Agent 2 Handoff](/guide-images/08-agent2-handoff.png)
-
-### What Happens Next
-
-1. Agent 2 receives your `SOUL.md` and `openclaw.json` configuration files
-2. These files are injected into your local OpenClaw environment
-3. Your Personal Assistant appears in the chat, pre-loaded with logic to solve your specific pain point
-
-### Your Configuration
-
-| Field | Value |
-|-------|-------|
-| SOUL.md Location | `~/.openclaw/SOUL.md` |
-| openclaw.json Location | `~/.openclaw/openclaw.json` |
-| Primary Pain Point | Restaurant operations automation |
-| First Automation Target | Daily morning briefing across 3 locations |
-
----
-
-## QUICK REFERENCE
-
-| Item | Details |
-|------|---------|
-| Web UI URL | `http://127.0.0.1:18789` |
-| Gateway Port | `18789` |
-| Model Provider | OpenAI (Codex OAuth) |
-| Search Provider | Gemini (Google Search) |
-| Documentation | https://docs.openclaw.ai |
-| Security Audit | `openclaw security audit --deep` |
-
----
-
-**OPENCLAW** | Your Agent. Your Hardware. Your Soul.
-
-*Guide generated by EasyClaw AI Concierge*
-"""
-
-MOCK_REFERENCE_DOCS = [
-    {
-        "name": "SOUL.md",
-        "content": r"""# SOUL.md — Agent Personality Configuration
-
-## Identity
-
-You are **RestaurantConcierge**, a professional AI assistant for Alex Chen who manages a chain of 3 Italian restaurants in San Francisco.
-
-## Personality Traits
-
-- Professional but warm, like a trusted restaurant manager
-- Concise during busy hours (lunch 11am-2pm, dinner 5pm-10pm)
-- More detailed and conversational outside rush hours
-- Always prioritize food safety and health code compliance
-- Use restaurant industry terminology naturally
-
-## Business Context
-
-- **Business:** 3 Italian restaurants — "Bella Vista" (Financial District), "Casa Nostra" (Marina), "Il Giardino" (North Beach)
-- **Staff:** ~45 total employees across all locations
-- **Suppliers:** Sysco (general), local farms for produce (bi-weekly), wine distributor (monthly)
-- **Peak concerns:** Inventory management, staff scheduling, supplier coordination, health inspections
-- **Daily tools:** Google Calendar, Gmail, Notion (SOPs), Google Sheets (inventory), Slack (team chat)
-
-## Communication Rules
-
-1. Morning briefings: Always format as bullet points, under 2 minutes of reading
-2. Urgent alerts: Use `[URGENT]` prefix for health code issues or supplier failures
-3. Staff scheduling: Reference by first name and location
-4. Menu items: Always include current margin percentage when discussing
-""",
-    },
-    {
-        "name": "openclaw_config.md",
-        "content": r"""# openclaw.json — Agent Configuration Reference
-
-```json
-{
-  "agent_name": "RestaurantConcierge",
-  "owner": "Alex Chen",
-  "provider": {
-    "name": "openai",
-    "model": "gpt-5.2-codex",
-    "auth": "codex-oauth"
-  },
-  "channel": {
-    "type": "telegram",
-    "bot_name": "RestaurantConcierge"
-  },
-  "search": {
-    "provider": "gemini",
-    "enabled": true
-  },
-  "skills": [
-    "gog",
-    "summarize",
-    "tavily-web-search",
-    "todoist",
-    "notion",
-    "openai-whisper"
-  ],
-  "hooks": {
-    "on_boot": "daily_briefing",
-    "session_memory": true,
-    "command_logging": true
-  },
-  "automations": [
-    {
-      "name": "daily_briefing",
-      "schedule": "0 7 * * *",
-      "description": "Morning briefing across all 3 locations"
-    },
-    {
-      "name": "margin_alert",
-      "trigger": "dish_margin < 0.65",
-      "description": "Alert when dish margin drops below 65%"
-    }
-  ]
-}
-```
-
-### Key Fields
-
-| Field | Description |
-|-------|-------------|
-| `provider.model` | The LLM model for reasoning |
-| `channel.type` | Primary communication channel |
-| `skills` | Installed ClawHub skills |
-| `hooks.on_boot` | Automation to run when agent starts |
-| `automations` | Scheduled or triggered tasks |
-""",
-    },
-    {
-        "name": "skill_installation_guide.md",
-        "content": r"""# Skill Installation Guide
-
-## Security First
-
-Before installing any skill, always run the vetter:
-
-```bash
-clawhub install skill-vetter
-openclaw vet <skill-name>
-```
-
-## Recommended Skills for Your Setup
-
-### Tier 1 — Essential
-
-```bash
-clawhub install gog                   # Google Workspace (Gmail, Calendar, Drive)
-clawhub install summarize             # Summarize menus, reviews, reports
-clawhub install tavily-web-search     # AI-optimized web search
-```
-
-### Tier 2 — Productivity
-
-```bash
-clawhub install todoist               # Task management for daily ops
-clawhub install notion                # Menu planning & SOPs in Notion
-clawhub install google-calendar       # Staff scheduling integration
-```
-
-### Tier 3 — Business-Specific
-
-```bash
-clawhub install openai-whisper        # Transcribe supplier calls
-clawhub install csv-tools             # Inventory spreadsheet analysis
-clawhub install slack                 # Team communication hub
-```
-
-## Permission Levels
-
-| Level | Access | Example Skills |
-|-------|--------|---------------|
-| Read-only | Can read data, no writes | `summarize`, `weather` |
-| Read-write | Can create/modify data | `notion`, `todoist` |
-| Full access | System-level operations | `agent-browser`, `shell` |
-
-## Post-Installation Verification
-
-```bash
-openclaw skills list --verbose
-openclaw skills inspect <skill-name> --permissions
-```
-""",
-    },
-]
-
-MOCK_PROMPTS = r"""# Prompts to Send
-
-> Paste these prompts into your OpenClaw chat (Web UI or Telegram) after completing the onboarding guide. They initialize your agent with personalized context.
-
----
-
-## Prompt 1: Initialize Agent Identity
-
-```
-You are RestaurantConcierge, Alex Chen's personal AI assistant for managing 3 Italian restaurants in San Francisco: Bella Vista (Financial District), Casa Nostra (Marina), and Il Giardino (North Beach).
-
-Your communication style:
-- Professional but warm, like a trusted restaurant manager
-- Concise during rush hours (11am-2pm, 5pm-10pm)
-- Detailed and conversational outside rush hours
-- Prioritize food safety and health code compliance in all advice
-- Use restaurant industry terminology naturally
-```
-
-## Prompt 2: Business Context Injection
-
-```
-Business context to remember for all interactions:
-
-LOCATIONS:
-- Bella Vista — Financial District, 15 staff, lunch-heavy
-- Casa Nostra — Marina, 15 staff, dinner-heavy
-- Il Giardino — North Beach, 15 staff, outdoor seating (weather-dependent)
-
-SUPPLIERS:
-- Sysco: General supplies, weekly delivery (Mondays)
-- Bay Area Farms: Produce, bi-weekly (Tuesdays)
-- Napa Valley Wines: Monthly delivery (1st of month)
-
-TOOLS I USE:
-- Google Calendar for scheduling
-- Gmail for supplier communications
-- Notion for SOPs and menu planning
-- Google Sheets for inventory tracking
-- Slack for team coordination
-```
-
-## Prompt 3: Daily Briefing Automation
-
-```
-Every morning at 7:00 AM, prepare a daily briefing:
-
-1. Today's reservations across all 3 locations
-2. Supplier deliveries expected today
-3. Staff schedule — who's on, any callouts
-4. Weather forecast (critical for Il Giardino outdoor seating)
-5. Urgent emails from last 12 hours
-6. Inventory alerts — items below reorder threshold
-
-Format as a clean summary readable in under 2 minutes.
-```
-
-## Prompt 4: Margin & Menu Intelligence
-
-```
-Track our seasonal menu. For each dish, monitor:
-- Ingredient costs and current margin
-- Customer feedback trends from review platforms
-- Seasonal ingredient availability
-- Suggested price adjustments based on food costs
-
-ALERTS:
-- Notify me when any dish drops below 65% margin
-- Notify me when a key ingredient price spikes >15%
-- Weekly summary of top 5 and bottom 5 performing dishes
-```
-
----
-
-*Send these prompts in order. Your agent will confirm each injection.*
-"""
+_GUIDE_STORE_PATH = os.getenv("GUIDE_STORE_PATH", "/tmp/easyclaw_guide_store.json")
+
+# SSE event queues — maps guide_id -> asyncio.Queue for streaming progress
+_event_queues: dict[str, asyncio.Queue] = {}
+
+
+def _persist_store():
+    """Write guide_store to disk for crash recovery."""
+    try:
+        with open(_GUIDE_STORE_PATH, "w") as f:
+            json.dump(guide_store, f, default=str)
+    except Exception as e:
+        logger.warning(f"[STORE] Failed to persist guide store: {e}")
+
+
+def _load_store():
+    """Load guide_store from disk on startup."""
+    global guide_store
+    try:
+        if os.path.isfile(_GUIDE_STORE_PATH):
+            with open(_GUIDE_STORE_PATH, "r") as f:
+                guide_store = json.load(f)
+            logger.info(f"[STORE] Loaded {len(guide_store)} guides from disk")
+    except Exception as e:
+        logger.warning(f"[STORE] Failed to load guide store: {e}")
+
+
+_load_store()
+
+
+def _cleanup_old_guides():
+    """Delete guide directories older than _GUIDE_MAX_AGE_DAYS."""
+    if not os.path.isdir(_GUIDE_OUTPUT_DIR):
+        return
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=_GUIDE_MAX_AGE_DAYS)
+    removed = 0
+
+    for entry in os.listdir(_GUIDE_OUTPUT_DIR):
+        path = os.path.join(_GUIDE_OUTPUT_DIR, entry)
+        if not os.path.isdir(path):
+            continue
+        mtime = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
+        if mtime < cutoff:
+            try:
+                shutil.rmtree(path)
+                guide_store.pop(entry, None)
+                removed += 1
+            except Exception as e:
+                logger.warning(f"[CLEANUP] Failed to remove {path}: {e}")
+
+    if removed > 0:
+        _persist_store()
+        logger.info(f"[CLEANUP] Removed {removed} guides older than {_GUIDE_MAX_AGE_DAYS} days")
+
+
+@app.on_event("startup")
+async def startup_cleanup():
+    _cleanup_old_guides()
 
 
 # ========================================
@@ -487,9 +135,38 @@ ALERTS:
 class FormatRequest(BaseModel):
     transcript: str
 
+    @field_validator("transcript")
+    @classmethod
+    def transcript_valid(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Transcript cannot be empty")
+        if len(v.encode("utf-8")) > MAX_TRANSCRIPT_BYTES:
+            raise ValueError(f"Transcript exceeds maximum size of {MAX_TRANSCRIPT_BYTES // 1024}KB")
+        return v
+
 
 class GenerateGuideRequest(BaseModel):
     formatted_transcript: str
+
+    @field_validator("formatted_transcript")
+    @classmethod
+    def transcript_valid(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Formatted transcript cannot be empty")
+        if len(v.encode("utf-8")) > MAX_TRANSCRIPT_BYTES:
+            raise ValueError(f"Transcript exceeds maximum size of {MAX_TRANSCRIPT_BYTES // 1024}KB")
+        return v
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    for error in exc.errors():
+        if "exceeds maximum size" in str(error.get("msg", "")):
+            return JSONResponse(
+                status_code=413,
+                content={"detail": "Payload Too Large: transcript exceeds 100KB limit"},
+            )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 # ========================================
@@ -499,33 +176,79 @@ class GenerateGuideRequest(BaseModel):
 async def _run_guide_agent(guide_id: str, formatted_transcript: str):
     """Run the Setup Guide Agent in the background.
 
-    Updates guide_store in place so the frontend can poll /guide/{guide_id}.
+    Streams progress events to an asyncio.Queue (if an SSE client is connected),
+    and updates guide_store for polling fallback.
     """
+    event_queue = _event_queues.get(guide_id)
     try:
-        result = await generate_guide(formatted_transcript)
-        guide_store[guide_id] = result
+        result = await generate_guide(formatted_transcript, event_queue=event_queue)
+        # Attach scorecard to completed guides
+        if result.get("status") == "complete" and result.get("outputs"):
+            result["scorecard"] = compute_scorecard(result["outputs"])
+        guide_store[guide_id] = {
+            **result,
+            "guide_id": guide_id,
+        }
+        _persist_store()
     except Exception as e:
-        logger.error(f"[GUIDE {guide_id}] Background task failed: {e}")
+        logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
         guide_store[guide_id] = {
             "guide_id": guide_id,
             "status": "error",
             "message": str(e),
             "outputs": {},
         }
+        _persist_store()
+        if event_queue:
+            await event_queue.put({"type": "error", "message": str(e)})
+    finally:
+        if event_queue:
+            await event_queue.put(None)  # sentinel to close SSE stream
+        _event_queues.pop(guide_id, None)
 
 
 # ========================================
 # Endpoints
 # ========================================
 
+@app.get("/health")
+async def health_check():
+    """Health check for monitoring and load balancers."""
+    return {
+        "status": "ok",
+        "service": "easyclaw",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "guides_in_memory": len(guide_store),
+    }
+
+
+@app.get("/demos")
+async def list_demos():
+    """Returns metadata for all available demo guides (no content)."""
+    return [
+        {
+            "demo_id": k,
+            "title": v["title"],
+            "subtitle": v["subtitle"],
+            "category": v["category"],
+            "icon": v["icon"],
+            "color": v["color"],
+        }
+        for k, v in DEMO_GUIDES.items()
+    ]
+
+
 @app.post("/webhook")
+@limiter.limit("60/hour")
 async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
     """VAPI server URL — receives transcript events, function-call requests,
     and end-of-call reports.
-
-    Requires VAPI Private Key + Server URL configured in VAPI dashboard.
     """
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
     message = body.get("message", {})
     msg_type = message.get("type", "unknown")
 
@@ -534,16 +257,15 @@ async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
     if msg_type == "transcript":
         transcript = message.get("transcript", "")
         role = message.get("role", "unknown")
-        logger.info(f"[WEBHOOK] {role}: {transcript}")
+        logger.info(f"[WEBHOOK] {role}: {transcript[:100]}...")
 
     elif msg_type == "function-call":
         fn_name = message.get("functionCall", {}).get("name", "unknown")
-        logger.info(f"[WEBHOOK] Function call: {fn_name}")
-        return {"results": [{"result": "Function not implemented"}]}
+        logger.warning(f"[WEBHOOK] Unhandled function call: {fn_name}")
+        return {"results": [{"result": f"Function '{fn_name}' not implemented"}]}
 
     elif msg_type == "end-of-call-report":
         artifact = message.get("artifact", {})
-        # VAPI returns structured messages array: [{role, message, time}, ...]
         messages = artifact.get("messages", [])
         if messages:
             transcript_text = "\n".join(
@@ -552,100 +274,92 @@ async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
                 if m.get("message")
             )
         else:
-            # Fallback: plain transcript string
             transcript_text = artifact.get("transcript", "")
+
         logger.info(f"[WEBHOOK] End of call — transcript length: {len(transcript_text)} chars")
 
-        # Format and kick off guide generation in background
+        if not transcript_text.strip():
+            logger.warning("[WEBHOOK] Empty transcript — skipping guide generation")
+            return {"ok": True, "skipped": "empty_transcript"}
+
         try:
             formatted = await format_transcript(transcript_text)
-            import uuid
             guide_id = str(uuid.uuid4())[:8]
             guide_store[guide_id] = {"guide_id": guide_id, "status": "generating"}
+            _persist_store()
             background_tasks.add_task(_run_guide_agent, guide_id, formatted)
             logger.info(f"[WEBHOOK] Guide generation started: {guide_id}")
         except Exception as e:
-            logger.error(f"[WEBHOOK] Pipeline failed: {e}")
+            logger.error(f"[WEBHOOK] Pipeline failed: {e}", exc_info=True)
 
     return {"ok": True}
 
 
 @app.post("/format")
-async def format_endpoint(req: FormatRequest):
-    """Triggers the Interview Formatter on a transcript.
-
-    Called by the frontend after a VAPI call ends (frontend-driven fallback),
-    or triggered internally after webhook end-of-call-report.
-    """
+@limiter.limit("30/hour")
+async def format_endpoint(request: Request, req: FormatRequest):
+    """Triggers the Interview Formatter on a transcript."""
     logger.info(f"[FORMAT] Received transcript ({len(req.transcript)} chars)")
     formatted = await format_transcript(req.transcript)
     return {"formatted": formatted}
 
 
 @app.post("/generate-guide")
+@limiter.limit("5/hour")
 async def generate_guide_endpoint(
+    request: Request,
     req: GenerateGuideRequest,
     background_tasks: BackgroundTasks,
 ):
     """Triggers Phase 2: Setup Guide Creation Agent.
 
-    Returns immediately with a guide_id. Frontend polls GET /guide/{guide_id}
-    until status changes from "generating" to "complete" or "error".
+    Returns immediately with a guide_id. Frontend connects to
+    GET /events/{guide_id} for real-time SSE progress, or falls
+    back to polling GET /guide/{guide_id}.
     """
-    import uuid
     guide_id = str(uuid.uuid4())[:8]
-
     logger.info(f"[GUIDE {guide_id}] Received formatted transcript ({len(req.formatted_transcript)} chars)")
 
-    # Store placeholder so frontend knows it's in progress
     guide_store[guide_id] = {"guide_id": guide_id, "status": "generating"}
+    _persist_store()
 
-    # Run agent in background — doesn't block the HTTP response
+    # Create event queue for SSE streaming
+    _event_queues[guide_id] = asyncio.Queue()
+
     background_tasks.add_task(_run_guide_agent, guide_id, req.formatted_transcript)
 
     return {"guide_id": guide_id, "status": "generating"}
 
 
 @app.get("/mock-generate")
-async def mock_generate():
-    """Returns a realistic demo guide for UI testing — no Vapi needed."""
-    logger.info("[MOCK] Serving demo guide")
-    return {
-        "guide_id": "demo-0001",
-        "status": "complete",
-        "message": "Demo guide generated successfully.",
-        "outputs": {
-            "setup_guide": MOCK_SETUP_GUIDE,
-            "reference_documents": MOCK_REFERENCE_DOCS,
-            "prompts_to_send": MOCK_PROMPTS,
-        },
-    }
+async def mock_generate(demo_id: str = "demo-restaurant"):
+    """Returns a demo guide for UI testing. Optional demo_id parameter."""
+    guide = DEMO_GUIDES.get(demo_id)
+    if not guide:
+        raise HTTPException(status_code=404, detail=f"Demo '{demo_id}' not found")
+    logger.info(f"[MOCK] Serving demo guide: {demo_id}")
+    return guide
 
 
 @app.get("/guide/{guide_id}")
 async def get_guide(guide_id: str):
     """Retrieve generated output (guide + reference docs + prompts).
 
-    Frontend polls this endpoint. Returns:
-    - status: "generating" — still working
-    - status: "complete" — outputs ready
-    - status: "error" — something failed
-    - status: "not_found" — invalid guide_id
-
-    Falls back to reading from disk if guide is not in memory
-    (e.g. after a server restart).
+    Frontend polls this endpoint. Falls back to reading from disk
+    if guide is not in memory (e.g. after a server restart).
     """
     if guide_id in guide_store:
         return guide_store[guide_id]
 
-    # Fallback: try to recover from disk
+    # Fallback: try to recover from disk output directory
     guide_dir = os.path.join(
         os.environ.get("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides"), guide_id
     )
     guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
     if os.path.isfile(guide_file):
         result = _load_guide_from_disk(guide_id, guide_dir)
-        guide_store[guide_id] = result  # cache for subsequent requests
+        guide_store[guide_id] = result
+        _persist_store()
         return result
 
     return {
@@ -676,7 +390,7 @@ def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
             if os.path.isfile(fpath):
                 ref_docs.append({"name": fname, "content": _read(fpath)})
 
-    return {
+    result = {
         "guide_id": guide_id,
         "status": "complete",
         "message": "Guide recovered from disk.",
@@ -686,6 +400,39 @@ def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
             "prompts_to_send": prompts,
         },
     }
+    # Attach scorecard to recovered guides too
+    result["scorecard"] = compute_scorecard(result["outputs"])
+    return result
+
+
+@app.get("/events/{guide_id}")
+async def guide_events(guide_id: str):
+    """SSE stream for real-time guide generation progress."""
+    queue = _event_queues.get(guide_id)
+
+    if queue is None:
+        if guide_id in guide_store and guide_store[guide_id].get("status") in ("complete", "error"):
+            async def already_done():
+                yield {"event": "complete", "data": json.dumps(guide_store[guide_id], default=str)}
+            return EventSourceResponse(already_done())
+
+        raise HTTPException(status_code=404, detail="Guide not found or not generating")
+
+    async def event_generator():
+        try:
+            while True:
+                event = await asyncio.wait_for(queue.get(), timeout=300)
+                if event is None:
+                    final = guide_store.get(guide_id, {})
+                    yield {"event": "complete", "data": json.dumps(final, default=str)}
+                    break
+                yield {"event": event.get("type", "progress"), "data": json.dumps(event, default=str)}
+        except asyncio.TimeoutError:
+            yield {"event": "error", "data": json.dumps({"message": "Stream timed out"})}
+        except asyncio.CancelledError:
+            pass
+
+    return EventSourceResponse(event_generator())
 
 
 # ========================================

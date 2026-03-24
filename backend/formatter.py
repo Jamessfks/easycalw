@@ -1,31 +1,76 @@
-"""Interview Formatter — transcript cleanup.
+"""Interview Formatter — transcript cleanup via Claude API.
 
-TODO: Replace regex-based cleanup with a single Anthropic Claude API call
-for proper grammar correction, ASR artifact removal, and Markdown formatting.
-Current implementation is a lightweight placeholder using regex only.
-See docs/architecture.md §3 for the target implementation.
+Uses Anthropic Claude to clean ASR artifacts, fix grammar, and structure
+the transcript into clean Markdown for the Setup Guide Agent.
+Falls back to regex-based cleanup if the API call fails.
 """
 
 import re
+import os
 import logging
 
+import anthropic
+
 logger = logging.getLogger(__name__)
+
+# Model for formatting — fast and cheap is fine here
+_FORMAT_MODEL = "claude-haiku-4-5-20251001"
+_MAX_TOKENS = 4096
+
+_FORMAT_PROMPT = """\
+You are a transcript formatter. Clean up the following voice interview transcript.
+
+Rules:
+1. Remove ASR filler words (um, uh, hmm, like, you know) without changing meaning
+2. Fix grammar and punctuation naturally
+3. Collapse repeated/stuttered words
+4. Keep the original speaker labels (User: and Agent:)
+5. Bold the speaker labels as **User:** and **Agent:**
+6. Preserve ALL factual content — do not add, remove, or change any information
+7. Output clean Markdown with each turn separated by a blank line
+8. Start with a # Interview Transcript header
+
+Transcript to clean:
+"""
 
 
 async def format_transcript(raw_transcript: str) -> str:
     """Format a raw interview transcript into clean Markdown.
 
-    The transcript arrives pre-labeled from useVapi.js as:
-        User: some text
-        Agent: some text
-        ...
-
-    This function adds Markdown headers, cleans minor ASR artifacts,
-    and returns structured content ready for the Setup Guide Agent.
+    Uses Claude API for intelligent cleanup. Falls back to regex if API fails.
     """
     if not raw_transcript or not raw_transcript.strip():
         return "# Interview Transcript\n\n> No transcript content available.\n"
 
+    try:
+        client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
+
+        response = client.messages.create(
+            model=_FORMAT_MODEL,
+            max_tokens=_MAX_TOKENS,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"{_FORMAT_PROMPT}\n{raw_transcript}",
+                }
+            ],
+        )
+
+        formatted = response.content[0].text
+        logger.info(
+            f"[FORMATTER] Claude API success — "
+            f"input_tokens={response.usage.input_tokens}, "
+            f"output_tokens={response.usage.output_tokens}"
+        )
+        return formatted
+
+    except Exception as e:
+        logger.warning(f"[FORMATTER] Claude API failed, falling back to regex: {e}")
+        return _regex_fallback(raw_transcript)
+
+
+def _regex_fallback(raw_transcript: str) -> str:
+    """Lightweight regex-based cleanup when Claude API is unavailable."""
     lines = raw_transcript.strip().split("\n")
     formatted_lines = []
 
@@ -34,12 +79,17 @@ async def format_transcript(raw_transcript: str) -> str:
         if not line:
             continue
 
-        # Clean common ASR filler words (light touch — preserve meaning)
-        cleaned = re.sub(r'\b(um|uh|uhh|umm|hmm)\b[,.]?\s*', '', line, flags=re.IGNORECASE)
-        # Collapse repeated words: "I I think" → "I think"
-        cleaned = re.sub(r'\b(\w+)\s+\1\b', r'\1', cleaned)
+        # Clean common ASR filler words
+        cleaned = re.sub(
+            r"\b(um|uh|uhh|umm|hmm|like,?\s)\b[,.]?\s*",
+            "",
+            line,
+            flags=re.IGNORECASE,
+        )
+        # Collapse repeated words: "I I think" -> "I think"
+        cleaned = re.sub(r"\b(\w+)\s+\1\b", r"\1", cleaned)
         # Collapse extra whitespace
-        cleaned = re.sub(r'\s{2,}', ' ', cleaned).strip()
+        cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
 
         # Bold speaker labels
         if cleaned.startswith("User:"):
@@ -50,8 +100,9 @@ async def format_transcript(raw_transcript: str) -> str:
         formatted_lines.append(cleaned)
 
     body = "\n\n".join(formatted_lines)
-
     result = f"# Interview Transcript\n\n{body}\n"
 
-    logger.info(f"[FORMATTER] Formatted transcript: {len(lines)} lines → {len(formatted_lines)} entries")
+    logger.info(
+        f"[FORMATTER] Regex fallback — {len(lines)} lines -> {len(formatted_lines)} entries"
+    )
     return result
