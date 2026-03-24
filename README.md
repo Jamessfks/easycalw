@@ -37,10 +37,9 @@ User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → Formatter → G
 ```
 backend/
 ├── main.py                    # FastAPI: Vapi webhook + pipeline endpoints
-├── setup_guide_agent/         # Phase 2: 3-step guide pipeline
-│   ├── agent.py               # Pipeline orchestration
-│   ├── system_prompt.md       # Placeholder (other team delivers)
-│   └── setup_references.md    # Placeholder (other team delivers)
+├── setup_guide_agent/         # Phase 2: Setup Guide Creation Agent
+│   ├── agent.py               # Claude Agent SDK orchestration
+│   └── context/               # Knowledge base (domain knowledge, openclaw-docs, templates)
 ├── formatter.py               # Interview transcript formatter
 └── vapi_config.py             # Vapi assistant ID, keys, webhook handling
 
@@ -50,8 +49,9 @@ frontend/
 │   ├── SetupGuideView.jsx     # Loading → output display
 │   └── useVapi.js             # Vapi SDK hook (replaces all WebSocket/audio code)
 └── public/
-    ├── agent-listening.png    # Avatar (listening state)
-    └── agent-talking.png      # Avatar (talking state)
+    ├── agent_listening_avatar.png   # Avatar (listening state)
+    ├── agent_thinking_avatar.png    # Avatar (thinking state)
+    └── agent_talking_avatar.png     # Avatar (talking state)
 
 docs/                           # Architecture & design docs
 AGENTS.md                       # AI coding agent instructions
@@ -92,7 +92,7 @@ gcloud auth application-default login
 gcloud config set project YOUR_PROJECT_ID
 ```
 
-The Google ADK and Gemini SDKs resolve credentials automatically via [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials). ADC checks, in order:
+Google Cloud SDKs resolve credentials automatically via [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials). ADC checks, in order:
 1. `GOOGLE_APPLICATION_CREDENTIALS` env var (if set)
 2. User credentials from `gcloud auth application-default login`
 3. Service account credentials (if running on GCP)
@@ -103,4 +103,4 @@ App-level env vars (PORT, REDIS_HOST, MODEL_ID, etc.) have sensible defaults and
 
 ---
 
-*OpenClaw Concierge v4.1 — 2026-03-22*
+*OpenClaw Concierge v4.3 — 2026-03-24*

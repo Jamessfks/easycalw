@@ -188,20 +188,20 @@ If the user wants a different result, they start a completely new session.
 ### 4.1 What the other team is providing
 
 - The **Interview Agent's system prompt** — including conversation flow, decision logic, and how the agent handles thinking states / filler phrases
-- The **system knowledge base** (`system_knowledge_base/`) — domain knowledge files, use case files
+- The **knowledge base** (`backend/setup_guide_agent/context/`) — domain knowledge files, use case files, openclaw-docs
 - The agent already knows how to navigate the skill registry via a custom skill Travis created
 
 ### 4.2 Decisions made
 
 - **Large context approach** — the other team has engineered a way to handle the large system prompt effectively
 - **Skill registry:** It is large, so it uses **tool-based lookup** (not embedded in the system prompt)
-- **Tool access:** SDK/framework for giving the agent tool-based skill lookup is **TBD** — Claude Code SDK is one candidate but not locked in (see §4.3)
+- **Tool access:** Claude Agent SDK provides the agent with Read/Write/Glob/Grep tools for knowledge base lookup (see §4.3)
 - **Format:** All contracts and outputs use **Markdown** (not JSON). Previous docs referencing JSON schemas are outdated.
 - **Domain knowledge:** The other team is generating this. For demo/prototype purposes, synthetic data is acceptable.
 
-### 4.3 Setup Guide Creation Agent — SDK/Framework (TBD)
+### 4.3 Setup Guide Creation Agent — SDK/Framework: Claude Agent SDK (DECIDED)
 
-Pipeline orchestration approach is **TBD**. Both the Formatter and Setup Guide Creation Agent use Anthropic Claude for LLM calls.
+The **Claude Agent SDK** (`claude-agent-sdk`) was selected for the Setup Guide Creation Agent. The agent has read-only access to its knowledge base at `backend/setup_guide_agent/context/` and write access to an output directory. The Formatter uses Anthropic Claude for its LLM call.
 
 ---
 
@@ -212,9 +212,9 @@ These questions from the original discussion are now answered:
 | # | Question | Answer |
 |---|----------|--------|
 | 1 | JSON or Markdown contract? | **Markdown.** Previous docs are outdated. |
-| 2 | How big is the skill registry? | **Large.** Tool-based lookup; SDK/framework TBD (see §4.3). |
+| 2 | How big is the skill registry? | **Large.** Tool-based lookup via Claude Agent SDK (see §4.3). |
 | 3 | Do we need the Interview Agent for V1? | **Yes.** We're building the interview phase first. |
-| 4 | Where does system_knowledge_base come from? | **Other team provides it.** Not a blocker for us. |
+| 4 | Where does the knowledge base come from? | **Other team provides it** (lives at `backend/setup_guide_agent/context/`). Not a blocker for us. |
 | 5 | Target latency? | **Not a concern right now.** Will test and iterate. |
 | 6 | Should user be able to interrupt agent? | **Yes.** Vapi handles barge-in natively. |
 | 7 | Thinking state: client filler or model filler? | **Neither from us.** Visual indicator only; agent behavior is other team's scope. |
@@ -234,7 +234,7 @@ These questions from the original discussion are now answered:
 
 4. ~~**Session storage:**~~ **RESOLVED — In-memory dict** on the backend (`guide_store` in `main.py`). No database needed for hackathon. Frontend retrieves via `GET /guide/{id}`.
 
-5. **SDK/framework for Setup Guide Agent:** TBD. See §4.3.
+5. ~~**SDK/framework for Setup Guide Agent:**~~ **RESOLVED — Claude Agent SDK.** See §4.3.
 
 ---
 
@@ -244,7 +244,7 @@ These questions from the original discussion are now answered:
 - Get Vapi Assistant ID + Public Key from teammate
 - Integrate Vapi React SDK (`@vapi-ai/web`)
 - Two-panel layout (agent presence + transcript)
-- Two PNG avatars (listening/talking) + animated mic circle with 4 states, driven by Vapi events
+- Three PNG avatars (listening/thinking/talking) + animated mic circle with 4 states, driven by Vapi events
 - Live transcript rendering fed by Vapi `message` events
 - No pause/resume for MVP — single Vapi call per session
 

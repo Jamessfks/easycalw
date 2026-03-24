@@ -1,7 +1,9 @@
-"""Interview Formatter — lightweight transcript cleanup.
+"""Interview Formatter — transcript cleanup.
 
-Takes the speaker-labeled transcript from VAPI (already has User/Agent labels)
-and adds Markdown structure. No LLM call needed — VAPI handles transcription.
+TODO: Replace regex-based cleanup with a single Anthropic Claude API call
+for proper grammar correction, ASR artifact removal, and Markdown formatting.
+Current implementation is a lightweight placeholder using regex only.
+See docs/architecture.md §3 for the target implementation.
 """
 
 import re
