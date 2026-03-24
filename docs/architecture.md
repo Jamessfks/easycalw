@@ -3,7 +3,6 @@
 **Version:** 4.1 (2026-03-22)
 **Authors:** Travis, Zi Cheng, Zixuan
 **Voice layer:** [Vapi](https://vapi.ai/) (voice AI platform)
-**Pipeline orchestration:** [RocketRide](https://github.com/rocketride-org/rocketride-server) (C++ engine, Python SDK)
 **UI reference:** [Way Back Home Level 4](https://codelabs.developers.google.com/way-back-home-level-4/instructions#0) (layout patterns only)
 
 ---
@@ -151,7 +150,7 @@ A single LLM call (not an agent, not interactive) that sits between the two phas
 - Adds speaker labels and structure where missing
 - Cleans up ASR artifacts (repeated words, garbled text)
 
-**Implementation:** RocketRide pipeline (`webhook → llm_anthropic → response`) using Anthropic Claude. Falls back gracefully to raw transcript passthrough if the engine is unavailable. See [`docs/rocketride-reference.md`](rocketride-reference.md) for pipeline details.
+**Implementation:** Single Anthropic Claude API call. Falls back gracefully to raw transcript passthrough if the LLM is unavailable.
 
 ---
 
@@ -178,17 +177,15 @@ This agent runs entirely on the **backend** — the user does not interact with 
 | `reference_documents/` | Folder of sub-setup documents for conditional steps. Dynamically generated per user. |
 | `prompts_to_send.md` | Messages for the user to send to their OpenClaw instance after setup. Initializes personality, talking style, preferences. |
 
-### 4.4 SDK/Framework: RocketRide (DECIDED)
+### 4.4 Pipeline orchestration
 
-**RocketRide** was chosen as the pipeline orchestration layer for both the Formatter and the Setup Guide Creation Agent. It orchestrates 3 sequential LLM calls through Anthropic Claude:
+The Setup Guide Creation Agent orchestrates 3 sequential LLM calls through Anthropic Claude:
 
 1. **Main guide generation** — system prompt + transcript + references → `OPENCLAW_ENGINE_SETUP_GUIDE.md`
 2. **Reference docs generation** — main guide + transcript → `reference_documents/` (parsed into individual files)
 3. **Prompts generation** — transcript + guide context → `prompts_to_send.md`
 
-Each step is a separate RocketRide pipeline (`webhook → llm_anthropic → response`). Results are assembled in Python and stored in an in-memory dict for frontend retrieval.
-
-See [`docs/rocketride-reference.md`](rocketride-reference.md) for full pipeline architecture and SDK usage.
+Results are assembled in Python and stored in an in-memory dict for frontend retrieval.
 
 ---
 
@@ -198,15 +195,15 @@ See [`docs/rocketride-reference.md`](rocketride-reference.md) for full pipeline 
 backend/
 ├── main.py                       # FastAPI server + in-memory guide store
 │                                  #   - POST /webhook — Vapi server URL (receives events)
-│                                  #   - POST /format — triggers RocketRide formatter pipeline
-│                                  #   - POST /generate-guide — triggers RocketRide guide pipeline
+│                                  #   - POST /format — triggers formatter pipeline
+│                                  #   - POST /generate-guide — triggers guide pipeline
 │                                  #   - GET /guide/:id — retrieve generated output
 ├── setup_guide_agent/
 │   ├── __init__.py
-│   ├── agent.py                  # 3-step RocketRide pipeline (guide + refdocs + prompts)
+│   ├── agent.py                  # 3-step pipeline (guide + refdocs + prompts)
 │   ├── system_prompt.md          # Agent system prompt (placeholder — other team delivers)
 │   └── setup_references.md       # Reference material (placeholder — other team delivers)
-├── formatter.py                  # RocketRide formatter pipeline (webhook → llm → response)
+├── formatter.py                  # Interview transcript formatter (single LLM call)
 └── vapi_config.py                # Vapi assistant ID, public key, webhook handling
 
 frontend/
@@ -250,7 +247,7 @@ way-back-home/level_4/            # Reference only — UI layout patterns
 | `main.py` with WebSocket endpoint | `main.py` with HTTP endpoints (Vapi webhook) | No WebSocket — Vapi handles all audio streaming |
 | `useGeminiSocket.js` (custom WebSocket hook) | `useVapi.js` (Vapi SDK hook) | ~10 lines vs ~200 lines |
 | Browser audio capture/playback code | None | Vapi SDK handles audio |
-| `google-adk`, `google-genai`, `websockets` deps | `@vapi-ai/web` (frontend), `fastapi` + `rocketride` (backend) | Fewer dependencies, pipeline orchestration |
+| `google-adk`, `google-genai`, `websockets` deps | `@vapi-ai/web` (frontend), `fastapi` (backend) | Fewer dependencies |
 
 ### 5.2 What we still reference from L4
 
@@ -392,10 +389,10 @@ flowchart TB
   end
 
   REPORT["End-of-call report\n(complete transcript)"]
-  FMT["Interview Formatter\n(RocketRide pipeline)\ntranscript → clean Markdown"]
+  FMT["Interview Formatter\n(single LLM call)\ntranscript → clean Markdown"]
 
   subgraph Phase2["Phase 2 — OpenClaw Setup Guide Creation"]
-    SGA["Setup Guide Creation Agent\n(3x RocketRide pipelines)"]
+    SGA["Setup Guide Creation Agent\n(3x sequential LLM calls)"]
     SKILL[("OpenClaw Skill\n(Travis's custom tool)")]
     GUIDES[("Setup guide files\n(researched)")]
     SGA <--> SKILL
@@ -468,4 +465,4 @@ Way Back Home Level 4 source lives at `way-back-home/level_4/`. We no longer use
 
 ---
 
-*Architecture v4.1 — 2026-03-22. Added RocketRide as pipeline orchestration layer for formatter + guide creation.*
+*Architecture v4.2 — 2026-03-23. Using direct Anthropic Claude API calls for formatter + guide creation.*

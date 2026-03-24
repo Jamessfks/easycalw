@@ -608,7 +608,7 @@ async def generate_guide_endpoint(
 
 @app.get("/mock-generate")
 async def mock_generate():
-    """Returns a realistic demo guide for UI testing — no Vapi or RocketRide needed."""
+    """Returns a realistic demo guide for UI testing — no Vapi needed."""
     logger.info("[MOCK] Serving demo guide")
     return {
         "guide_id": "demo-0001",

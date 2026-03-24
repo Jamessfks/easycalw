@@ -199,19 +199,9 @@ If the user wants a different result, they start a completely new session.
 - **Format:** All contracts and outputs use **Markdown** (not JSON). Previous docs referencing JSON schemas are outdated.
 - **Domain knowledge:** The other team is generating this. For demo/prototype purposes, synthetic data is acceptable.
 
-### 4.3 Setup Guide Creation Agent — SDK/Framework: RocketRide (DECIDED)
+### 4.3 Setup Guide Creation Agent — SDK/Framework (TBD)
 
-**RocketRide** was selected as the pipeline orchestration layer for both the Formatter and the Setup Guide Creation Agent.
-
-| Evaluated | Decision |
-|-----------|----------|
-| Claude Code SDK | Not selected — RocketRide uses Anthropic Claude via `llm_anthropic` nodes instead |
-| Google ADK | Not selected — overkill for non-interactive background agent |
-| LangChain / LangGraph | Not selected — extra dependency |
-| Direct API + function calling | Not selected — less visibility than RocketRide pipelines |
-| **RocketRide** | **Selected** — hackathon requirement, declarative pipelines, built-in monitoring, Anthropic Claude via `llm_anthropic` nodes |
-
-RocketRide runs via Docker (`ghcr.io/rocketride-org/rocketride-engine:latest` on port 5565) and is called from the backend via the Python SDK (`pip install rocketride`). See [`docs/rocketride-reference.md`](rocketride-reference.md) for full details.
+Pipeline orchestration approach is **TBD**. Both the Formatter and Setup Guide Creation Agent use Anthropic Claude for LLM calls.
 
 ---
 
@@ -238,13 +228,13 @@ These questions from the original discussion are now answered:
 
 1. **Barge-in UI behavior:** When the user talks while the agent is speaking, Vapi handles the audio interruption — but how should the **UI** reflect the overlap? Do both waveforms show simultaneously? Does the agent's waveform cut out immediately when Vapi fires `speech-end` for the agent?
 
-2. ~~**Formatter LLM call details:**~~ **RESOLVED — Anthropic Claude** via RocketRide `llm_anthropic` node. Prompt in `backend/formatter.py`.
+2. ~~**Formatter LLM call details:**~~ **RESOLVED — Anthropic Claude.** Prompt in `backend/formatter.py`.
 
 3. **Setup Guide Creation Agent's system prompt ownership:** Is the other team also responsible for this agent's system prompt, or just the Interview Agent's? The Setup Guide Creation Agent has its own knowledge base with different needs.
 
 4. ~~**Session storage:**~~ **RESOLVED — In-memory dict** on the backend (`guide_store` in `main.py`). No database needed for hackathon. Frontend retrieves via `GET /guide/{id}`.
 
-5. ~~**SDK/framework for Setup Guide Agent:**~~ **RESOLVED — RocketRide** selected. See §4.3.
+5. **SDK/framework for Setup Guide Agent:** TBD. See §4.3.
 
 ---
 
@@ -258,15 +248,15 @@ These questions from the original discussion are now answered:
 - Live transcript rendering fed by Vapi `message` events
 - No pause/resume for MVP — single Vapi call per session
 
-### Step 2: Interview Formatter (RocketRide pipeline)
-- RocketRide pipeline: `webhook → llm_anthropic → response`
+### Step 2: Interview Formatter (LLM call)
+- Single Anthropic Claude API call
 - Input: raw transcript text
 - Output: `INTERVIEW_TRANSCRIPT.md` (clean Markdown)
 - Grammar cleanup, no intent changes
-- Graceful fallback if RocketRide engine is unavailable
+- Graceful fallback if LLM is unavailable
 
-### Step 3: OpenClaw Setup Guide Creation Phase (RocketRide pipelines)
-- 3 sequential RocketRide pipelines via Anthropic Claude
+### Step 3: OpenClaw Setup Guide Creation Phase (LLM pipeline)
+- 3 sequential Anthropic Claude API calls
 - Background execution (no user interaction)
 - Loading UI with progress indication (~5 min wait)
 - System prompt + references loaded from placeholder files (other team delivers real ones)

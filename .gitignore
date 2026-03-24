@@ -1,49 +1,172 @@
+# =========================
 # Dependencies
+# =========================
 node_modules/
 .venv/
 venv/
+env/
+ENV/
 __pypackages__/
+.pnpm-store/
+jspm_packages/
 
+# =========================
 # Python
+# =========================
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 *.egg-info/
+*.egg
 dist/
 build/
-*.egg
+develop-eggs/
+eggs/
+wheels/
+share/python-wheels/
+sdist/
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Environment & secrets
+# Type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyright/
+.pyre/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Testing
+.tox/
+.nox/
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Sphinx docs
+docs/_build/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# =========================
+# Node.js / TypeScript
+# =========================
+*.tsbuildinfo
+*.tgz
+.eslintcache
+.stylelintcache
+.npm
+*.pid
+*.seed
+*.pid.lock
+.node_repl_history
+.yarn-integrity
+
+# Vite
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Yarn
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Turborepo
+.turbo/
+
+# =========================
+# Environment & Secrets
+# =========================
 .env
 .env.*
 !.env.example
+!.env.template
 *.pem
 *.key
+*.p12
+*.pfx
+*.jks
 
+# =========================
+# Google Cloud Platform
+# =========================
+*-credentials.json
+*-service-account.json
+*sa-key*.json
+gha-creds-*.json
+application_default_credentials.json
+
+# =========================
+# Docker
+# =========================
+docker-compose.override.yml
+
+# =========================
 # OS
+# =========================
 .DS_Store
 Thumbs.db
 
-# IDEs
+# =========================
+# IDEs & Editors
+# =========================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
+# =========================
 # Logs
+# =========================
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
-# Build outputs
-.next/
-out/
-.turbo/
-
-# Testing
+# =========================
+# Testing & Coverage
+# =========================
 coverage/
+*.lcov
+.nyc_output/
 .coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+test_results/
 
+# =========================
 # Misc
+# =========================
 .context/
+.cache/
+.parcel-cache/
