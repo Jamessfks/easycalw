@@ -14,6 +14,7 @@ Output files:
 
 import os
 import uuid
+import asyncio
 import logging
 from pathlib import Path
 
@@ -41,15 +42,39 @@ def _load_system_prompt() -> str:
         )
 
 
-async def generate_guide(formatted_transcript: str) -> dict:
+def _classify_stage(msg) -> str:
+    """Map an intermediate agent message to a human-readable stage label."""
+    # Try to extract what the agent is doing from the message
+    cls_name = type(msg).__name__
+
+    if cls_name == "TaskStartedMessage":
+        return "Starting agent session..."
+
+    if cls_name == "TaskProgressMessage":
+        last_tool = getattr(msg, "last_tool_name", None)
+        if last_tool == "Read":
+            return "Reading documents..."
+        elif last_tool == "Glob":
+            return "Scanning knowledge base..."
+        elif last_tool == "Grep":
+            return "Searching documentation..."
+        elif last_tool == "Write":
+            return "Writing output files..."
+        return "Processing..."
+
+    return "Working..."
+
+
+async def generate_guide(
+    formatted_transcript: str,
+    event_queue: asyncio.Queue | None = None,
+) -> dict:
     """Generate an OpenClaw setup guide from a formatted interview transcript.
 
-    The Claude Agent SDK session gets:
-    - cwd = output directory (WRITE access)
-    - add_dirs = [context/] (READ-ONLY — agent can Read/Glob/Grep but not Write)
-
-    The agent navigates the knowledge base, reasons across multiple turns,
-    and writes output files directly to the output directory.
+    Args:
+        formatted_transcript: The cleaned interview transcript.
+        event_queue: Optional asyncio.Queue for streaming progress events
+                     to an SSE endpoint. Events are dicts with type/stage/turn keys.
 
     Returns:
         Dict with guide_id, status, cost, and output file contents.
@@ -69,6 +94,8 @@ async def generate_guide(formatted_transcript: str) -> dict:
     logger.info(f"[GUIDE {guide_id}] Starting agent session")
     logger.info(f"[GUIDE {guide_id}] Output dir: {output_dir}")
     logger.info(f"[GUIDE {guide_id}] Context dir (read-only): {context_dir}")
+
+    turn_count = 0
 
     try:
         result_info = None
@@ -95,28 +122,18 @@ async def generate_guide(formatted_transcript: str) -> dict:
                 f"then generate all output files."
             ),
             options=ClaudeAgentOptions(
-                # Output directory — agent writes here
                 cwd=str(output_dir),
-
-                # Knowledge base — agent can READ from here, cannot WRITE
                 add_dirs=[context_dir],
-
                 system_prompt=system_prompt,
-
-                # Tools: Read/Glob/Grep for navigation, Write for output only
                 allowed_tools=["Read", "Write", "Glob", "Grep"],
                 disallowed_tools=["Bash", "Edit", "NotebookEdit"],
-
-                # Auto-approve file writes (output dir only)
                 permission_mode="acceptEdits",
-
-                # Budget: enough for thorough generation, not unlimited
                 max_turns=40,
                 max_budget_usd=3.0,
-
                 model="sonnet",
             ),
         ):
+            # Stream intermediate progress to SSE queue
             if isinstance(msg, ResultMessage):
                 result_info = {
                     "session_id": msg.session_id,
@@ -130,9 +147,41 @@ async def generate_guide(formatted_transcript: str) -> dict:
                     f"turns={msg.num_turns}, cost=${msg.total_cost_usd:.4f}, "
                     f"duration={msg.duration_ms}ms"
                 )
+                if event_queue is not None:
+                    await event_queue.put({
+                        "type": "progress",
+                        "stage": "Finalizing...",
+                        "turn": msg.num_turns,
+                        "max_turns": 40,
+                        "cost": msg.total_cost_usd,
+                    })
+            elif event_queue is not None:
+                turn_count += 1
+                stage = _classify_stage(msg)
+                # Extract token/duration info if available
+                usage = getattr(msg, "usage", None)
+                tokens = getattr(usage, "total_tokens", 0) if usage else 0
+                duration = getattr(usage, "duration_ms", 0) if usage else 0
+
+                await event_queue.put({
+                    "type": "progress",
+                    "stage": stage,
+                    "turn": turn_count,
+                    "max_turns": 40,
+                    "tokens": tokens,
+                    "duration_ms": duration,
+                })
 
         # Collect all output files the agent wrote
         outputs = _collect_outputs(output_dir)
+
+        if event_queue is not None:
+            await event_queue.put({
+                "type": "complete",
+                "guide_id": guide_id,
+                "cost": result_info.get("cost_usd", 0) if result_info else 0,
+                "turns": result_info.get("turns", 0) if result_info else 0,
+            })
 
         return {
             "guide_id": guide_id,
@@ -143,6 +192,11 @@ async def generate_guide(formatted_transcript: str) -> dict:
 
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Agent session failed: {e}")
+        if event_queue is not None:
+            await event_queue.put({
+                "type": "error",
+                "message": str(e),
+            })
         return {
             "guide_id": guide_id,
             "status": "error",
@@ -152,23 +206,17 @@ async def generate_guide(formatted_transcript: str) -> dict:
 
 
 def _collect_outputs(output_dir: Path) -> dict:
-    """Walk the output directory and collect all generated files.
-
-    Returns a dict keyed by relative path, value is file content.
-    Skips the input transcript file.
-    """
+    """Walk the output directory and collect all generated files."""
     outputs = {
         "setup_guide": None,
         "reference_documents": [],
         "prompts_to_send": None,
     }
 
-    # Main setup guide
     guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
     if guide_path.exists():
         outputs["setup_guide"] = guide_path.read_text()
 
-    # Reference documents
     ref_dir = output_dir / "reference_documents"
     if ref_dir.is_dir():
         for f in sorted(ref_dir.glob("*.md")):
@@ -177,12 +225,10 @@ def _collect_outputs(output_dir: Path) -> dict:
                 "content": f.read_text(),
             })
 
-    # Prompts to send
     prompts_path = output_dir / "prompts_to_send.md"
     if prompts_path.exists():
         outputs["prompts_to_send"] = prompts_path.read_text()
 
-    # Catch any other .md files the agent wrote (unexpected but useful)
     known = {"INTERVIEW_TRANSCRIPT.md", "OPENCLAW_ENGINE_SETUP_GUIDE.md", "prompts_to_send.md"}
     for f in output_dir.glob("*.md"):
         if f.name not in known:

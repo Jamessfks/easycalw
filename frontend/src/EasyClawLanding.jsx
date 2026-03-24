@@ -1,5 +1,8 @@
-import React from 'react';
-import { Mic, ArrowRight, Sparkles, FileText, Zap, Shield, MessageSquare, Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { Mic, ArrowRight, Sparkles, FileText, Zap, Shield, MessageSquare, Settings, Clock, ExternalLink, RotateCcw, X } from 'lucide-react';
+import { getGuideHistory } from './lib/guideHistory';
+import { getTranscriptBackup, clearTranscriptBackup } from './lib/transcriptBackup';
+import DemoNavigator from './components/DemoNavigator';
 
 const STEPS = [
     {
@@ -35,7 +38,90 @@ const FEATURES = [
     { icon: Settings, title: 'Complete Output', desc: 'Guides, reference docs, and prompts' },
 ];
 
-export default function EasyClawLanding({ onStart, onDemo }) {
+function RecentGuides() {
+    const history = getGuideHistory();
+    if (history.length === 0) return null;
+
+    return (
+        <section className="max-w-5xl mx-auto px-6 pb-16">
+            <div className="text-center mb-6">
+                <p className="section-label mb-2">Recent Guides</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+                {history.slice(0, 5).map(entry => (
+                    <a
+                        key={entry.id}
+                        href={`/view/${entry.id}`}
+                        className="glass-light rounded-xl px-4 py-3 flex items-center gap-3
+                                   hover:border-white/10 transition-all duration-200 group"
+                    >
+                        <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                            <FileText size={14} className="text-cyan-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-display font-medium text-white group-hover:text-cyan-300 transition-colors">
+                                {entry.label}
+                            </p>
+                            <p className="text-[10px] font-mono text-gray-600">
+                                {new Date(entry.createdAt).toLocaleDateString()}
+                            </p>
+                        </div>
+                        <ExternalLink size={12} className="text-gray-600 group-hover:text-gray-400 transition-colors ml-1" />
+                    </a>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function ResumeBar({ onResume }) {
+    const [backup, setBackup] = useState(() => getTranscriptBackup());
+    const [dismissed, setDismissed] = useState(false);
+
+    if (!backup || !backup.formattedTranscript || dismissed) return null;
+
+    const timeAgo = new Date(backup.savedAt).toLocaleString();
+
+    return (
+        <div className="max-w-2xl mx-auto px-6 mt-6">
+            <div className="glass rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                        <RotateCcw size={16} className="text-amber-400" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-display font-medium text-white">
+                            Unfinished interview found
+                        </p>
+                        <p className="text-[11px] font-mono text-gray-500">{timeAgo}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => {
+                            onResume(backup.formattedTranscript);
+                            clearTranscriptBackup();
+                        }}
+                        className="btn-primary !py-2 !px-4 !text-xs"
+                    >
+                        Resume → Generate Guide
+                    </button>
+                    <button
+                        onClick={() => {
+                            clearTranscriptBackup();
+                            setDismissed(true);
+                        }}
+                        className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-500 hover:text-white"
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function EasyClawLanding({ onStart, onDemo, onResume }) {
     return (
         <div className="min-h-screen bg-surface-0 relative overflow-hidden">
             {/* Background grid */}
@@ -88,12 +174,12 @@ export default function EasyClawLanding({ onStart, onDemo }) {
                             Start Voice Interview
                             <ArrowRight size={16} className="ml-1" />
                         </button>
-                        {onDemo && (
-                            <button onClick={onDemo} className="btn-ghost flex items-center gap-2 text-sm">
-                                <FileText size={16} />
-                                Preview Demo Output
-                            </button>
-                        )}
+                        <a
+                            href="#demos"
+                            className="text-sm font-display font-medium text-gray-500 hover:text-white transition-colors"
+                        >
+                            Or explore demo outputs ↓
+                        </a>
                     </div>
 
                     {/* Hero visual — orbiting mic */}
@@ -122,6 +208,14 @@ export default function EasyClawLanding({ onStart, onDemo }) {
                         </div>
                     </div>
                 </section>
+
+                {/* Resume bar for dropped interviews */}
+                {onResume && <ResumeBar onResume={onResume} />}
+
+                {/* Demo Navigator */}
+                <div id="demos">
+                    <DemoNavigator onSelectDemo={onDemo} />
+                </div>
 
                 {/* How it works */}
                 <section className="max-w-5xl mx-auto px-6 pb-24">
@@ -175,6 +269,9 @@ export default function EasyClawLanding({ onStart, onDemo }) {
                         ))}
                     </div>
                 </section>
+
+                {/* Recent Guides */}
+                <RecentGuides />
 
                 {/* Bottom CTA */}
                 <section className="text-center px-6 pb-20">

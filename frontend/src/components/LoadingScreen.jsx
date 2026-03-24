@@ -1,25 +1,88 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, FileText, BookOpen } from 'lucide-react';
+import { Sparkles, FileText, BookOpen, Search, Clock, Cpu } from 'lucide-react';
 
-const STAGES = [
-    { icon: Sparkles, label: 'Analyzing your interview responses...', progress: 25 },
-    { icon: FileText, label: 'Generating your setup guide...', progress: 55 },
-    { icon: BookOpen, label: 'Creating reference documents...', progress: 80 },
-    { icon: Sparkles, label: 'Finalizing your personalized guide...', progress: 95 },
+// Fallback stages when no real progress is available (polling mode)
+const FALLBACK_STAGES = [
+    { icon: Search,    label: 'Reading your interview transcript...', detail: 'Understanding your requirements', progress: 15 },
+    { icon: Sparkles,  label: 'Exploring the knowledge base...', detail: 'Matching docs to your use case', progress: 35 },
+    { icon: FileText,  label: 'Writing your setup guide...', detail: 'Generating step-by-step instructions', progress: 55 },
+    { icon: BookOpen,  label: 'Creating reference documents...', detail: 'Building SOUL.md, config, and skill guides', progress: 75 },
+    { icon: Sparkles,  label: 'Generating prompts & final review...', detail: 'Security check + quality validation', progress: 90 },
+    { icon: Sparkles,  label: 'Wrapping up...', detail: 'Almost there', progress: 98 },
 ];
 
-const LoadingScreen = () => {
-    const [stageIdx, setStageIdx] = useState(0);
+// Map SSE stage strings to icons
+function getStageIcon(stage) {
+    if (!stage) return Sparkles;
+    const s = stage.toLowerCase();
+    if (s.includes('read')) return BookOpen;
+    if (s.includes('scan') || s.includes('search') || s.includes('glob')) return Search;
+    if (s.includes('writ')) return FileText;
+    if (s.includes('process') || s.includes('start')) return Cpu;
+    if (s.includes('final')) return Sparkles;
+    return Sparkles;
+}
 
+function formatElapsed(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m === 0) return `${s}s`;
+    return `${m}m ${s}s`;
+}
+
+function formatTokens(tokens) {
+    if (!tokens || tokens === 0) return null;
+    if (tokens > 1000) return `${(tokens / 1000).toFixed(1)}k tokens`;
+    return `${tokens} tokens`;
+}
+
+const LoadingScreen = ({ progress }) => {
+    const [fallbackIdx, setFallbackIdx] = useState(0);
+    const [elapsed, setElapsed] = useState(0);
+
+    const hasRealProgress = progress && progress.turn > 0;
+
+    // Fallback timer-based stages (when SSE isn't connected)
     useEffect(() => {
-        const interval = setInterval(() => {
-            setStageIdx(prev => (prev < STAGES.length - 1 ? prev + 1 : prev));
-        }, 3000);
-        return () => clearInterval(interval);
+        if (hasRealProgress) return;
+        const durations = [4000, 6000, 8000, 6000, 5000, 30000];
+        const timer = setTimeout(() => {
+            setFallbackIdx(prev => (prev < FALLBACK_STAGES.length - 1 ? prev + 1 : prev));
+        }, durations[fallbackIdx]);
+        return () => clearTimeout(timer);
+    }, [fallbackIdx, hasRealProgress]);
+
+    // Elapsed time counter
+    useEffect(() => {
+        const timer = setInterval(() => setElapsed(prev => prev + 1), 1000);
+        return () => clearInterval(timer);
     }, []);
 
-    const stage = STAGES[stageIdx];
-    const StageIcon = stage.icon;
+    // Determine what to display
+    let label, detail, progressPct, StageIcon;
+
+    if (hasRealProgress) {
+        // Real progress from SSE
+        label = progress.stage || 'Processing...';
+        detail = `Turn ${progress.turn}${progress.maxTurns ? ` / ${progress.maxTurns}` : ''}`;
+        progressPct = Math.min(95, (progress.turn / (progress.maxTurns || 40)) * 100);
+        StageIcon = getStageIcon(progress.stage);
+
+        const tokenStr = formatTokens(progress.tokens);
+        if (tokenStr) {
+            detail += ` · ${tokenStr}`;
+        }
+        if (progress.cost > 0) {
+            detail += ` · $${progress.cost.toFixed(3)}`;
+        }
+    } else {
+        // Fallback fake stages
+        const stage = FALLBACK_STAGES[fallbackIdx];
+        label = stage.label;
+        detail = stage.detail;
+        progressPct = stage.progress;
+        StageIcon = stage.icon;
+    }
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-surface-0 text-gray-100 relative overflow-hidden">
@@ -40,34 +103,55 @@ const LoadingScreen = () => {
                 </div>
 
                 {/* Stage label */}
-                <h2 className="text-xl font-display font-semibold text-white mb-3">
-                    {stage.label}
+                <h2 className="text-xl font-display font-semibold text-white mb-2">
+                    {label}
                 </h2>
+                <p className="text-sm text-gray-500 font-mono mb-6">
+                    {detail}
+                </p>
 
                 {/* Progress bar */}
-                <div className="w-64 mx-auto h-1 bg-surface-2 rounded-full overflow-hidden mt-6 mb-4">
+                <div className="w-64 mx-auto h-1 bg-surface-2 rounded-full overflow-hidden mb-4">
                     <div
                         className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-1000 ease-out"
-                        style={{ width: `${stage.progress}%` }}
+                        style={{ width: `${progressPct}%` }}
                     />
                 </div>
 
-                {/* Stage indicators */}
-                <div className="flex items-center justify-center gap-2 mt-6">
-                    {STAGES.map((_, i) => (
-                        <div
-                            key={i}
-                            className={`w-2 h-2 rounded-full transition-all duration-500 ${
-                                i === stageIdx ? 'bg-cyan-400 scale-125' :
-                                i < stageIdx ? 'bg-cyan-400/40' :
-                                'bg-gray-700'
-                            }`}
-                        />
-                    ))}
+                {/* Live indicator when SSE is connected */}
+                {hasRealProgress && (
+                    <div className="flex items-center justify-center gap-1.5 mt-4">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[10px] font-mono text-emerald-400/70 uppercase tracking-wider">
+                            Live
+                        </span>
+                    </div>
+                )}
+
+                {/* Fallback stage indicators */}
+                {!hasRealProgress && (
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                        {FALLBACK_STAGES.slice(0, -1).map((_, i) => (
+                            <div
+                                key={i}
+                                className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                                    i === fallbackIdx ? 'bg-cyan-400 scale-125' :
+                                    i < fallbackIdx ? 'bg-cyan-400/40' :
+                                    'bg-gray-700'
+                                }`}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {/* Elapsed time */}
+                <div className="flex items-center justify-center gap-1.5 mt-8 text-gray-600">
+                    <Clock size={12} />
+                    <span className="text-xs font-mono">{formatElapsed(elapsed)}</span>
                 </div>
 
-                <p className="text-xs font-mono text-gray-600 mt-8">
-                    This may take a minute. Please don't close this page.
+                <p className="text-xs font-mono text-gray-600 mt-3">
+                    Building your personalized guide. Please don't close this page.
                 </p>
             </div>
         </div>

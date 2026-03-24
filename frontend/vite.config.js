@@ -11,6 +11,9 @@ export default defineConfig({
             '/guide': 'http://localhost:8000',
             '/mock-generate': 'http://localhost:8000',
             '/webhook': 'http://localhost:8000',
+            '/health': 'http://localhost:8000',
+            '/events': 'http://localhost:8000',
+            '/demos': 'http://localhost:8000',
         },
     },
 })

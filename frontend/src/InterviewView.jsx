@@ -1,16 +1,28 @@
 import React from 'react';
-import { Phone, PhoneOff, ArrowLeft, Activity, CheckCircle } from 'lucide-react';
+import { Phone, PhoneOff, ArrowLeft, Activity, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import useVapi from './useVapi';
 import AgentPresence from './components/AgentPresence';
 import Transcript from './components/Transcript';
 
+const MIN_TRANSCRIPT_LENGTH = 200;
+
 export default function InterviewView({ onInterviewComplete, onBack }) {
-    const { callStatus, voiceState, transcript, formattedTranscript, startCall, endCall } = useVapi();
+    const { callStatus, voiceState, transcript, formattedTranscript, error, startCall, endCall } = useVapi();
+
+    // Check if user said enough
+    const userText = transcript
+        .filter(e => e.isFinal && e.role === 'user')
+        .map(e => e.text)
+        .join(' ');
+    const isTooShort = callStatus === 'ended' && !error && userText.length < MIN_TRANSCRIPT_LENGTH;
 
     React.useEffect(() => {
-        if (callStatus === 'ended' && onInterviewComplete) {
-            const rawText = transcript
-                .filter(e => e.isFinal)
+        // Only proceed if call ended successfully with enough transcript data
+        if (callStatus === 'ended' && !error && !isTooShort && onInterviewComplete) {
+            const finalEntries = transcript.filter(e => e.isFinal);
+            if (finalEntries.length === 0) return;
+
+            const rawText = finalEntries
                 .map(e => `${e.role === 'user' ? 'User' : 'Agent'}: ${e.text}`)
                 .join('\n');
             const timer = setTimeout(() => {
@@ -18,7 +30,7 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
             }, 2500);
             return () => clearTimeout(timer);
         }
-    }, [callStatus, onInterviewComplete, formattedTranscript, transcript]);
+    }, [callStatus, error, isTooShort, onInterviewComplete, formattedTranscript, transcript]);
 
     const statusConfig = {
         idle: { label: 'Ready', cls: 'border-gray-600/50 text-gray-400 bg-gray-500/10' },
@@ -94,8 +106,68 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
                 </div>
             </header>
 
+            {/* Error overlay with retry */}
+            {error && (
+                <div className="absolute inset-0 z-40 flex items-center justify-center bg-surface-0/90 backdrop-blur-md">
+                    <div className="text-center max-w-sm px-6 animate-fade-up">
+                        <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-5">
+                            <PhoneOff size={24} className="text-rose-400" />
+                        </div>
+                        <h2 className="text-xl font-display font-bold text-white mb-2">
+                            Connection Issue
+                        </h2>
+                        <p className="text-gray-400 text-sm font-mono mb-6">{error}</p>
+                        <div className="flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="btn-primary flex items-center gap-2 !py-2.5 !px-6 !text-sm"
+                            >
+                                <RefreshCw size={14} />
+                                Try Again
+                            </button>
+                            {onBack && (
+                                <button onClick={onBack} className="btn-ghost !py-2.5 !px-5 !text-sm">
+                                    Back
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Too short — not enough context */}
+            {isTooShort && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-surface-0/90 backdrop-blur-md">
+                    <div className="text-center max-w-sm px-6 animate-fade-up">
+                        <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-5">
+                            <AlertTriangle size={24} className="text-amber-400" />
+                        </div>
+                        <h2 className="text-xl font-display font-bold text-white mb-2">
+                            Not Enough Context
+                        </h2>
+                        <p className="text-gray-400 text-sm mb-6">
+                            We need a bit more detail about your use case to generate a useful guide. Try having a longer conversation with the agent.
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="btn-primary flex items-center gap-2 !py-2.5 !px-6 !text-sm"
+                            >
+                                <RefreshCw size={14} />
+                                Retry
+                            </button>
+                            {onBack && (
+                                <button onClick={onBack} className="btn-ghost !py-2.5 !px-5 !text-sm">
+                                    Go Back
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Interview complete overlay */}
-            {callStatus === 'ended' && (
+            {callStatus === 'ended' && !error && !isTooShort && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-surface-0/90 backdrop-blur-md">
                     <div className="text-center animate-fade-up">
                         <div className="w-20 h-20 rounded-full bg-surface-2 border-2 border-cyan-500/30 flex items-center justify-center mx-auto mb-6">

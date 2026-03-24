@@ -1,19 +1,32 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Vapi from '@vapi-ai/web';
+import { saveTranscriptBackup, clearTranscriptBackup } from './lib/transcriptBackup';
 
-const VAPI_PUBLIC_KEY = '5bd9e5c5-dd9e-4021-b13d-9d6fa8395dc0';
-const VAPI_ASSISTANT_ID = '6aff492d-aa3b-4aaa-a9f3-8d51440dd825';
+const VAPI_PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY;
+const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID;
+
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+const BACKUP_INTERVAL = 5; // save backup every N final entries
 
 export default function useVapi() {
     const [callStatus, setCallStatus] = useState('idle'); // idle | connecting | active | ended
     const [voiceState, setVoiceState] = useState('idle'); // idle | user-speaking | agent-thinking | agent-speaking
     const [transcript, setTranscript] = useState([]);      // Array of { role, text, timestamp, isFinal }
-    const [formattedTranscript, setFormattedTranscript] = useState(null); // Result from /format
-    const fullTranscriptRef = useRef([]);                   // Accumulated for POST on call-end
+    const [formattedTranscript, setFormattedTranscript] = useState(null);
+    const [error, setError] = useState(null);
+    const fullTranscriptRef = useRef([]);
     const vapiRef = useRef(null);
 
     // Initialize Vapi instance once
     useEffect(() => {
+        if (!VAPI_PUBLIC_KEY || !VAPI_ASSISTANT_ID) {
+            console.error(
+                'Missing VAPI config. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID in your .env file.'
+            );
+            setError('Voice service not configured. Check environment variables.');
+            return;
+        }
+
         const vapi = new Vapi(VAPI_PUBLIC_KEY);
         vapiRef.current = vapi;
 
@@ -21,6 +34,7 @@ export default function useVapi() {
         vapi.on('call-start', () => {
             setCallStatus('active');
             setVoiceState('idle');
+            setError(null);
         });
 
         vapi.on('call-end', () => {
@@ -35,31 +49,42 @@ export default function useVapi() {
                     .map(e => `${e.role === 'user' ? 'User' : 'Agent'}: ${e.text}`)
                     .join('\n');
 
-                fetch('/format', {
+                fetch(`${API_BASE}/format`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ transcript: transcriptText }),
                 })
-                    .then(res => res.json())
+                    .then(res => {
+                        if (!res.ok) throw new Error(`Format API returned ${res.status}`);
+                        return res.json();
+                    })
                     .then(data => {
                         setFormattedTranscript(data.formatted);
+                        // Save formatted transcript to backup for crash recovery
+                        saveTranscriptBackup(fullTranscriptRef.current, data.formatted);
                     })
                     .catch(err => {
                         console.error('Failed to POST transcript:', err);
-                        // Fallback: use raw transcript
                         setFormattedTranscript(transcriptText);
+                        saveTranscriptBackup(fullTranscriptRef.current, transcriptText);
                     });
             }
         });
 
         // --- Speech events (agent-side) ---
-        // speech-start fires when the agent starts speaking
         vapi.on('speech-start', () => {
             setVoiceState('agent-speaking');
         });
 
-        // speech-end fires when the agent stops speaking
         vapi.on('speech-end', () => {
+            setVoiceState('idle');
+        });
+
+        // --- Error handling ---
+        vapi.on('error', (err) => {
+            console.error('[VAPI] Error:', err);
+            setError(err?.message || 'Voice call encountered an error');
+            setCallStatus('ended');
             setVoiceState('idle');
         });
 
@@ -75,7 +100,6 @@ export default function useVapi() {
                 };
 
                 if (entry.isFinal) {
-                    // Replace trailing partial of same role, or append if none exists
                     setTranscript(prev => {
                         const lastIdx = prev.length - 1;
                         if (lastIdx >= 0 && !prev[lastIdx].isFinal && prev[lastIdx].role === role) {
@@ -87,12 +111,15 @@ export default function useVapi() {
                     });
                     fullTranscriptRef.current = [...fullTranscriptRef.current, entry];
 
-                    // Update voice state based on who just finished speaking
+                    // Periodically save transcript backup for crash recovery
+                    if (fullTranscriptRef.current.length % BACKUP_INTERVAL === 0) {
+                        saveTranscriptBackup(fullTranscriptRef.current, null);
+                    }
+
                     if (role === 'user') {
                         setVoiceState('agent-thinking');
                     }
                 } else {
-                    // Update the last partial entry for this role
                     setTranscript(prev => {
                         const lastIdx = prev.length - 1;
                         if (lastIdx >= 0 && !prev[lastIdx].isFinal && prev[lastIdx].role === role) {
@@ -103,7 +130,6 @@ export default function useVapi() {
                         return [...prev, entry];
                     });
 
-                    // User is speaking if we're getting user partials
                     if (role === 'user') {
                         setVoiceState('user-speaking');
                     }
@@ -122,7 +148,9 @@ export default function useVapi() {
             setCallStatus('connecting');
             setTranscript([]);
             setFormattedTranscript(null);
+            setError(null);
             fullTranscriptRef.current = [];
+            clearTranscriptBackup(); // fresh start
             vapiRef.current.start(VAPI_ASSISTANT_ID);
         }
     }, [callStatus]);
@@ -138,6 +166,7 @@ export default function useVapi() {
         voiceState,
         transcript,
         formattedTranscript,
+        error,
         startCall,
         endCall,
     };

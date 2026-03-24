@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive } from 'lucide-react';
+import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2 } from 'lucide-react';
+import { addGuideToHistory } from '../lib/guideHistory';
+import Scorecard from './Scorecard';
 
 const TABS = [
     { id: 'guide', label: 'Setup Guide', icon: FileText },
@@ -29,11 +31,148 @@ function CopyButton({ text }) {
     );
 }
 
+function DownloadButton({ content, filename, label }) {
+    const handleDownload = () => {
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+    return (
+        <button
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono
+                       border border-white/10 text-gray-400 hover:text-white hover:border-white/20
+                       transition-all duration-200"
+        >
+            <Download size={12} />
+            {label || 'Download .md'}
+        </button>
+    );
+}
+
+function CodeBlock({ children, className }) {
+    const [copied, setCopied] = useState(false);
+    const code = String(children).replace(/\n$/, '');
+    const language = className?.replace('language-', '') || '';
+
+    return (
+        <div className="relative group">
+            {language && (
+                <span className="absolute top-2 left-3 text-[10px] font-mono text-gray-600 uppercase">
+                    {language}
+                </span>
+            )}
+            <button
+                onClick={() => {
+                    navigator.clipboard.writeText(code);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                }}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100
+                           flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono
+                           bg-white/5 border border-white/10 text-gray-400 hover:text-white
+                           transition-all duration-200"
+            >
+                {copied ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
+                {copied ? 'Copied' : 'Copy'}
+            </button>
+            <code className={className}>{children}</code>
+        </div>
+    );
+}
+
+function GuideImage({ src, alt, ...props }) {
+    const [failed, setFailed] = useState(false);
+
+    if (failed) {
+        return (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-2 border border-white/[0.06] my-4">
+                <FileText size={18} className="text-gray-500 shrink-0" />
+                <span className="text-sm text-gray-400 font-mono">{alt || 'Screenshot'}</span>
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={alt}
+            onError={() => setFailed(true)}
+            {...props}
+        />
+    );
+}
+
+function headingId(children) {
+    return String(children).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function GuideTableOfContents({ content }) {
+    const headings = useMemo(() => {
+        if (!content) return [];
+        const matches = [...content.matchAll(/^(#{2,3})\s+(.+)$/gm)];
+        return matches.map(([, hashes, text]) => ({
+            id: headingId(text),
+            label: text.replace(/^\d+\s*\|\s*/, ''),
+            level: hashes.length,
+        }));
+    }, [content]);
+
+    if (headings.length < 4) return null;
+
+    return (
+        <nav className="hidden xl:block sticky top-28 w-48 shrink-0 pr-4 border-r border-white/[0.04] self-start">
+            <p className="section-label mb-3">Contents</p>
+            <div className="space-y-0.5">
+                {headings.map(h => (
+                    <a
+                        key={h.id}
+                        href={`#${h.id}`}
+                        className={`block text-[11px] font-mono text-gray-500 hover:text-white transition-colors
+                                   py-1 truncate ${h.level === 3 ? 'pl-3 text-gray-600' : ''}`}
+                    >
+                        {h.label}
+                    </a>
+                ))}
+            </div>
+        </nav>
+    );
+}
+
 function MarkdownRenderer({ content }) {
     if (!content) return null;
     return (
         <div className="prose prose-sm prose-dark max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    h2({ children, ...props }) {
+                        const id = headingId(children);
+                        return <h2 id={id} className="scroll-mt-28" {...props}>{children}</h2>;
+                    },
+                    h3({ children, ...props }) {
+                        const id = headingId(children);
+                        return <h3 id={id} className="scroll-mt-28" {...props}>{children}</h3>;
+                    },
+                    pre({ children }) {
+                        return <pre>{children}</pre>;
+                    },
+                    code({ children, className, node, ...rest }) {
+                        const isInline = !className;
+                        if (isInline) {
+                            return <code {...rest}>{children}</code>;
+                        }
+                        return <CodeBlock className={className}>{children}</CodeBlock>;
+                    },
+                    img({ src, alt, ...rest }) {
+                        return <GuideImage src={src} alt={alt} {...rest} />;
+                    },
+                }}
+            >
                 {content}
             </ReactMarkdown>
         </div>
@@ -58,6 +197,7 @@ function ReferenceDocCard({ doc, index }) {
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
+                    <DownloadButton content={doc.content} filename={doc.name} />
                     <CopyButton text={doc.content} />
                     {expanded ? <ChevronDown size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                 </div>
@@ -75,6 +215,14 @@ function ReferenceDocCard({ doc, index }) {
 
 const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const [activeTab, setActiveTab] = useState('guide');
+    const [linkCopied, setLinkCopied] = useState(false);
+
+    // Save to history when a completed guide renders
+    useEffect(() => {
+        if (guideData?.status === 'complete' && guideData?.guide_id) {
+            addGuideToHistory(guideData.guide_id);
+        }
+    }, [guideData]);
 
     if (!guideData || guideData.status === 'error') {
         return (
@@ -153,21 +301,45 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                             <p className="section-label mb-0.5">Your Setup Guide</p>
                             <div className="flex items-center gap-2">
                                 <h1 className="text-lg font-display font-bold text-white">
-                                    OpenClaw Configuration
+                                    {guideData.title || 'OpenClaw Configuration'}
                                 </h1>
                                 <span className="status-badge border-emerald-500/30 text-emerald-400 bg-emerald-500/10 !text-[10px] !py-0.5">
                                     <span className="w-1 h-1 rounded-full bg-emerald-400" />
                                     Complete
                                 </span>
+                                {guideData.guide_id?.startsWith('demo-') && (
+                                    <span className="status-badge border-violet-500/30 text-violet-400 bg-violet-500/10 !text-[10px] !py-0.5">
+                                        Demo
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    <button onClick={handleDownloadAll} className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs">
-                        <Archive size={14} />
-                        Download .zip
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {guideData.guide_id && !guideData.guide_id.startsWith('demo-') && (
+                            <button
+                                onClick={() => {
+                                    const url = `${window.location.origin}/view/${guideData.guide_id}`;
+                                    navigator.clipboard.writeText(url);
+                                    setLinkCopied(true);
+                                    setTimeout(() => setLinkCopied(false), 2000);
+                                }}
+                                className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs"
+                            >
+                                {linkCopied ? <Check size={14} className="text-emerald-400" /> : <Link2 size={14} />}
+                                {linkCopied ? 'Link Copied' : 'Share Link'}
+                            </button>
+                        )}
+                        <button onClick={handleDownloadAll} className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs">
+                            <Archive size={14} />
+                            Download .zip
+                        </button>
+                    </div>
                 </div>
+
+                {/* Scorecard */}
+                <Scorecard scorecard={guideData.scorecard} />
 
                 {/* Tabs */}
                 <div className="max-w-5xl mx-auto px-6 flex gap-1">
@@ -207,11 +379,15 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
             <main className="relative z-10 max-w-5xl mx-auto px-6 py-8">
                 {activeTab === 'guide' && (
                     <div className="animate-fade-in">
-                        <div className="flex justify-end mb-4">
+                        <div className="flex justify-end gap-2 mb-4">
+                            <DownloadButton content={guide} filename="OPENCLAW_ONBOARDING_GUIDE.md" />
                             <CopyButton text={guide} />
                         </div>
-                        <div className="glass rounded-2xl p-8">
-                            <MarkdownRenderer content={guide} />
+                        <div className="flex gap-6">
+                            <GuideTableOfContents content={guide} />
+                            <div className="flex-1 min-w-0 glass rounded-2xl p-8">
+                                <MarkdownRenderer content={guide} />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -231,7 +407,8 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
 
                 {activeTab === 'prompts' && (
                     <div className="animate-fade-in">
-                        <div className="flex justify-end mb-4">
+                        <div className="flex justify-end gap-2 mb-4">
+                            <DownloadButton content={prompts} filename="prompts_to_send.md" />
                             <CopyButton text={prompts} />
                         </div>
                         <div className="glass rounded-2xl p-8">
