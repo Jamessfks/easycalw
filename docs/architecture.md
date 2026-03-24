@@ -231,12 +231,11 @@ system_knowledge_base/             # Other team's responsibility
 docs/
 ├── architecture.md                # This file
 ├── design-considerations.md
-├── AGENTS.md
 └── diagrams/
     ├── system-flow.mmd
     └── system-flow.png
 
-way-back-home/level_4/            # Reference only — UI layout patterns
+AGENTS.md                          # AI coding agent instructions (root)
 ```
 
 ### 5.1 What changed from the L4-based architecture
@@ -455,14 +454,6 @@ flowchart TB
 
 ---
 
-## 11. L4 Reference (layout patterns only)
-
-Way Back Home Level 4 source lives at `way-back-home/level_4/`. We no longer use its ADK streaming code, but we reference:
-
-- `frontend/src/VolatileWorkbench.jsx` — UI layout patterns for the two-panel design
-- React + Vite + Tailwind — same frontend stack
-- FastAPI — same backend framework
-
 ---
 
-*Architecture v4.2 — 2026-03-23. Using direct Anthropic Claude API calls for formatter + guide creation.*
+*Architecture v4.3 — 2026-03-23. Flattened repo structure; removed Way Back Home reference.*

@@ -10,7 +10,7 @@ Use this file when generating or modifying code for OpenClaw Concierge. Read the
 |----------|----------|----------------------|
 | 1 | `docs/architecture.md` | System architecture, Vapi integration, project structure, data flow |
 | 2 | `docs/design-considerations.md` | Engineering decisions, UI specs, open questions, what's deferred |
-| 3 | This file (`docs/AGENTS.md`) | Invariants, file paths, build order, do-not rules |
+| 3 | This file (`AGENTS.md`) | Invariants, file paths, build order, do-not rules |
 
 ---
 

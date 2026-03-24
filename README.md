@@ -28,7 +28,7 @@ User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → Formatter → G
 | 1 | **This README** | Project overview |
 | 2 | [`docs/architecture.md`](docs/architecture.md) | Technical architecture, Vapi integration, data flow |
 | 3 | [`docs/design-considerations.md`](docs/design-considerations.md) | Engineering decisions, UI specs, debates, open questions |
-| 4 | [`docs/AGENTS.md`](docs/AGENTS.md) | Instructions for AI coding agents (invariants, build order, do-not rules) |
+| 4 | [`AGENTS.md`](AGENTS.md) | Instructions for AI coding agents (invariants, build order, do-not rules) |
 
 ---
 
@@ -53,8 +53,8 @@ frontend/
     ├── agent-listening.png    # Avatar (listening state)
     └── agent-talking.png      # Avatar (talking state)
 
-system_knowledge_base/          # Provided by another team
-way-back-home/level_4/         # Reference implementation (UI layout patterns only)
+docs/                           # Architecture & design docs
+AGENTS.md                       # AI coding agent instructions
 ```
 
 ---
@@ -65,7 +65,7 @@ way-back-home/level_4/         # Reference implementation (UI layout patterns on
 2. **Formatter** — LLM call for transcript cleanup
 3. **Setup Guide Creation** — 3-step LLM pipeline + output display UI
 
-See [`docs/AGENTS.md`](docs/AGENTS.md) for detailed build instructions.
+See [`AGENTS.md`](AGENTS.md) for detailed build instructions.
 
 ---
 
@@ -78,7 +78,7 @@ See [`docs/AGENTS.md`](docs/AGENTS.md) for detailed build instructions.
 | Python | >= 3.11 | Backend |
 | `uv` | any recent | Python package manager |
 | Node.js | 20+ | Frontend |
-| Docker | any recent | Redis (for Way Back Home reference) |
+| Docker | any recent | Optional (containerized deployment) |
 | `gcloud` CLI | any recent | Google Cloud authentication |
 
 ### Google Cloud authentication
@@ -97,7 +97,7 @@ The Google ADK and Gemini SDKs resolve credentials automatically via [Applicatio
 2. User credentials from `gcloud auth application-default login`
 3. Service account credentials (if running on GCP)
 
-**No `.env` file is needed for Google Cloud auth.** The Way Back Home reference (`way-back-home/level_4/`) has `load_dotenv()` calls but no `.env` file — it relies entirely on gcloud CLI config. Its `scripts/init.sh` stores the project ID in `~/project_id.txt` and runs `gcloud config set project`.
+**No `.env` file is needed for Google Cloud auth.**
 
 App-level env vars (PORT, REDIS_HOST, MODEL_ID, etc.) have sensible defaults and only need overriding for non-standard setups.
 
