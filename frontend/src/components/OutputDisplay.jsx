@@ -1,9 +1,104 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2, RefreshCw, AlertTriangle, XCircle, Clock } from 'lucide-react';
+import QRCode from 'qrcode';
+import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2, RefreshCw, AlertTriangle, XCircle, Clock, QrCode, X, ArrowRightLeft } from 'lucide-react';
 import { addGuideToHistory } from '../lib/guideHistory';
 import Scorecard from './Scorecard';
+
+function QrShareModal({ url, onClose }) {
+    const [qrSrc, setQrSrc] = useState(null);
+
+    useEffect(() => {
+        QRCode.toDataURL(url, { width: 256, margin: 2, color: { dark: '#ffffff', light: '#00000000' } })
+            .then(setQrSrc);
+    }, [url]);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+            <div
+                className="glass rounded-2xl p-6 max-w-xs w-full mx-4 text-center animate-fade-up"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-display font-semibold text-white">Share via QR</h3>
+                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+                        <X size={16} />
+                    </button>
+                </div>
+                {qrSrc ? (
+                    <img src={qrSrc} alt="QR Code" className="mx-auto rounded-xl w-48 h-48" />
+                ) : (
+                    <div className="w-48 h-48 mx-auto rounded-xl bg-white/5 animate-pulse" />
+                )}
+                <p className="text-[11px] font-mono text-gray-500 mt-3 break-all leading-relaxed">{url}</p>
+            </div>
+        </div>
+    );
+}
+
+function BeforeAfterTeaser({ guideData }) {
+    const [expanded, setExpanded] = useState(false);
+    const guide = guideData?.outputs?.setup_guide || '';
+    const wordCount = guide.trim().split(/\s+/).filter(Boolean).length;
+
+    const rawExcerpt = guideData?.transcript_excerpt
+        || "uh yeah so I run a restaurant... like we have maybe 30 tables?\nand I need help with like scheduling and stuff\num and also the POS system is really old...";
+
+    return (
+        <div className="relative z-10 max-w-5xl mx-auto px-6 pt-6 pb-0">
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full glass rounded-xl px-5 py-3 flex items-center justify-between hover:bg-white/[0.02] transition-colors group"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                        <ArrowRightLeft size={14} className="text-violet-400" />
+                    </div>
+                    <span className="text-sm font-display font-medium text-gray-300 group-hover:text-white transition-colors">
+                        How it works — See the AI transformation
+                    </span>
+                </div>
+                <ChevronDown size={16} className={`text-gray-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+            </button>
+
+            {expanded && (
+                <div className="glass rounded-b-xl border-t-0 -mt-1 px-5 pb-5 pt-4 animate-fade-in">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Raw voice input */}
+                        <div className="rounded-xl bg-surface-2 border border-white/[0.06] p-4">
+                            <p className="section-label mb-2 text-rose-400">Raw Voice Input</p>
+                            <pre className="text-xs font-mono text-gray-500 whitespace-pre-wrap leading-relaxed">
+                                {rawExcerpt}
+                            </pre>
+                        </div>
+
+                        {/* Structured output */}
+                        <div className="rounded-xl bg-surface-2 border border-emerald-500/10 p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-emerald-400 text-lg">→</span>
+                                <p className="section-label text-emerald-400 !mb-0">Structured Guide</p>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                        {wordCount.toLocaleString()} words
+                                    </span>
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                                        {(guideData?.outputs?.reference_documents || []).length} reference docs
+                                    </span>
+                                </div>
+                                <p className="text-xs text-gray-400 leading-relaxed">
+                                    Personalized setup guide with step-by-step instructions, reference documentation, and ready-to-use prompts.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 const TABS = [
     { id: 'guide', label: 'Setup Guide', icon: FileText },
@@ -239,6 +334,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const [activeTab, setActiveTab] = useState(tabFromHash);
     const [linkCopied, setLinkCopied] = useState(false);
     const [retrying, setRetrying] = useState(false);
+    const [showQr, setShowQr] = useState(false);
 
     // Sync tab to URL hash
     useEffect(() => {
@@ -427,18 +523,27 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
 
                     <div className="flex items-center gap-2">
                         {guideData.guide_id && !guideData.guide_id.startsWith('demo-') && (
-                            <button
-                                onClick={() => {
-                                    const url = `${window.location.origin}/view/${guideData.guide_id}`;
-                                    navigator.clipboard.writeText(url);
-                                    setLinkCopied(true);
-                                    setTimeout(() => setLinkCopied(false), 2000);
-                                }}
-                                className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs"
-                            >
-                                {linkCopied ? <Check size={14} className="text-emerald-400" /> : <Link2 size={14} />}
-                                {linkCopied ? 'Link Copied' : 'Share Link'}
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => setShowQr(true)}
+                                    className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs"
+                                >
+                                    <QrCode size={14} />
+                                    Share via QR
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const url = `${window.location.origin}/view/${guideData.guide_id}`;
+                                        navigator.clipboard.writeText(url);
+                                        setLinkCopied(true);
+                                        setTimeout(() => setLinkCopied(false), 2000);
+                                    }}
+                                    className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs"
+                                >
+                                    {linkCopied ? <Check size={14} className="text-emerald-400" /> : <Link2 size={14} />}
+                                    {linkCopied ? 'Link Copied' : 'Share Link'}
+                                </button>
+                            </>
                         )}
                         <button onClick={handleDownloadAll} className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs">
                             <Archive size={14} />
@@ -483,6 +588,17 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                     })}
                 </div>
             </header>
+
+            {/* QR Share Modal */}
+            {showQr && (
+                <QrShareModal
+                    url={`${window.location.origin}/view/${guideData.guide_id}`}
+                    onClose={() => setShowQr(false)}
+                />
+            )}
+
+            {/* Before/After Teaser */}
+            <BeforeAfterTeaser guideData={guideData} />
 
             {/* Hero Summary Card */}
             <div className="relative z-10 max-w-5xl mx-auto px-6 pt-8 pb-2">

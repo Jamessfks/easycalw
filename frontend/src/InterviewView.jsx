@@ -1,11 +1,49 @@
-import React from 'react';
-import { Phone, PhoneOff, ArrowLeft, Activity, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Phone, PhoneOff, ArrowLeft, Activity, CheckCircle, RefreshCw, AlertTriangle, X, Lightbulb } from 'lucide-react';
 import useVapi from './useVapi';
 import AgentPresence from './components/AgentPresence';
 import Transcript from './components/Transcript';
 
 const MIN_TRANSCRIPT_LENGTH = 400;
 const MIN_WORD_COUNT = 50;
+
+const TALKING_POINTS = [
+    'Say your name + industry',
+    'Describe your main pain point',
+    'Mention your preferred messaging app',
+    'Mention your technical level',
+    'Mention your hardware (Mac Mini / existing Mac / etc)',
+];
+
+function DemoCoachingCard({ visible }) {
+    const [dismissed, setDismissed] = useState(false);
+    if (!visible || dismissed) return null;
+
+    return (
+        <div className="absolute bottom-4 right-4 z-30 w-64 glass rounded-xl border border-amber-500/20 bg-surface-1/90 backdrop-blur-md p-4 animate-fade-up">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <Lightbulb size={14} className="text-amber-400" />
+                    <span className="text-xs font-display font-semibold text-amber-300">Demo Script</span>
+                </div>
+                <button
+                    onClick={() => setDismissed(true)}
+                    className="p-1 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors"
+                >
+                    <X size={12} />
+                </button>
+            </div>
+            <ul className="space-y-1.5">
+                {TALKING_POINTS.map((point, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[11px] font-mono text-gray-400 leading-relaxed">
+                        <span className="text-amber-500/60 mt-0.5 shrink-0">&#x2022;</span>
+                        {point}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
 
 function mapErrorMessage(raw) {
     if (!raw) return raw;
@@ -214,8 +252,9 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
                 </div>
 
                 {/* Right — Transcript */}
-                <div className="flex-1 md:w-3/5 bg-surface-1/30">
+                <div className="flex-1 md:w-3/5 bg-surface-1/30 relative">
                     <Transcript entries={transcript} />
+                    <DemoCoachingCard visible={callStatus === 'active' || callStatus === 'idle'} />
                 </div>
             </div>
         </div>

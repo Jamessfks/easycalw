@@ -1,8 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mic, ArrowRight, Sparkles, FileText, Zap, Shield, MessageSquare, Settings, Clock, ExternalLink, RotateCcw, X } from 'lucide-react';
 import { getGuideHistory } from './lib/guideHistory';
 import { getTranscriptBackup, clearTranscriptBackup } from './lib/transcriptBackup';
 import DemoNavigator from './components/DemoNavigator';
+
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
+function PreWarmIndicator() {
+    const [status, setStatus] = useState('warming'); // 'warming' | 'ready' | 'error'
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch(`${API_BASE}/health`)
+            .then(res => {
+                if (!cancelled) setStatus(res.ok ? 'ready' : 'error');
+            })
+            .catch(() => {
+                if (!cancelled) setStatus('error');
+            });
+        return () => { cancelled = true; };
+    }, []);
+
+    const config = {
+        warming: { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Warming up...' },
+        ready:   { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Ready' },
+        error:   { color: 'bg-gray-500', ring: 'ring-gray-500/30', label: 'Offline' },
+    };
+    const c = config[status];
+
+    return (
+        <div className="flex items-center gap-2 text-[11px] font-mono text-gray-500">
+            <span className={`w-2 h-2 rounded-full ${c.color} ring-2 ${c.ring} ${status === 'warming' ? 'animate-pulse' : ''}`} />
+            {c.label}
+        </div>
+    );
+}
 
 const STEPS = [
     {
@@ -143,6 +175,7 @@ export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode 
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
+                        <PreWarmIndicator />
                         <span className="section-label text-gray-500">
                             Voice-Powered Setup
                         </span>
