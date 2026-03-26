@@ -329,7 +329,7 @@ async def format_endpoint(request: Request, req: FormatRequest):
 
 
 @app.post("/generate-guide")
-@limiter.limit("5/hour")
+@limiter.limit("20/hour")
 async def generate_guide_endpoint(
     request: Request,
     req: GenerateGuideRequest,

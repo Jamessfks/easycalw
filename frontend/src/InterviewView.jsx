@@ -4,8 +4,19 @@ import useVapi from './useVapi';
 import AgentPresence from './components/AgentPresence';
 import Transcript from './components/Transcript';
 
-const MIN_TRANSCRIPT_LENGTH = 800;
-const MIN_WORD_COUNT = 100;
+const MIN_TRANSCRIPT_LENGTH = 400;
+const MIN_WORD_COUNT = 50;
+
+function mapErrorMessage(raw) {
+    if (!raw) return raw;
+    const m = raw.toLowerCase();
+    if (m.includes('meeting has ended')) return 'The interview ended unexpectedly. Click Try Again.';
+    if (m.includes('ejected') || m.includes('stopped')) return 'Call was stopped.';
+    if (m.includes('microphone') || m.includes('audio')) return 'Microphone error. Check your browser permissions.';
+    if (m.includes('network') || m.includes('fetch') || m.includes('failed to connect') || m.includes('offline'))
+        return 'Network error. Check your connection and try again.';
+    return raw;
+}
 
 export default function InterviewView({ onInterviewComplete, onBack }) {
     const { callStatus, voiceState, transcript, formattedTranscript, error, startCall, endCall } = useVapi();
@@ -88,9 +99,14 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
                         </button>
                     )}
                     {callStatus === 'connecting' && (
-                        <button disabled className="btn-primary flex items-center gap-2 !py-2 !px-5 !text-sm opacity-60 cursor-wait">
+                        <button
+                            onClick={endCall}
+                            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-display font-semibold
+                                       bg-gradient-to-r from-rose-500/80 to-red-600/80 text-white
+                                       transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                        >
                             <Activity size={14} className="animate-spin" />
-                            Connecting
+                            Cancel
                         </button>
                     )}
                     {callStatus === 'active' && (
@@ -118,7 +134,7 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
                         <h2 className="text-xl font-display font-bold text-white mb-2">
                             Connection Issue
                         </h2>
-                        <p className="text-gray-400 text-sm font-mono mb-6">{error}</p>
+                        <p className="text-gray-400 text-sm font-mono mb-6">{mapErrorMessage(error)}</p>
                         <div className="flex items-center justify-center gap-3">
                             <button
                                 onClick={() => window.location.reload()}

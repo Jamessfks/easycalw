@@ -27,6 +27,7 @@ _AGENT_DIR = Path(__file__).parent
 _CONTEXT_DIR = _AGENT_DIR / "context"
 _SYSTEM_PROMPT_PATH = _AGENT_DIR / "system_prompt.md"
 _OUTPUT_BASE = Path(os.getenv("GUIDE_OUTPUT_DIR", "./guide_output"))
+MODEL = os.getenv("GUIDE_MODEL", "claude-sonnet-4-6")
 
 
 def _load_system_prompt() -> str:
@@ -133,7 +134,7 @@ async def generate_guide(
                 permission_mode="acceptEdits",
                 max_turns=40,
                 max_budget_usd=3.0,
-                model="sonnet",
+                model=MODEL,
             ),
         ):
             # Stream intermediate progress to SSE queue

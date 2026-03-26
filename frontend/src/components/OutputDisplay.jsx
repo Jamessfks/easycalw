@@ -230,9 +230,27 @@ function categorizeError(message) {
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 const OutputDisplay = ({ guideData, onBack, onRestart }) => {
-    const [activeTab, setActiveTab] = useState('guide');
+    const tabFromHash = () => {
+        const hash = window.location.hash.replace('#', '');
+        const valid = TABS.map(t => t.id);
+        return valid.includes(hash) ? hash : 'guide';
+    };
+
+    const [activeTab, setActiveTab] = useState(tabFromHash);
     const [linkCopied, setLinkCopied] = useState(false);
     const [retrying, setRetrying] = useState(false);
+
+    // Sync tab to URL hash
+    useEffect(() => {
+        window.location.hash = activeTab;
+    }, [activeTab]);
+
+    // Listen for hash changes (browser back/forward)
+    useEffect(() => {
+        const onHashChange = () => setActiveTab(tabFromHash());
+        window.addEventListener('hashchange', onHashChange);
+        return () => window.removeEventListener('hashchange', onHashChange);
+    }, []);
 
     // Save to history when a completed guide renders
     useEffect(() => {
@@ -434,6 +452,14 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
 
             {/* Content */}
             <main className="relative z-10 max-w-5xl mx-auto px-6 py-8">
+                {onRestart && (
+                    <div className="flex justify-end mb-4">
+                        <button onClick={onRestart} className="btn-primary flex items-center gap-2 !py-2 !px-5 !text-sm">
+                            <RefreshCw size={14} />
+                            Start New Interview
+                        </button>
+                    </div>
+                )}
                 {activeTab === 'guide' && (
                     <div className="animate-fade-in">
                         <div className="flex justify-end gap-2 mb-4">
@@ -455,8 +481,16 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                             <ReferenceDocCard key={doc.name} doc={doc} index={i} />
                         ))}
                         {refDocs.length === 0 && (
-                            <div className="text-center py-20 text-gray-500">
-                                No reference documents were generated.
+                            <div className="glass rounded-xl text-center py-16 px-6">
+                                <div className="w-14 h-14 rounded-full bg-surface-2 border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                                    <BookOpen size={22} className="text-gray-500" />
+                                </div>
+                                <p className="text-gray-400 font-display font-medium mb-1">
+                                    No reference documents needed for this setup
+                                </p>
+                                <p className="text-gray-600 text-sm font-mono">
+                                    Everything you need is in the main setup guide above.
+                                </p>
                             </div>
                         )}
                     </div>
