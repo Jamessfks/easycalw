@@ -8,11 +8,12 @@ const MIN_TRANSCRIPT_LENGTH = 400;
 const MIN_WORD_COUNT = 50;
 
 const TALKING_POINTS = [
-    'Say your name + industry',
-    'Describe your main pain point',
-    'Mention your preferred messaging app',
-    'Mention your technical level',
-    'Mention your hardware (Mac Mini / existing Mac / etc)',
+    'Name + what your business does',
+    'Biggest pain point or what you\'d automate first',
+    'Tech comfort — terminal or apps only?',
+    'Devices + messaging channel (WhatsApp, Slack, etc.)',
+    'Tools you already use (POS, CRM, calendar)',
+    'Autonomy: AI checks with you or acts on its own?',
 ];
 
 function DemoCoachingCard({ visible }) {

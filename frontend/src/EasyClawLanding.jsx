@@ -225,6 +225,15 @@ export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode 
                         </a>
                     </div>
 
+                    {/* Quick explainer */}
+                    <div className="animate-fade-up opacity-0 delay-400 mt-8 flex items-center justify-center gap-3 text-[13px] font-mono text-gray-500">
+                        <span>🎙️ Talk for 2 minutes</span>
+                        <span className="text-gray-700">→</span>
+                        <span>🤖 AI reads 500+ docs</span>
+                        <span className="text-gray-700">→</span>
+                        <span>📋 Get your setup guide</span>
+                    </div>
+
                     {/* Hero visual — orbiting mic */}
                     <div className="animate-fade-up opacity-0 delay-500 relative mt-20 w-72 h-72 flex items-center justify-center">
                         {/* Outer ring */}
