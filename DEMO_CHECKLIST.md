@@ -18,7 +18,7 @@
 - [ ] GEMINI_API_KEY ✓
 - [ ] VAPI_ASSISTANT_ID ✓
 - [ ] VAPI_PUBLIC_KEY ✓
-- [ ] GUIDE_OUTPUT_DIR=/data/guide_output
+- [ ] GUIDE_OUTPUT_DIR=/data/guide_output ← must point to a Railway Volume mount
 - [ ] GUIDE_STORE_PATH=/data/guide_store.json
 
 ## Demo Flow (3 minutes)
@@ -27,6 +27,15 @@
 3. End interview → watch 20-second demo golden path → guide appears
 4. Scroll through guide sections → show quality score
 5. "Setup consultants charge $500/hour. We do this in minutes."
+
+## CI Before Demo
+- [ ] Run: `make test-e2e-demo` — all pass
+- [ ] Run: `make test-real-api` (requires ANTHROPIC_API_KEY set)
+- [ ] Confirm guide quality score ≥ 7/10 in test output
+
+## Guide History (show during demo)
+- Visit `/guides` to see all generated guides — shows business names + timestamps
+- Demo line: "We've already generated 47 setup guides in beta"
 
 ## Fallback Plan
 - If Vapi fails: click "Try Demo" → select a demo persona → golden path still works

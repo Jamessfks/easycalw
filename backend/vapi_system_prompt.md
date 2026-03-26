@@ -1,3 +1,5 @@
+<!-- version: 1.0.0 | last-updated: 2026-03-26 | tested-by: Forge -->
+
 # EasyClaw — Vapi Interview Agent System Prompt
 
 ## How to use this
