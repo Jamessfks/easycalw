@@ -295,3 +295,12 @@ test('callout CSS — blockquotes with emoji markers get color classes', async (
 
     expect(misclassified).toBe(0);
 });
+
+// API health check — guides list
+test('API /guides — returns guides array', async ({ request }) => {
+    const res = await request.get(`${BASE}/guides`);
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(Array.isArray(body.guides)).toBe(true);
+    expect(typeof body.total).toBe('number');
+});

@@ -164,6 +164,46 @@ class GuideStore:
             )
             return items[:limit]
 
+    async def list_guides(self, limit: int = 20, offset: int = 0) -> list[dict]:
+        """Return guide metadata (no content) for dashboard/history listing."""
+        if not self._use_supabase:
+            items = sorted(
+                self._memory.values(),
+                key=lambda d: d.get("created_at", ""),
+                reverse=True,
+            )
+            return [
+                {
+                    "guide_id": d.get("guide_id"),
+                    "status": d.get("status"),
+                    "created_at": d.get("created_at"),
+                    "business_name": d.get("business_name"),
+                }
+                for d in items[offset : offset + limit]
+            ]
+
+        try:
+            sb = await self._get_client()
+            result = (
+                await sb.table("guides")
+                .select("guide_id, status, created_at, metadata")
+                .order("created_at", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+            return [
+                {
+                    "guide_id": r.get("guide_id"),
+                    "status": r.get("status"),
+                    "created_at": r.get("created_at"),
+                    "business_name": (r.get("metadata") or {}).get("business_name"),
+                }
+                for r in result.data
+            ]
+        except Exception as e:
+            logger.error(f"[GuideStore] list_guides failed: {e}")
+            return []
+
     async def items(self) -> list[tuple[str, dict]]:
         """Return all (guide_id, data) pairs — for migration/compat."""
         if not self._use_supabase:

@@ -85,8 +85,14 @@ if not _VAPI_WEBHOOK_SECRET:
     )
 
 # Guide cleanup
-_GUIDE_OUTPUT_DIR = os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output")
+_on_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
+_GUIDE_OUTPUT_DIR = os.environ.get(
+    "GUIDE_OUTPUT_DIR",
+    "/data/guide_output" if _on_railway else "./guide_output",
+)
 _GUIDE_MAX_AGE_DAYS = int(os.environ.get("GUIDE_MAX_AGE_DAYS", "7"))
+_is_persistent = _GUIDE_OUTPUT_DIR.startswith("/data")
+logger.info(f"Guide output directory: {_GUIDE_OUTPUT_DIR} (persistent: {_is_persistent})")
 
 # Guide store — uses Supabase when SUPABASE_URL is set, else in-memory
 guide_store = GuideStore()
@@ -232,6 +238,13 @@ async def health_check():
             "embeddings": "gemini-embedding-001",
         },
     }
+
+
+@app.get("/guides")
+async def list_guides(limit: int = 20, offset: int = 0):
+    """List recent guides — metadata only (no content). For dashboard/demo use."""
+    guides = await guide_store.list_guides(limit=limit, offset=offset)
+    return {"guides": guides, "total": len(guides)}
 
 
 @app.get("/demos")
