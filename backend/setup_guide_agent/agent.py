@@ -27,7 +27,17 @@ _AGENT_DIR = Path(__file__).parent
 _CONTEXT_DIR = _AGENT_DIR / "context"
 _SYSTEM_PROMPT_PATH = _AGENT_DIR / "system_prompt.md"
 _OUTPUT_BASE = Path(os.getenv("GUIDE_OUTPUT_DIR", "./guide_output"))
-MODEL = os.getenv("GUIDE_MODEL", "claude-sonnet-4-6")
+
+# Model selection — Gemini is not supported by the Claude Agent SDK
+_configured_model = os.getenv("GUIDE_MODEL", "claude-sonnet-4-6")
+if _configured_model.lower().startswith("gemini"):
+    logger.warning(
+        f"[GUIDE] GUIDE_MODEL={_configured_model!r} is not supported by the Claude Agent SDK. "
+        f"Falling back to claude-sonnet-4-6."
+    )
+    MODEL = "claude-sonnet-4-6"
+else:
+    MODEL = _configured_model
 
 
 def _load_system_prompt() -> str:
@@ -96,10 +106,47 @@ async def generate_guide(
     logger.info(f"[GUIDE {guide_id}] Output dir: {output_dir}")
     logger.info(f"[GUIDE {guide_id}] Context dir (read-only): {context_dir}")
 
+    # Semantic KB retrieval — pre-select relevant docs to save agent turns
+    semantic_context = ""
+    try:
+        from setup_guide_agent.kb_search import kb_index
+
+        await kb_index.build()
+        relevant_docs = await kb_index.search(formatted_transcript, top_k=12)
+
+        context_lines = ["## Pre-selected Knowledge Base (most relevant to this user)\n"]
+        for item in relevant_docs[:12]:
+            fpath = _CONTEXT_DIR / item["path"]
+            if fpath.exists():
+                content = fpath.read_text()[:3000]  # truncate very long files
+                context_lines.append(
+                    f"### {item['path']} (score: {item['score']:.2f})\n{content}\n"
+                )
+
+        semantic_context = "\n".join(context_lines)
+        logger.info(
+            f"[GUIDE {guide_id}] Semantic retrieval: {len(relevant_docs)} docs pre-selected"
+        )
+    except Exception as e:
+        logger.warning(
+            f"[GUIDE {guide_id}] Semantic retrieval failed, falling back to keyword index: {e}"
+        )
+        semantic_context = ""
+
     turn_count = 0
 
     try:
         result_info = None
+
+        # Build prompt — include semantic context if available
+        semantic_block = ""
+        if semantic_context:
+            semantic_block = (
+                f"\n\n{semantic_context}\n\n"
+                f"The above documents were pre-selected as most relevant to this user's interview. "
+                f"Use them as your primary reference. You may still read additional files from "
+                f"the knowledge base if needed.\n\n"
+            )
 
         async for msg in query(
             prompt=(
@@ -118,6 +165,7 @@ async def generate_guide(
                 f"Style and format references (read these for output formatting):\n"
                 f"- templates/onboarding_guide.md — the reference template for guide structure, section numbering, and visual style\n"
                 f"- templates/images/ — UI screenshot images (image1.png through image12.png) that illustrate the onboarding flow\n\n"
+                f"{semantic_block}"
                 f"Generate these output files in your working directory:\n"
                 f"1. OPENCLAW_ENGINE_SETUP_GUIDE.md — the master setup guide\n"
                 f"2. reference_documents/*.md — sub-step docs for complex procedures\n"
@@ -179,6 +227,64 @@ async def generate_guide(
         # Collect all output files the agent wrote
         outputs = _collect_outputs(output_dir)
 
+        result = {
+            "guide_id": guide_id,
+            "status": "complete",
+            "agent": result_info,
+            "outputs": outputs,
+        }
+
+        # LLM-as-Judge quality evaluation
+        if result["status"] == "complete" and result["outputs"].get("setup_guide"):
+            try:
+                from guide_evaluator import evaluate_guide as _evaluate_guide
+
+                transcript_text = transcript_path.read_text()
+                eval_result = await _evaluate_guide(
+                    guide=result["outputs"]["setup_guide"],
+                    transcript=transcript_text,
+                )
+                result["quality_eval"] = {
+                    "scores": eval_result.scores,
+                    "mean_score": eval_result.mean_score,
+                    "passed": eval_result.passed,
+                    "notes": eval_result.overall_notes,
+                    "rationales": eval_result.rationales,
+                }
+
+                # If guide fails quality bar, attempt one patch
+                if not eval_result.passed:
+                    logger.warning(
+                        f"[GUIDE {guide_id}] Quality below threshold "
+                        f"({eval_result.mean_score:.2f}) — attempting patch"
+                    )
+                    worst = min(eval_result.scores, key=eval_result.scores.get)
+                    patch_prompt = (
+                        f"The setup guide you generated scored poorly on {worst} "
+                        f"({eval_result.scores[worst]}/5).\n\n"
+                        f"Issue: {eval_result.rationales[worst]}\n\n"
+                        f"Please rewrite ONLY the sections that address this weakness. "
+                        f"Output the complete improved guide."
+                    )
+                    import anthropic
+
+                    client = anthropic.AsyncAnthropic()
+                    patch_response = await client.messages.create(
+                        model=os.getenv("GUIDE_MODEL", "claude-sonnet-4-6"),
+                        max_tokens=8192,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": f"{patch_prompt}\n\n{result['outputs']['setup_guide']}",
+                            }
+                        ],
+                    )
+                    result["outputs"]["setup_guide"] = patch_response.content[0].text
+                    result["quality_eval"]["patched"] = True
+                    logger.info(f"[GUIDE {guide_id}] Guide patched for {worst}")
+            except Exception as e:
+                logger.warning(f"[GUIDE {guide_id}] Quality evaluation failed: {e}")
+
         if event_queue is not None:
             await event_queue.put({
                 "type": "complete",
@@ -187,12 +293,7 @@ async def generate_guide(
                 "turns": result_info.get("turns", 0) if result_info else 0,
             })
 
-        return {
-            "guide_id": guide_id,
-            "status": "complete",
-            "agent": result_info,
-            "outputs": outputs,
-        }
+        return result
 
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Agent session failed: {e}")

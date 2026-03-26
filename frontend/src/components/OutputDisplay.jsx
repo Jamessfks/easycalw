@@ -382,6 +382,22 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                                     <span className="w-1 h-1 rounded-full bg-emerald-400" />
                                     Complete
                                 </span>
+                                {guideData.quality_eval && (
+                                    <span className={`status-badge !text-[10px] !py-0.5 ${
+                                        guideData.quality_eval.patched
+                                            ? 'border-amber-500/30 text-amber-400 bg-amber-500/10'
+                                            : guideData.quality_eval.passed
+                                                ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
+                                                : 'border-rose-500/30 text-rose-400 bg-rose-500/10'
+                                    }`}>
+                                        Quality: {guideData.quality_eval.mean_score}/5
+                                        {guideData.quality_eval.patched
+                                            ? ' — improved'
+                                            : guideData.quality_eval.passed
+                                                ? ' \u2713'
+                                                : ' \u2717'}
+                                    </span>
+                                )}
                                 {guideData.guide_id?.startsWith('demo-') && (
                                     <span className="status-badge border-violet-500/30 text-violet-400 bg-violet-500/10 !text-[10px] !py-0.5">
                                         Demo

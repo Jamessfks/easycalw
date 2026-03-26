@@ -134,8 +134,16 @@ def _cleanup_old_guides():
 
 
 @app.on_event("startup")
-async def startup_cleanup():
+async def startup_tasks():
     _cleanup_old_guides()
+    # Pre-build KB embedding index in background
+    try:
+        from setup_guide_agent.kb_search import kb_index
+
+        asyncio.create_task(kb_index.build())
+        logger.info("[STARTUP] KB embedding index building in background...")
+    except Exception as e:
+        logger.warning(f"[STARTUP] KB index pre-build failed (will retry on first search): {e}")
 
 
 # ========================================
@@ -224,11 +232,20 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
 @app.get("/health")
 async def health_check():
     """Health check for monitoring and load balancers."""
+    from setup_guide_agent.agent import MODEL as _guide_model
+
     return {
         "status": "ok",
         "service": "easyclaw",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "guides_in_memory": len(guide_store),
+        "models": {
+            "guide_generation": _guide_model,
+            "formatter_primary": "gemini-2.5-flash",
+            "formatter_fallback": "claude-haiku-4-5-20251001",
+            "evaluator": "gemini-2.5-flash",
+            "embeddings": "gemini-embedding-001",
+        },
     }
 
 
