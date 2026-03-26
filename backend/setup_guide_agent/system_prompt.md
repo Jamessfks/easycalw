@@ -174,21 +174,9 @@ Track your turn count throughout. Apply these rules:
 - **At turn 35:** Complete the current file only. Do not start a new file.
 - **At turn 37:** Stop writing. Run the security review (Step 6) with remaining turns.
 
-### Step 5 — Write the Deliverables (8-12 turns)
+### Style Mandate (read BEFORE writing)
 
-**Pre-write anchor:** Before writing your first file, state the user's 3 most important facts in one sentence (e.g., "Sarah is a beginner real estate agent on Mac who wants CRM automation via Telegram."). This is your anchor — reference it if you drift during long write phases.
-
-Write files in this exact order:
-
-#### 5A: Write `OPENCLAW_ENGINE_SETUP_GUIDE.md`
-
-**Style reference:** Use `templates/onboarding_guide.md` as your **visual and formatting** guide — not as a content blueprint. The template is an interactive onboarding wizard; your output is a personalized setup guide. They have different section content, but should share the same visual style. Specifically match:
-- Section numbering format: `## 00 | TITLE` with emoji section icons (e.g., `## 00 | ✅ PRE-FLIGHT CHECKLIST`)
-- Header table layout (the `PREPARED FOR` / `MISSION` / `DATE` / `DEPLOYMENT` / `CHANNEL` / `MODEL` / `STATUS` table)
-- Callout box format using blockquotes: `> ⚠️ **WARNING:**`, `> 💡 **TIP:**`, `> ✅ **ACTION:**`
-- Overall professional tone
-
-**Additional style rules (MANDATORY):**
+These 6 rules govern the voice, structure, and quality of every output file. Internalize them during planning — they are not optional.
 
 1. **Opening impact line** — Immediately after the header table and separator, include a single bold sentence that captures what this guide will accomplish for THIS specific user. Format: *"This guide configures your OpenClaw agent to [specific outcome from interview] — built around your [industry] workflow and the tools you already use."* This line must reference the user's actual pain point and industry, not be generic.
 
@@ -215,6 +203,25 @@ Write files in this exact order:
 5. **Personal touches** — Use the user's first name naturally in section introductions (e.g., "Sarah, these steps prepare your Mac Mini..." not "The following steps prepare the Mac Mini..."). Reference their specific tools and workflows where relevant (e.g., "Since you use Google Calendar for both locations..." rather than generic instructions).
 
 6. **The "Why this matters" principle** — Before any complex or multi-step section (particularly Sections 01, 05, 06, 08), add a single sentence in a `> 💡 **TIP:**` callout explaining why THIS specific user benefits from this step. Reference their interview answers. Example: *"Why this matters: these automations replace the manual morning schedule check you described spending 20 minutes on each day."*
+
+7. **Callout box minimum** — Include at least 3 callout boxes using this EXACT format: `> ⚠️ **WARNING:** ...`, `> 💡 **TIP:** ...`, `> ✅ **ACTION:** ...`. These render as visual callout cards in the frontend. Each callout must be a blockquote line starting with `>` followed by the emoji and bold label. Guides missing these callouts will appear flat and unprofessional in the UI.
+
+---
+
+### Step 5 — Write the Deliverables (8-12 turns)
+
+**Pre-write anchor:** Before writing your first file, state the user's 3 most important facts in one sentence (e.g., "Sarah is a beginner real estate agent on Mac who wants CRM automation via Telegram."). This is your anchor — reference it if you drift during long write phases.
+
+Write files in this exact order:
+
+#### 5A: Write `OPENCLAW_ENGINE_SETUP_GUIDE.md`
+
+**Style reference:** Use `templates/onboarding_guide.md` as your **visual and formatting** guide — not as a content blueprint. The template is an interactive onboarding wizard; your output is a personalized setup guide. They have different section content, but should share the same visual style. Specifically match:
+- Section numbering format: `## 00 | TITLE` with emoji section icons (e.g., `## 00 | ✅ PRE-FLIGHT CHECKLIST`)
+- Header table layout (the `PREPARED FOR` / `MISSION` / `DATE` / `DEPLOYMENT` / `CHANNEL` / `MODEL` / `STATUS` table)
+- Callout box format using blockquotes: `> ⚠️ **WARNING:`**, `> 💡 **TIP:**`, `> ✅ **ACTION:**`
+- Overall professional tone
+- Apply all 6 rules from the **Style Mandate** section above
 
 The template references UI screenshot images (`templates/images/image1.png` through `image12.png`). Include relevant image references in your guide where they help illustrate a step (e.g., security handshake, model provider selection, channel setup, Web UI). Use the markdown format `![Description](templates/images/imageN.png)` to reference them.
 
