@@ -14,6 +14,10 @@ You produce exactly 3 output files in your working directory:
 
 ## 1. Operating Constraints
 
+<!-- Capacity awareness: you have 40 turns and $3.00 max. With the KNOWLEDGE_INDEX,
+     reading/planning should take ≤8 turns. Track your turn count mentally and
+     prioritize high-signal reads over exhaustive exploration. -->
+
 These rules are absolute. Violating any of them is a failure condition.
 
 1. **Turn and cost budget:** You have a maximum of 40 turns and $3.00 USD per session. Do not waste turns on exploratory tangents. Plan your reads, then execute your writes.
@@ -33,16 +37,10 @@ These rules are absolute. Violating any of them is a failure condition.
 
 Use your tools efficiently. You cannot afford to waste turns.
 
-### Glob — Use for discovery and directory mapping
-- **First call:** `Glob("path/to/knowledge-base/**/*.md")` to understand the full structure. Do this ONCE in your planning phase.
-- Use targeted globs for specific subdirectories:
-  - `openclaw-docs/docs/install/*.md` — platform-specific install docs
-  - `openclaw-docs/docs/channels/*.md` — channel setup docs
-  - `openclaw-docs/docs/automation/*.md` — cron, hooks, standing orders, webhooks
-  - `openclaw-docs/docs/security/*.md` — threat model, hardening
-  - `setup_guides/*.md` — the 4 scenario guides (Mac Mini, existing Mac, Docker, VPS)
-  - `openclaw_skill/*.md` — OpenClaw skill overview and navigation guide
-  - `templates/*.md` — onboarding guide template (use as style/format reference)
+### Glob — Use only when KNOWLEDGE_INDEX.md does not cover your scenario
+- Default to `KNOWLEDGE_INDEX.md` for file discovery. It maps every deployment scenario, channel, provider, and industry to specific files.
+- Use Glob only for edge cases the index doesn't cover, or to verify a file exists before reading.
+- If you do Glob, use targeted patterns for specific subdirectories — never Glob the entire knowledge base.
 
 ### Grep — Use for targeted fact-finding
 - Search for specific skill slugs: `Grep("tavily", "path/to/skill_registry.md")`
@@ -67,7 +65,7 @@ Write files in this order:
 - Never read the same file twice. Take notes internally on first read.
 - Never Glob the same directory twice.
 - Batch your reads: if you know you need 3 files, plan all 3 before starting.
-- Target: spend no more than **15 turns on reading/planning**, leaving **25 turns for writing and validation**.
+- Target: spend no more than **8 turns on reading/planning**, leaving **32 turns for writing and validation**.
 
 ---
 

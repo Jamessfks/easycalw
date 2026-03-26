@@ -6,6 +6,7 @@ Markdown for the Setup Guide Agent.
 Falls back to regex-based cleanup if all API calls fail.
 """
 
+import asyncio
 import re
 import os
 import logging
@@ -71,7 +72,8 @@ async def _format_with_gemini(raw_transcript: str, api_key: str) -> str:
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(_GEMINI_MODEL)
 
-    response = model.generate_content(
+    response = await asyncio.to_thread(
+        model.generate_content,
         f"{_FORMAT_PROMPT}\n{raw_transcript}",
         generation_config=genai.types.GenerationConfig(
             max_output_tokens=_MAX_TOKENS,
@@ -97,7 +99,8 @@ async def _format_with_haiku(raw_transcript: str) -> str:
     """Format transcript using Anthropic Claude Haiku (fallback)."""
     client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
 
-    response = client.messages.create(
+    response = await asyncio.to_thread(
+        client.messages.create,
         model=_HAIKU_MODEL,
         max_tokens=_MAX_TOKENS,
         messages=[
