@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import EasyClawLanding from './EasyClawLanding';
 import InterviewView from './InterviewView';
+import DemoInterviewView from './DemoInterviewView';
 import SetupGuideView from './SetupGuideView';
 import OutputDisplay from './components/OutputDisplay';
 import LoadingScreen from './components/LoadingScreen';
@@ -19,21 +20,57 @@ function MainFlow() {
         setPhase('interview');
     }, []);
 
+    const handleDemoMode = useCallback(() => {
+        setPhase('demo-interview');
+    }, []);
+
     const handleInterviewComplete = useCallback((transcript) => {
         setTranscriptData(transcript);
         setPhase('processing');
     }, []);
 
     const handleMockDemo = useCallback(async (demoId = 'demo-restaurant') => {
+        // Use demo-stream for accelerated SSE playback (~20s instead of 5-10min)
+        // Falls back to instant mock-generate if SSE fails
         setPhase('mock-loading');
+        
         try {
-            const res = await fetch(`${API_BASE}/mock-generate?demo_id=${encodeURIComponent(demoId)}`);
-            if (!res.ok) throw new Error(`Server returned ${res.status}`);
-            const data = await res.json();
-            setMockGuide(data);
-            setPhase('mock-output');
+            const evtSource = new EventSource(`${API_BASE}/demo-stream/${encodeURIComponent(demoId)}`);
+            
+            evtSource.addEventListener('progress', (e) => {
+                // Progress events handled by LoadingScreen via phase state
+                // We just need to keep the phase as mock-loading during stream
+            });
+            
+            evtSource.addEventListener('complete', (e) => {
+                evtSource.close();
+                try {
+                    const data = JSON.parse(e.data);
+                    setMockGuide(data);
+                    setPhase('mock-output');
+                } catch (err) {
+                    console.error('Demo stream parse failed:', err);
+                    setPhase('landing');
+                }
+            });
+            
+            evtSource.addEventListener('error', async () => {
+                evtSource.close();
+                // Fallback to instant load
+                try {
+                    const res = await fetch(`${API_BASE}/mock-generate?demo_id=${encodeURIComponent(demoId)}`);
+                    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+                    const data = await res.json();
+                    setMockGuide(data);
+                    setPhase('mock-output');
+                } catch (err) {
+                    console.error('Mock fallback failed:', err);
+                    setPhase('landing');
+                }
+            });
+            
         } catch (err) {
-            console.error('Mock failed:', err);
+            console.error('Demo stream setup failed:', err);
             setPhase('landing');
         }
     }, []);
@@ -50,12 +87,21 @@ function MainFlow() {
     }, []);
 
     if (phase === 'landing') {
-        return <EasyClawLanding onStart={handleStartInterview} onDemo={handleMockDemo} onResume={handleResume} />;
+        return <EasyClawLanding onStart={handleStartInterview} onDemo={handleMockDemo} onResume={handleResume} onDemoMode={handleDemoMode} />;
     }
 
     if (phase === 'interview') {
         return (
             <InterviewView
+                onInterviewComplete={handleInterviewComplete}
+                onBack={() => setPhase('landing')}
+            />
+        );
+    }
+
+    if (phase === 'demo-interview') {
+        return (
+            <DemoInterviewView
                 onInterviewComplete={handleInterviewComplete}
                 onBack={() => setPhase('landing')}
             />

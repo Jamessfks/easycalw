@@ -121,7 +121,7 @@ function ResumeBar({ onResume }) {
     );
 }
 
-export default function EasyClawLanding({ onStart, onDemo, onResume }) {
+export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode }) {
     return (
         <div className="min-h-screen bg-surface-0 relative overflow-hidden">
             {/* Background grid */}
@@ -173,6 +173,13 @@ export default function EasyClawLanding({ onStart, onDemo, onResume }) {
                             <Mic size={18} />
                             Start Voice Interview
                             <ArrowRight size={16} className="ml-1" />
+                        </button>
+                        <button
+                            onClick={onDemoMode}
+                            className="btn-ghost flex items-center gap-2 text-sm"
+                        >
+                            <FileText size={16} />
+                            Try Demo (No Mic Needed)
                         </button>
                         <a
                             href="#demos"

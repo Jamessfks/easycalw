@@ -278,10 +278,16 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     if (!guideData || guideData.status === 'error') {
         const err = categorizeError(guideData?.message);
         const ErrIcon = err.icon;
+        const errColorClasses = {
+            rose: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
+            amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+        };
+        const errColors = errColorClasses[err.color] || errColorClasses.rose;
+        const [bgCls, borderCls, textCls] = errColors.split(' ');
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-surface-0 text-gray-100 gap-6 px-6">
-                <div className={`w-20 h-20 rounded-full bg-${err.color}-500/10 border border-${err.color}-500/20 flex items-center justify-center`}>
-                    <ErrIcon size={32} className={`text-${err.color}-400`} />
+                <div className={`w-20 h-20 rounded-full ${bgCls} border ${borderCls} flex items-center justify-center`}>
+                    <ErrIcon size={32} className={textCls} />
                 </div>
                 <h2 className="text-2xl font-display font-bold text-white">
                     {err.label}
