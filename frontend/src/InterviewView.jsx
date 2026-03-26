@@ -20,7 +20,7 @@ function DemoCoachingCard({ visible }) {
     if (!visible || dismissed) return null;
 
     return (
-        <div className="absolute bottom-4 right-4 z-30 w-64 glass rounded-xl border border-amber-500/20 bg-surface-1/90 backdrop-blur-md p-4 animate-fade-up">
+        <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 z-30 w-auto sm:w-64 glass rounded-xl border border-amber-500/20 bg-surface-1/90 backdrop-blur-md p-4 animate-fade-up">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <Lightbulb size={14} className="text-amber-400" />

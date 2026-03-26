@@ -228,8 +228,8 @@ test('demo output — Demo badge visible, share link hidden for demos', async ({
     // Demo guides show "Demo" badge
     await expect(page.getByText('Demo', { exact: true })).toBeVisible();
 
-    // Share Link button should NOT be visible for demo guides (guide_id starts with "demo-")
-    await expect(page.locator('button', { hasText: 'Share Link' })).not.toBeVisible();
+    // Copy Link button should NOT be visible for demo guides (guide_id starts with "demo-")
+    await expect(page.locator('button', { hasText: 'Copy Link' })).not.toBeVisible();
 
     // Download .zip should always be present
     await expect(page.locator('button', { hasText: 'Download .zip' })).toBeVisible();

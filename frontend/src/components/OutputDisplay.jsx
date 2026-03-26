@@ -508,7 +508,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
 
             {/* Header */}
             <header className="sticky top-0 z-20 glass border-b border-white/[0.06]">
-                <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+                <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-4">
                         {onBack && (
                             <button
@@ -580,7 +580,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                 <Scorecard scorecard={guideData.scorecard} />
 
                 {/* Tabs */}
-                <div className="max-w-5xl mx-auto px-6 flex gap-1">
+                <div className="max-w-5xl mx-auto px-6 flex gap-1 overflow-x-auto">
                     {TABS.map(tab => {
                         const isActive = activeTab === tab.id;
                         const TabIcon = tab.icon;
