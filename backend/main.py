@@ -437,7 +437,7 @@ async def get_guide(guide_id: str):
     if guide is not in memory (e.g. after a server restart).
     """
     if guide_id in guide_store:
-        return guide_store[guide_id]
+        return guide_store.get_sync(guide_id)
 
     # Fallback: try to recover from disk output directory
     guide_dir = os.path.join(
@@ -532,7 +532,7 @@ async def guide_events(guide_id: str):
         entry = guide_store.get_sync(guide_id)
         if entry and entry.get("status") in ("complete", "error"):
             async def already_done():
-                yield {"event": "complete", "data": json.dumps(guide_store[guide_id], default=str)}
+                yield {"event": "complete", "data": json.dumps(guide_store.get_sync(guide_id, {}), default=str)}
             return EventSourceResponse(already_done())
 
         raise HTTPException(status_code=404, detail="Guide not found or not generating")

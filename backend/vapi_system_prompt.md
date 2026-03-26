@@ -1,6 +1,10 @@
-# EasyClaw Interview Agent — Vapi System Prompt
+# EasyClaw — Vapi Interview Agent System Prompt
 
-Paste the section below into the Vapi dashboard **System Prompt** field.
+## How to use this
+1. Go to https://dashboard.vapi.ai
+2. Open your EasyClaw assistant → Edit → System Prompt
+3. Replace the entire prompt with the content below the horizontal rule
+4. Save → test with: bash scripts/prewarm.sh
 
 ---
 
