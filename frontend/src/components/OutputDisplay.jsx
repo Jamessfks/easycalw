@@ -532,16 +532,18 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
         return `~${minutes} min read`;
     }, [guide]);
 
-    // Parse hero stats from guide content with sensible fallbacks
+    // Parse hero stats from actual guide content
     const heroStats = useMemo(() => {
-        const skillCount = (guide.match(/skill|plugin|integration/gi) || []).length;
-        const stepCount = (guide.match(/^#{2,3}\s+(?:step|\d+[\.\)]\s)/gim) || []).length;
-        const rawSkills = Math.ceil(skillCount / 3);
-        const rawMinutes = Math.round(stepCount * 2.5);
+        // Count clawhub/openclaw skill install lines → skills
+        const skillInstalls = (guide.match(/(?:clawhub|openclaw)\s+(?:skill\s+)?install\s+\S+/gim) || []).length;
+        // Count ## numbered section headers (e.g. ## 00 | ..., ## 01 | ...)
+        const sectionHeaders = (guide.match(/^##\s+\d{2}\s*\|/gm) || []).length;
+        // 5 min per section
+        const estMinutes = sectionHeaders * 5;
         return {
-            skills: (rawSkills > 0 && !isNaN(rawSkills)) ? `${Math.min(15, rawSkills)}` : '10+',
-            steps: (stepCount > 0 && !isNaN(stepCount)) ? `${stepCount}` : '8',
-            minutes: (rawMinutes > 0 && !isNaN(rawMinutes)) ? `~${rawMinutes}` : '~45',
+            skills: skillInstalls > 0 ? `${skillInstalls}` : '6',
+            steps: sectionHeaders > 0 ? `${sectionHeaders}` : '8',
+            minutes: estMinutes > 0 ? `~${estMinutes}` : '~45',
         };
     }, [guide]);
 
