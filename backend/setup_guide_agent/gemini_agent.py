@@ -92,6 +92,13 @@ Generate all 3 output files. Return them in this EXACT format:
 [reference doc content if needed, skip if not relevant]
 ===END===
 
+You MUST include these sections in the setup guide:
+- 00 Pre-Flight (system requirements, env checks)
+- 01-04 Setup steps (install, configure, integrate, verify)
+- 08 Security Hardening (API key rotation, permissions, audit)
+
+The prompts_to_send.md file MUST contain at least 3 ready-to-use prompts.
+
 Generate all files now. Be thorough and personalized to this specific user.
 """
 
@@ -132,6 +139,45 @@ Generate all files now. Be thorough and personalized to this specific user.
         if not outputs["setup_guide"] and len(raw) > 500:
             outputs["setup_guide"] = raw
             (output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md").write_text(raw)
+
+        # Validate output quality
+        guide_text = outputs.get("setup_guide") or ""
+        guide_len = len(guide_text)
+
+        # Check for required sections
+        required_sections = ["Pre-Flight", "Install", "Security"]
+        missing = [s for s in required_sections if s.lower() not in guide_text.lower()]
+        if missing:
+            logger.warning(f"[GEMINI GUIDE {guide_id}] Missing sections: {', '.join(missing)}")
+
+        # If guide is too thin, retry once with a more explicit prompt
+        if guide_len < 4000 and guide_len > 0:
+            logger.warning(f"[GEMINI GUIDE {guide_id}] Guide too thin ({guide_len} chars), retrying with explicit prompt")
+            if event_queue:
+                await event_queue.put({"type": "progress", "stage": "Guide too short — retrying with detailed prompt...", "turn": 9, "max_turns": 10})
+            retry_prompt = prompt + "\n\nIMPORTANT: Your previous attempt was too short. Write a COMPREHENSIVE guide of at least 5000 words covering every section in detail."
+            retry_response = await asyncio.to_thread(
+                model.generate_content,
+                retry_prompt,
+                generation_config=genai.types.GenerationConfig(max_output_tokens=32768),
+            )
+            retry_raw = retry_response.text
+            retry_blocks = re.findall(r'===FILE: (.+?)===\n(.*?)===END===', retry_raw, re.DOTALL)
+            for filename, file_content in retry_blocks:
+                filename = filename.strip()
+                content = file_content.strip()
+                (output_dir / filename).parent.mkdir(parents=True, exist_ok=True)
+                (output_dir / filename).write_text(content)
+                if filename == "OPENCLAW_ENGINE_SETUP_GUIDE.md":
+                    outputs["setup_guide"] = content
+                elif filename == "prompts_to_send.md":
+                    outputs["prompts_to_send"] = content
+                elif filename.startswith("reference_documents/"):
+                    outputs["reference_documents"].append({"name": Path(filename).name, "content": content})
+            if not outputs["setup_guide"] and len(retry_raw) > 500:
+                outputs["setup_guide"] = retry_raw
+                (output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md").write_text(retry_raw)
+            logger.info(f"[GEMINI GUIDE {guide_id}] Retry complete — {len(outputs.get('setup_guide', ''))} chars")
 
         if event_queue:
             await event_queue.put({"type": "complete", "guide_id": guide_id})
