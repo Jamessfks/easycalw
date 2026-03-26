@@ -56,15 +56,16 @@ async def evaluate_guide(guide: str, transcript: str, threshold: float = 3.5) ->
     Returns:
         EvalResult with scores, rationales, mean_score, passed flag, and notes.
     """
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
     response = await asyncio.to_thread(
-        model.generate_content,
-        EVAL_PROMPT.format(transcript=transcript, guide=guide),
-        generation_config=genai.types.GenerationConfig(
+        client.models.generate_content,
+        model="gemini-2.5-flash",
+        contents=EVAL_PROMPT.format(transcript=transcript, guide=guide),
+        config=types.GenerateContentConfig(
             response_mime_type="application/json",
             max_output_tokens=1024,
             temperature=0.0,

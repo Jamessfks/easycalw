@@ -43,7 +43,7 @@ When you launch `openclaw-onboard` in your terminal, OpenClaw greets you with it
 
 OpenClaw is designed for a single trusted operator. Read the security recommendations carefully.
 
-![Security Handshake](/guide-images/01-security-handshake.png)
+![Security Handshake](templates/images/image12.png)
 
 > **ACTION:** Select "Yes" to acknowledge and continue. You are now the sole operator of this boundary.
 
@@ -53,7 +53,7 @@ OpenClaw is designed for a single trusted operator. Read the security recommenda
 
 OpenClaw supports multiple AI providers. Based on your interview, we recommend **OpenAI Codex** for the most reliable reasoning capabilities for restaurant operations.
 
-![Select Model Provider](/guide-images/02-model-provider.png)
+![Select Model Provider](templates/images/image11.png)
 
 > **ACTION:** Select "OpenAI" from the list of providers.
 
@@ -61,7 +61,7 @@ OpenClaw supports multiple AI providers. Based on your interview, we recommend *
 
 Choose how to authenticate with OpenAI. The Codex (ChatGPT OAuth) option is the fastest QuickStart method.
 
-![Authentication Method](/guide-images/02-auth-method.png)
+![Authentication Method](templates/images/image10.png)
 
 > **ACTION:** Select "OpenAI Codex (ChatGPT OAuth)" for the fastest setup.
 
@@ -69,7 +69,7 @@ Choose how to authenticate with OpenAI. The Codex (ChatGPT OAuth) option is the 
 
 A browser window will open for you to authenticate with your OpenAI/ChatGPT account.
 
-![OpenAI Login](/guide-images/02-openai-login.png)
+![OpenAI Login](templates/images/image7.png)
 
 > **ACTION:** Sign in with your OpenAI account credentials (email, Google, Apple, or Microsoft).
 
@@ -77,7 +77,7 @@ A browser window will open for you to authenticate with your OpenAI/ChatGPT acco
 
 After authentication, select your preferred model. We recommend `gpt-5.2-codex` for the best balance of speed and capability.
 
-![Model Selection](/guide-images/02-model-selection.png)
+![Model Selection](templates/images/image9.png)
 
 > **ACTION:** Select `openai-codex/gpt-5.2-codex` or your preferred model.
 
@@ -87,7 +87,7 @@ After authentication, select your preferred model. We recommend `gpt-5.2-codex` 
 
 Your agent needs a place to communicate with you. Based on your interview, we recommend **Telegram** for its stability, ease of use, and excellent bot API.
 
-![Channel Selection](/guide-images/03-channel-selection.png)
+![Channel Selection](templates/images/image3.png)
 
 > **ACTION:** Select "Telegram (Bot API)" from the channel list.
 
@@ -109,7 +109,7 @@ Your Telegram Bot Token: ____________________
 
 To allow your agent to search the web for supplier pricing, health code updates, and food trends, we configure a search provider. We recommend **Gemini (Google Search)** for reliable, AI-synthesized results.
 
-![Search Provider](/guide-images/04-search-provider.png)
+![Search Provider](templates/images/image4.png)
 
 > **ACTION:** Select "Gemini (Google Search)" from the search provider list.
 
@@ -117,7 +117,7 @@ To allow your agent to search the web for supplier pricing, health code updates,
 
 Enter your Gemini API key. You can get one from [Google AI Studio](https://aistudio.google.com).
 
-![API Key Entry](/guide-images/04-api-key-entry.png)
+![API Key Entry](templates/images/image5.png)
 
 > **ACTION:** Paste your Gemini API key and press Enter.
 
@@ -131,7 +131,7 @@ OpenClaw supports optional skills and hooks that extend your agent's capabilitie
 
 Skills tailored to your needs (install later via Web UI):
 
-![Skill Dependencies](/guide-images/05-skill-dependencies.png)
+![Skill Dependencies](templates/images/image2.png)
 
 | Skill | Purpose |
 |-------|---------|
@@ -148,7 +148,7 @@ Skills tailored to your needs (install later via Web UI):
 
 Hooks allow your agent to perform actions on boot, log commands, and maintain session memory.
 
-![Enable Hooks](/guide-images/05-enable-hooks.png)
+![Enable Hooks](templates/images/image8.png)
 
 > **ACTION:** Select "Skip for now" or enable specific hooks based on your needs.
 
@@ -158,7 +158,7 @@ Hooks allow your agent to perform actions on boot, log commands, and maintain se
 
 This is the final terminal step. We're now moving from the command line to the OpenClaw Web UI.
 
-![Hatching Your Agent](/guide-images/06-hatching-agent.png)
+![Hatching Your Agent](templates/images/image1.png)
 
 > **ACTION:** Select "Open the Web UI" to launch your agent's control panel.
 
@@ -168,7 +168,7 @@ This is the final terminal step. We're now moving from the command line to the O
 
 Your browser will open to `http://127.0.0.1:18789` where your OpenClaw control panel lives.
 
-![OpenClaw Web UI](/guide-images/07-web-ui.png)
+![OpenClaw Web UI](templates/images/image6.png)
 
 **STATUS: READY FOR INJECTION**
 
@@ -188,7 +188,7 @@ Your browser will open to `http://127.0.0.1:18789` where your OpenClaw control p
 
 With the Web UI running, **Agent 2 now takes over** to inject your personalized configuration. Paste in the files it gives you.
 
-![Agent 2 Handoff](/guide-images/08-agent2-handoff.png)
+![Agent 2 Handoff](templates/images/image6.png)
 
 ### What Happens Next
 

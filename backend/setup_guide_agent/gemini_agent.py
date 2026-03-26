@@ -44,13 +44,14 @@ async def generate_guide_gemini(
     event_queue=None,
 ) -> dict:
     """Generate a setup guide using Gemini 2.5 Pro (Anthropic fallback)."""
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if not gemini_key:
         return {"guide_id": "error", "status": "error", "message": "No GEMINI_API_KEY set"}
 
-    genai.configure(api_key=gemini_key)
+    client = genai.Client(api_key=gemini_key)
 
     guide_id = str(uuid.uuid4())[:8]
     output_dir = _OUTPUT_BASE / guide_id
@@ -106,11 +107,11 @@ Generate all files now. Be thorough and personalized to this specific user.
         await event_queue.put({"type": "progress", "stage": "Starting Gemini guide generation...", "turn": 1, "max_turns": 10})
 
     try:
-        model = genai.GenerativeModel("gemini-2.5-pro-exp-03-25")
         response = await asyncio.to_thread(
-            model.generate_content,
-            prompt,
-            generation_config=genai.types.GenerationConfig(max_output_tokens=32768),
+            client.models.generate_content,
+            model="gemini-2.5-pro",
+            contents=prompt,
+            config=types.GenerateContentConfig(max_output_tokens=32768),
         )
         raw = response.text
 
@@ -157,9 +158,10 @@ Generate all files now. Be thorough and personalized to this specific user.
                 await event_queue.put({"type": "progress", "stage": "Guide too short — retrying with detailed prompt...", "turn": 9, "max_turns": 10})
             retry_prompt = prompt + "\n\nIMPORTANT: Your previous attempt was too short. Write a COMPREHENSIVE guide of at least 5000 words covering every section in detail."
             retry_response = await asyncio.to_thread(
-                model.generate_content,
-                retry_prompt,
-                generation_config=genai.types.GenerationConfig(max_output_tokens=32768),
+                client.models.generate_content,
+                model="gemini-2.5-pro",
+                contents=retry_prompt,
+                config=types.GenerateContentConfig(max_output_tokens=32768),
             )
             retry_raw = retry_response.text
             retry_blocks = re.findall(r'===FILE: (.+?)===\n(.*?)===END===', retry_raw, re.DOTALL)

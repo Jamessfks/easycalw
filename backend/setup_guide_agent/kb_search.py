@@ -109,27 +109,31 @@ class KBIndex:
 
     async def _embed_single(self, text: str):
         """Embed a single query text using Gemini embeddings."""
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
 
-        genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
+        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
         try:
             r = await asyncio.to_thread(
-                genai.embed_content,
+                client.models.embed_content,
                 model=_EMBEDDING_MODEL,
-                content=text[:8000],
-                task_type="RETRIEVAL_QUERY",
-                output_dimensionality=768,
+                contents=text[:8000],
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_QUERY",
+                    output_dimensionality=768,
+                ),
             )
-            return np.array(r["embedding"], dtype=np.float32)
+            return np.array(r.embeddings[0].values, dtype=np.float32)
         except Exception as e:
             logger.error(f"[KB] Embed failed: {e}")
             return None
 
     async def _embed_batch(self, files: dict[str, str]) -> dict[str, np.ndarray]:
         """Embed a batch of documents using Gemini embeddings."""
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
 
-        genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
+        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
         results = {}
         items = list(files.items())
         for i in range(0, len(items), _BATCH_SIZE):
@@ -137,14 +141,16 @@ class KBIndex:
             texts = [t[:8000] for _, t in batch]
             try:
                 r = await asyncio.to_thread(
-                    genai.embed_content,
+                    client.models.embed_content,
                     model=_EMBEDDING_MODEL,
-                    content=texts,
-                    task_type="RETRIEVAL_DOCUMENT",
-                    output_dimensionality=768,
+                    contents=texts,
+                    config=types.EmbedContentConfig(
+                        task_type="RETRIEVAL_DOCUMENT",
+                        output_dimensionality=768,
+                    ),
                 )
                 for j, (rel, _) in enumerate(batch):
-                    results[rel] = np.array(r["embedding"][j], dtype=np.float32)
+                    results[rel] = np.array(r.embeddings[j].values, dtype=np.float32)
             except Exception as e:
                 logger.error(f"[KB] Batch embed failed: {e}")
         return results

@@ -67,21 +67,19 @@ async def format_transcript(raw_transcript: str) -> str:
 
 async def _format_with_gemini(raw_transcript: str, api_key: str) -> str:
     """Format transcript using Google Gemini 2.5 Flash."""
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(_GEMINI_MODEL)
+    client = genai.Client(api_key=api_key)
 
     response = await asyncio.to_thread(
-        model.generate_content,
-        f"{_FORMAT_PROMPT}\n{raw_transcript}",
-        generation_config=genai.types.GenerationConfig(
-            max_output_tokens=_MAX_TOKENS,
-        ),
+        client.models.generate_content,
+        model=_GEMINI_MODEL,
+        contents=f"{_FORMAT_PROMPT}\n{raw_transcript}",
+        config=types.GenerateContentConfig(max_output_tokens=_MAX_TOKENS),
     )
 
     formatted = response.text
-    # Log token counts if available
     usage = getattr(response, "usage_metadata", None)
     if usage:
         logger.info(

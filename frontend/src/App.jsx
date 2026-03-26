@@ -29,6 +29,11 @@ function MainFlow() {
         setPhase('processing');
     }, []);
 
+    // Demo interview completes → use golden path (fast, reliable)
+    const handleDemoInterviewComplete = useCallback(() => {
+        handleMockDemo('demo-restaurant'); // closest match to demo-interview persona
+    }, [handleMockDemo]);
+
     const handleMockDemo = useCallback(async (demoId = 'demo-restaurant') => {
         // Use demo-stream for accelerated SSE playback (~20s instead of 5-10min)
         // Falls back to instant mock-generate if SSE fails
@@ -126,7 +131,7 @@ function MainFlow() {
     if (phase === 'demo-interview') {
         return (
             <DemoInterviewView
-                onInterviewComplete={handleInterviewComplete}
+                onInterviewComplete={handleDemoInterviewComplete}
                 onBack={() => setPhase('landing')}
             />
         );
