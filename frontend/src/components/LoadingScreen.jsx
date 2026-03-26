@@ -23,18 +23,18 @@ const FUN_FACTS = [
 
 // Document names to cycle through during "Reading documents..." stage
 const DOC_NAMES = [
-    'mac_mini_setup.md',
+    'KNOWLEDGE_INDEX.md',
     'skill_registry.md',
-    'telegram.md',
-    'domain_knowledge.md',
-    'openclaw-docs/install.md',
-    'setup_guides/existing_mac.md',
-    'agents/TRAINING.md',
-    'SOUL.md',
-    'config/skills.yaml',
-    'docs/architecture.md',
-    'prompts/onboarding.md',
-    'reference/api_keys.md',
+    'setup_guides/existing_mac_setup.md',
+    'openclaw-docs/docs/channels/telegram.md',
+    'domain_knowledge_final/summaries/personal_morning_briefing.md',
+    'openclaw-docs/docs/automation/cron-jobs.md',
+    'templates/onboarding_guide.md',
+    'openclaw-docs/docs/install/macos.md',
+    'setup_guides/mac_mini_setup.md',
+    'domain_knowledge_final/references/smallbiz_customer_support.md',
+    'openclaw-docs/docs/security/THREAT-MODEL-ATLAS.md',
+    'skill_registry.md (checking guardrails...)',
 ];
 
 // Map SSE stage strings to icons
@@ -97,7 +97,7 @@ function DocumentScroller() {
                     exiting ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'
                 }`}
             >
-                {DOC_NAMES[currentIdx]}
+                Reading: {DOC_NAMES[currentIdx]}
             </span>
         </div>
     );
@@ -172,11 +172,24 @@ function QualityMeter({ elapsed }) {
     );
 }
 
-const LoadingScreen = ({ progress }) => {
+const LoadingScreen = ({ progress, isDemo }) => {
     const [fallbackIdx, setFallbackIdx] = useState(0);
     const [elapsed, setElapsed] = useState(0);
+    const [demoProgress, setDemoProgress] = useState(0);
 
     const hasRealProgress = progress && progress.turn > 0;
+
+    // Demo fast-path: animate from 0→100% in 5 seconds
+    useEffect(() => {
+        if (!isDemo) return;
+        const interval = setInterval(() => {
+            setDemoProgress(prev => {
+                if (prev >= 100) { clearInterval(interval); return 100; }
+                return prev + 2; // 50 steps × 100ms = 5s
+            });
+        }, 100);
+        return () => clearInterval(interval);
+    }, [isDemo]);
 
     // Fallback timer-based stages (when SSE isn't connected)
     useEffect(() => {
@@ -201,16 +214,26 @@ const LoadingScreen = ({ progress }) => {
         ? estimateTimeRemaining(progress.turn, progress.maxTurns, elapsed)
         : null;
 
-    // Show doc scroller during reading/exploring stages
-    const showDocScroller = hasRealProgress
-        ? (progress.stage || '').toLowerCase().match(/read|scan|search|glob|explor/)
-        : fallbackIdx <= 1;
+    // Show doc scroller during reading/exploring stages (skip in demo mode)
+    const showDocScroller = isDemo
+        ? false
+        : hasRealProgress
+            ? (progress.stage || '').toLowerCase().match(/read|scan|search|glob|explor/)
+            : fallbackIdx <= 1;
 
-    if (hasRealProgress) {
+    if (isDemo) {
+        // Demo mode: fast animation, no scroller
+        label = demoProgress < 100 ? 'Loading demo guide...' : 'Ready!';
+        detail = 'Demo mode';
+        progressPct = Math.min(demoProgress, 100);
+        StageIcon = Sparkles;
+    } else if (hasRealProgress) {
         // Real progress from SSE
+        const maxTurns = progress.maxTurns || 40;
+        const displayTurn = Math.min(progress.turn, maxTurns);
         label = progress.stage || 'Processing...';
-        detail = `Turn ${progress.turn}${progress.maxTurns ? ` / ${progress.maxTurns}` : ''}`;
-        progressPct = Math.min(95, (progress.turn / (progress.maxTurns || 40)) * 100);
+        detail = `Turn ${displayTurn}${progress.maxTurns ? ` / ${progress.maxTurns}` : ''}`;
+        progressPct = Math.min((progress.turn / maxTurns) * 100, 100);
         StageIcon = getStageIcon(progress.stage);
 
         const tokenStr = formatTokens(progress.tokens);

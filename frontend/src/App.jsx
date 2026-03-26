@@ -138,7 +138,7 @@ function MainFlow() {
     }
 
     if (phase === 'mock-loading') {
-        return <LoadingScreen />;
+        return <LoadingScreen isDemo />;
     }
 
     if (phase === 'mock-output') {
