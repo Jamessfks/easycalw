@@ -164,6 +164,23 @@ class GuideStore:
             )
             return items[:limit]
 
+    async def count_guides(self) -> int:
+        """Return total number of guides."""
+        if not self._use_supabase:
+            return len(self._memory)
+
+        try:
+            sb = await self._get_client()
+            result = (
+                await sb.table("guides")
+                .select("guide_id", count="exact")
+                .execute()
+            )
+            return result.count if result.count is not None else len(result.data)
+        except Exception as e:
+            logger.error(f"[GuideStore] count_guides failed: {e}")
+            return len(self._memory)
+
     async def list_guides(self, limit: int = 20, offset: int = 0) -> list[dict]:
         """Return guide metadata (no content) for dashboard/history listing."""
         if not self._use_supabase:

@@ -244,7 +244,8 @@ async def health_check():
 async def list_guides(limit: int = 20, offset: int = 0):
     """List recent guides — metadata only (no content). For dashboard/demo use."""
     guides = await guide_store.list_guides(limit=limit, offset=offset)
-    return {"guides": guides, "total": len(guides)}
+    total = await guide_store.count_guides()
+    return {"guides": guides, "total": total}
 
 
 @app.get("/demos")
