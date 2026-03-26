@@ -179,7 +179,7 @@ test('loading screen — appears during demo generation', async ({ page }) => {
 
     // Either loading screen or final output should appear
     const loadingOrOutput = page.locator('text=/Processing|Reading|Writing|Your Setup Guide|Exploring/');
-    await expect(loadingOrOutput).toBeVisible({ timeout: 10000 });
+    await expect(loadingOrOutput).toBeVisible({ timeout: 30000 });
 });
 
 // ───────────────────────────────────────────

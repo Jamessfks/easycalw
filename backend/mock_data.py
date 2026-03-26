@@ -5,13 +5,48 @@ Contains pre-built demo guides for 5 verticals and a compute_scorecard()
 function used for real (non-demo) guide generation.
 """
 
+import os
 import re
 
 # ---------------------------------------------------------------------------
-# RESTAURANT OPERATIONS — Full Demo
+# Helper: load guide content from guide_output directory
+# ---------------------------------------------------------------------------
+_GUIDE_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "guide_output")
+
+
+def _load_guide_file(guide_id, filename):
+    """Read a file from guide_output/<guide_id>/<filename>, return '' on failure."""
+    path = os.path.join(_GUIDE_OUTPUT_DIR, guide_id, filename)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""
+
+
+def _load_guide_refs(guide_id, ref_dir="reference_documents"):
+    """Load all .md files from guide_output/<guide_id>/reference_documents/."""
+    refs = []
+    dirpath = os.path.join(_GUIDE_OUTPUT_DIR, guide_id, ref_dir)
+    if not os.path.isdir(dirpath):
+        return refs
+    for fname in sorted(os.listdir(dirpath)):
+        if fname.endswith(".md"):
+            fpath = os.path.join(dirpath, fname)
+            with open(fpath, "r", encoding="utf-8") as f:
+                refs.append({"name": fname, "content": f.read()})
+    return refs
+
+# ---------------------------------------------------------------------------
+# SCOUTS COFFEE — Real Claude-generated guide (guide_id: a3a20c66)
 # ---------------------------------------------------------------------------
 
-RESTAURANT_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
+_SCOUTS_GUIDE_ID = "a3a20c66"
+RESTAURANT_GUIDE = _load_guide_file(_SCOUTS_GUIDE_ID, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
+RESTAURANT_REFS = _load_guide_refs(_SCOUTS_GUIDE_ID)
+RESTAURANT_PROMPTS = _load_guide_file(_SCOUTS_GUIDE_ID, "prompts_to_send.md")
+
+_OLD_RESTAURANT_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
 
 **Your Agent. Your Hardware. Your Soul.**
 
@@ -21,6 +56,19 @@ RESTAURANT_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
 **MISSION:** Automate restaurant operations across 3 locations — scheduling, suppliers, and daily briefings
 **DATE:** March 22, 2026
 **STATUS:** [ INITIALIZING DEPLOYMENT ]
+
+---
+
+## KEY MOMENTS IN THIS GUIDE
+
+| Step | What Happens | Why It Matters |
+|------|-------------|----------------|
+| Security Handshake | You establish the single-operator boundary | Your restaurant data (sales, staff, suppliers) stays on YOUR machine |
+| Model Provider | Connect to OpenAI Codex via OAuth | Best reasoning engine for multi-location ops — no API key needed |
+| Telegram Channel | Create your bot via BotFather | Your 7 AM briefings and urgent alerts land in your pocket |
+| Search Config | Connect Gemini for web search | Real-time supplier pricing, health code updates, food trend monitoring |
+| Agent Hatching | Launch the Web UI | Your control panel — where RestaurantConcierge comes alive |
+| Agent 2 Handoff | Inject SOUL.md + config | Personalizes the agent to YOUR 3 locations, YOUR suppliers, YOUR pain points |
 
 ---
 
@@ -35,6 +83,8 @@ Before you begin, ensure you have the following ready:
 | [ ] | Google Gemini API Key (for web search) |
 | [ ] | Terminal access on your machine |
 
+> 💡 **TIP:** If you don't have a Gemini API key yet, grab one free from [Google AI Studio](https://aistudio.google.com) — takes 30 seconds. The free tier covers all search needs for a restaurant operation this size.
+
 ---
 
 ## 01 | THE SECURITY HANDSHAKE
@@ -45,7 +95,9 @@ OpenClaw is designed for a single trusted operator. Read the security recommenda
 
 ![Security Handshake](templates/images/image12.png)
 
-> **ACTION:** Select "Yes" to acknowledge and continue. You are now the sole operator of this boundary.
+> ✅ **ACTION:** Select "Yes" to acknowledge and continue. You are now the sole operator of this boundary.
+
+> ⚠️ **WARNING:** Once you acknowledge the security boundary, your agent can access local files and connected APIs. Never share your terminal session or leave it unattended with the agent running — especially during busy service hours when staff might have physical access to your office machine.
 
 ---
 
@@ -55,7 +107,7 @@ OpenClaw supports multiple AI providers. Based on your interview, we recommend *
 
 ![Select Model Provider](templates/images/image11.png)
 
-> **ACTION:** Select "OpenAI" from the list of providers.
+> ✅ **ACTION:** Select "OpenAI" from the list of providers.
 
 ### Authentication Method
 
@@ -63,7 +115,9 @@ Choose how to authenticate with OpenAI. The Codex (ChatGPT OAuth) option is the 
 
 ![Authentication Method](templates/images/image10.png)
 
-> **ACTION:** Select "OpenAI Codex (ChatGPT OAuth)" for the fastest setup.
+> ✅ **ACTION:** Select "OpenAI Codex (ChatGPT OAuth)" for the fastest setup.
+
+> 💡 **TIP:** Codex OAuth means you sign in with your existing ChatGPT account — no separate API key or billing setup required. This is the fastest path from zero to a running agent.
 
 ### OpenAI Login
 
@@ -71,7 +125,7 @@ A browser window will open for you to authenticate with your OpenAI/ChatGPT acco
 
 ![OpenAI Login](templates/images/image7.png)
 
-> **ACTION:** Sign in with your OpenAI account credentials (email, Google, Apple, or Microsoft).
+> ✅ **ACTION:** Sign in with your OpenAI account credentials (email, Google, Apple, or Microsoft).
 
 ### Model Selection
 
@@ -79,7 +133,9 @@ After authentication, select your preferred model. We recommend `gpt-5.2-codex` 
 
 ![Model Selection](templates/images/image9.png)
 
-> **ACTION:** Select `openai-codex/gpt-5.2-codex` or your preferred model.
+> ✅ **ACTION:** Select `openai-codex/gpt-5.2-codex` or your preferred model.
+
+> ⚠️ **WARNING:** Avoid selecting models with "mini" or "lite" in the name for restaurant operations. Multi-location scheduling and supplier analysis require the full reasoning capability of the standard model.
 
 ---
 
@@ -89,7 +145,7 @@ Your agent needs a place to communicate with you. Based on your interview, we re
 
 ![Channel Selection](templates/images/image3.png)
 
-> **ACTION:** Select "Telegram (Bot API)" from the channel list.
+> ✅ **ACTION:** Select "Telegram (Bot API)" from the channel list.
 
 ### Telegram BotFather Protocol
 
@@ -103,6 +159,10 @@ Follow these steps to create your Telegram bot:
 
 Your Telegram Bot Token: ____________________
 
+> 💡 **TIP:** Name your bot something you'll recognize at 6 AM when the morning briefing lands — "RestaurantConcierge" or "AlexOps" works. Avoid generic names like "MyBot" that get lost in your chat list.
+
+> ⚠️ **WARNING:** Your Telegram bot token is a secret. Never share it in group chats, commit it to Git, or paste it into any website. If compromised, anyone can send messages as your bot. Regenerate immediately via BotFather if you suspect a leak.
+
 ---
 
 ## 04 | SEARCH CONFIGURATION
@@ -111,7 +171,7 @@ To allow your agent to search the web for supplier pricing, health code updates,
 
 ![Search Provider](templates/images/image4.png)
 
-> **ACTION:** Select "Gemini (Google Search)" from the search provider list.
+> ✅ **ACTION:** Select "Gemini (Google Search)" from the search provider list.
 
 ### API Key Entry
 
@@ -119,7 +179,9 @@ Enter your Gemini API key. You can get one from [Google AI Studio](https://aistu
 
 ![API Key Entry](templates/images/image5.png)
 
-> **ACTION:** Paste your Gemini API key and press Enter.
+> ✅ **ACTION:** Paste your Gemini API key and press Enter.
+
+> 💡 **TIP:** The Gemini free tier allows 60 requests/minute — more than enough for daily supplier checks and food trend monitoring. You won't need to upgrade unless you add multiple agents.
 
 ---
 
@@ -142,7 +204,9 @@ Skills tailored to your needs (install later via Web UI):
 | `notion` | Menu planning and SOPs |
 | `openai-whisper` | Transcribe supplier calls |
 
-> **ACTION:** Select "Skip for now" to continue. Skills can be configured later via the Web UI.
+> ✅ **ACTION:** Select "Skip for now" to continue. Skills can be configured later via the Web UI.
+
+> 💡 **TIP:** Start with zero skills and add them one at a time after your agent is running. The `gog` (Google Workspace) skill is the highest-ROI first install — it unlocks Gmail scanning for supplier invoices and Calendar integration for shift schedules.
 
 ### Enable Hooks
 
@@ -150,7 +214,7 @@ Hooks allow your agent to perform actions on boot, log commands, and maintain se
 
 ![Enable Hooks](templates/images/image8.png)
 
-> **ACTION:** Select "Skip for now" or enable specific hooks based on your needs.
+> ✅ **ACTION:** Select "Skip for now" or enable specific hooks based on your needs.
 
 ---
 
@@ -160,7 +224,9 @@ This is the final terminal step. We're now moving from the command line to the O
 
 ![Hatching Your Agent](templates/images/image1.png)
 
-> **ACTION:** Select "Open the Web UI" to launch your agent's control panel.
+> ✅ **ACTION:** Select "Open the Web UI" to launch your agent's control panel.
+
+> ⚠️ **WARNING:** The Web UI binds to `127.0.0.1` (localhost only) by default. If you need to access it from another device on your network, you'll need to change the bind address — but be aware this exposes the UI to your local network. Only do this on a trusted network.
 
 ---
 
@@ -225,7 +291,7 @@ With the Web UI running, **Agent 2 now takes over** to inject your personalized 
 *Guide generated by EasyClaw AI Concierge*
 """
 
-RESTAURANT_REFS = [
+_OLD_RESTAURANT_REFS = [
     {
         "name": "SOUL.md",
         "content": r"""# SOUL.md — RestaurantConcierge
@@ -359,7 +425,7 @@ openclaw skill permissions <skill-name>
     },
 ]
 
-RESTAURANT_PROMPTS = r"""# PROMPTS TO SEND — RestaurantConcierge
+_OLD_RESTAURANT_PROMPTS = r"""# PROMPTS TO SEND — RestaurantConcierge
 
 Paste these prompts into your OpenClaw chat (Web UI) in order. Each one layers context and capability onto your agent.
 
@@ -467,6 +533,19 @@ DEVOPS_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
 
 ---
 
+## KEY MOMENTS IN THIS GUIDE
+
+| Step | What Happens | Why It Matters |
+|------|-------------|----------------|
+| Security Handshake | Establish single-operator boundary | Your agent sees code, secrets, and deploy credentials — lock it down |
+| Model Provider | Connect Anthropic Claude via API key | Best code reasoning engine for reviewing diffs and parsing logs |
+| Discord Channel | Create a bot in your dev server | CI/CD alerts, PR summaries, and deploy notifications in one place |
+| Skills | Configure browser + summarize + search | Your agent can research errors, condense logs, and find solutions |
+| Agent Hatching | Launch the Web UI control panel | Where DevOpsAgent comes alive and starts watching your repos |
+| Agent 2 Handoff | Inject SOUL.md + config | Personalizes the agent to YOUR stack, YOUR repos, YOUR workflow |
+
+---
+
 ## 00 | PRE-FLIGHT CHECKLIST
 
 Before you begin, ensure you have the following ready:
@@ -478,13 +557,17 @@ Before you begin, ensure you have the following ready:
 | [ ] | GitHub personal access token |
 | [ ] | Terminal access on your machine |
 
+> 💡 **TIP:** Generate a GitHub fine-grained personal access token scoped to just your 3 repos with `read` permissions on code, PRs, and actions. This follows the principle of least privilege — your agent only needs to observe, not write.
+
 ---
 
 ## 01 | THE SECURITY HANDSHAKE
 
 When you launch `openclaw-onboard` in your terminal, OpenClaw presents its security manifesto. As a developer handling code and deployment credentials, this boundary is critical.
 
-> **ACTION:** Select "Yes" to acknowledge the single-operator boundary. Your agent will never push code or merge PRs without explicit approval.
+> ✅ **ACTION:** Select "Yes" to acknowledge the single-operator boundary. Your agent will never push code or merge PRs without explicit approval.
+
+> ⚠️ **WARNING:** Your agent will have access to your Anthropic API key, GitHub token, and Discord bot token. These credentials are stored locally in `~/.openclaw/openclaw.json`. Never commit this file to version control or share your OpenClaw directory. Run `openclaw security audit --deep` after setup to verify your boundary.
 
 ---
 
@@ -494,25 +577,29 @@ When you launch `openclaw-onboard` in your terminal, OpenClaw presents its secur
 
 Based on your interview, we recommend **Anthropic Claude** for its strong code reasoning and large context window, ideal for reviewing diffs and logs.
 
-> **ACTION:** Select "Anthropic" from the provider list.
+> ✅ **ACTION:** Select "Anthropic" from the provider list.
 
 ### API Key Authentication
 
 Enter your Anthropic API key. You can generate one from [console.anthropic.com](https://console.anthropic.com).
 
-> **ACTION:** Paste your Anthropic API key and press Enter.
+> ✅ **ACTION:** Paste your Anthropic API key and press Enter.
+
+> ⚠️ **WARNING:** Set a monthly spend limit on your Anthropic account before connecting. PR review summaries and CI/CD log analysis can generate significant token usage across 20 workflows — cap it to avoid surprise bills.
 
 ### Model Selection
 
 Select `claude-sonnet-4-20250514` for the best balance of speed and depth for code tasks.
 
-> **ACTION:** Select `anthropic/claude-sonnet-4-20250514` or your preferred model.
+> ✅ **ACTION:** Select `anthropic/claude-sonnet-4-20250514` or your preferred model.
+
+> 💡 **TIP:** Sonnet is the sweet spot for DevOps: fast enough for real-time CI alerts (responds in <3s), smart enough to parse complex stack traces. Use Opus only if you need deep architectural analysis — it's 5x the cost.
 
 ### Channel — Discord Bot
 
 Your agent will communicate via a dedicated Discord channel in your development server.
 
-> **ACTION:** Select "Discord (Bot)" from the channel list.
+> ✅ **ACTION:** Select "Discord (Bot)" from the channel list.
 
 ### Discord Bot Setup
 
@@ -522,6 +609,8 @@ Your agent will communicate via a dedicated Discord channel in your development 
 4. Copy the Bot Token
 5. Invite the bot to your server with `Send Messages` and `Read Message History` permissions
 6. Paste the token into your terminal
+
+> 💡 **TIP:** Create separate Discord channels for different alert types: `#ci-alerts` for build failures, `#code-reviews` for PR summaries, `#deploys` for deployment status. This keeps your signal clean and lets you mute non-urgent channels during focus time.
 
 ---
 
@@ -535,7 +624,9 @@ Skills tailored to your solo-dev workflow:
 | `summarize` | Condense PR diffs, log files, error traces |
 | `tavily-web-search` | Search for solutions and library updates |
 
-> **ACTION:** Select "Skip for now" — install via Web UI after setup.
+> ✅ **ACTION:** Select "Skip for now" — install via Web UI after setup.
+
+> 💡 **TIP:** Install `summarize` first — it's the highest-ROI skill for a solo dev. It condenses 500-line CI logs into the 5 lines that actually matter, saving you from scrolling through noise at 2 AM when a deploy fails.
 
 ---
 
@@ -543,7 +634,9 @@ Skills tailored to your solo-dev workflow:
 
 This is the final terminal step. Your agent is ready to hatch.
 
-> **ACTION:** Select "Open the Web UI" to launch your control panel at `http://127.0.0.1:18789`.
+> ✅ **ACTION:** Select "Open the Web UI" to launch your control panel at `http://127.0.0.1:18789`.
+
+> ⚠️ **WARNING:** The Web UI runs on localhost only. If you're SSH'd into a remote server, you'll need to set up port forwarding (`ssh -L 18789:localhost:18789 your-server`) to access the UI from your local browser.
 
 ### Web UI — Ready for Injection
 
@@ -566,6 +659,7 @@ With the Web UI running, **Agent 2 now takes over** to inject your personalized 
 | Model Provider | Anthropic Claude (API Key) |
 | Channel | Discord Bot |
 | Documentation | https://docs.openclaw.ai |
+| Security Audit | `openclaw security audit --deep` |
 
 ---
 
@@ -687,6 +781,19 @@ FINANCE_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
 
 ---
 
+## KEY MOMENTS IN THIS GUIDE
+
+| Step | What Happens | Why It Matters |
+|------|-------------|----------------|
+| Security Handshake | Establish single-operator boundary | Financial data (invoices, expenses, tax docs) never leaves your machine |
+| Model Provider | Connect OpenAI Codex via OAuth | Best structured-output engine for categorization and report generation |
+| Telegram Channel | Create your ExpenseTracker bot | Log expenses on the go — snap a receipt photo, get instant categorization |
+| Skills | Configure Gmail scanning + CSV export | Auto-detect invoices in your inbox, export clean data for your accountant |
+| Agent Hatching | Launch the Web UI control panel | Your financial command center — dashboards, categories, and tax prep |
+| Agent 2 Handoff | Inject SOUL.md + config | Personalizes the agent to YOUR categories, YOUR clients, YOUR tax structure |
+
+---
+
 ## 00 | PRE-FLIGHT CHECKLIST
 
 Before you begin, ensure you have the following ready:
@@ -698,13 +805,17 @@ Before you begin, ensure you have the following ready:
 | [ ] | Google Workspace access (Gmail, Drive) |
 | [ ] | Terminal access on your machine |
 
+> 💡 **TIP:** Have your accountant's email handy — you'll configure automated CSV exports that go directly to them each quarter. This replaces the "zip folder of receipts" routine.
+
 ---
 
 ## 01 | THE SECURITY HANDSHAKE
 
 When you launch `openclaw-onboard`, OpenClaw presents its security manifesto. Financial data requires strict boundaries — your agent will never share data externally or initiate payments.
 
-> **ACTION:** Select "Yes" to acknowledge the single-operator boundary.
+> ✅ **ACTION:** Select "Yes" to acknowledge the single-operator boundary.
+
+> ⚠️ **WARNING:** Your agent will scan Gmail for invoices and receipts. It processes this data locally — nothing is sent to external servers. However, ensure your machine's disk is encrypted (FileVault on Mac, BitLocker on Windows) since financial documents will be cached locally in `~/.openclaw/data/`.
 
 ---
 
@@ -714,19 +825,23 @@ When you launch `openclaw-onboard`, OpenClaw presents its security manifesto. Fi
 
 We recommend **OpenAI Codex (OAuth)** for structured data tasks like categorization and report generation.
 
-> **ACTION:** Select "OpenAI" → "Codex (ChatGPT OAuth)" and sign in with your OpenAI account.
+> ✅ **ACTION:** Select "OpenAI" → "Codex (ChatGPT OAuth)" and sign in with your OpenAI account.
+
+> 💡 **TIP:** Codex OAuth means no separate API billing — it uses your existing ChatGPT subscription. For a freelance practice processing ~50-100 expenses/month, this is the most cost-effective option.
 
 ### Model Selection
 
-> **ACTION:** Select `openai-codex/gpt-5.2-codex` for reliable structured output.
+> ✅ **ACTION:** Select `openai-codex/gpt-5.2-codex` for reliable structured output.
 
 ### Channel — Telegram
 
 Telegram provides quick access to expense logging on the go.
 
-> **ACTION:** Select "Telegram (Bot API)" and follow the BotFather protocol:
+> ✅ **ACTION:** Select "Telegram (Bot API)" and follow the BotFather protocol:
 > 1. Message **@BotFather** → `/newbot` → name it "ExpenseTracker"
 > 2. Copy the API token and paste it into your terminal
+
+> 💡 **TIP:** Pin your ExpenseTracker bot chat in Telegram. When you get a receipt, forward it to the bot — it'll auto-categorize and log it. No more shoebox of receipts at tax time.
 
 ---
 
@@ -740,7 +855,9 @@ Skills tailored for freelance finance management:
 | `summarize` | Condense bank statements & expense reports |
 | `csv-tools` | Parse and generate CSV exports for accountant |
 
-> **ACTION:** Select "Skip for now" — install via Web UI after initial setup.
+> ✅ **ACTION:** Select "Skip for now" — install via Web UI after initial setup.
+
+> ⚠️ **WARNING:** When you install the `gog` skill later, it will request read access to your Gmail. Grant access only to your business email, not personal accounts. Use Gmail filters to label business invoices with "OpenClaw" so the agent scans only relevant emails.
 
 ---
 
@@ -748,7 +865,7 @@ Skills tailored for freelance finance management:
 
 Your agent is ready to launch.
 
-> **ACTION:** Select "Open the Web UI" to access your control panel at `http://127.0.0.1:18789`.
+> ✅ **ACTION:** Select "Open the Web UI" to access your control panel at `http://127.0.0.1:18789`.
 
 ### Agent 2 Handoff
 
@@ -761,6 +878,8 @@ With the Web UI running, **Agent 2 injects your personalized configuration**.
 | Primary Pain Point | Expense categorization & tax prep chaos |
 | First Automation Target | Auto-categorize expenses from Gmail receipts |
 
+> ⚠️ **WARNING:** Review the expense categories in your SOUL.md before going live. Miscategorized expenses can cause tax issues. Run a test week where you manually verify every categorization before trusting the automation.
+
 ---
 
 ## QUICK REFERENCE
@@ -770,7 +889,9 @@ With the Web UI running, **Agent 2 injects your personalized configuration**.
 | Web UI URL | `http://127.0.0.1:18789` |
 | Model Provider | OpenAI (Codex OAuth) |
 | Channel | Telegram Bot |
+| Tax Deadlines | Q1: Apr 15, Q2: Jun 15, Q3: Sep 15, Q4: Jan 15 |
 | Documentation | https://docs.openclaw.ai |
+| Security Audit | `openclaw security audit --deep` |
 
 ---
 
@@ -895,6 +1016,19 @@ CONTENT_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
 
 ---
 
+## KEY MOMENTS IN THIS GUIDE
+
+| Step | What Happens | Why It Matters |
+|------|-------------|----------------|
+| Security Handshake | Establish single-operator boundary | Your unpublished drafts and content strategy stay private |
+| Model Provider | Connect Anthropic Claude via API key | Best writing model — matches your voice across Twitter, newsletter, LinkedIn |
+| Slack Channel | Create ContentAgent bot in your workspace | All repurposed drafts land in #content-pipeline for your review |
+| Skills | Configure summarize + search + Notion | Auto-distill videos, research trends, sync with your content calendar |
+| Agent Hatching | Launch the Web UI control panel | Your content command center — feed it a video, get 5 platform-ready drafts |
+| Agent 2 Handoff | Inject SOUL.md + config | Teaches the agent YOUR voice, YOUR platforms, YOUR content pillars |
+
+---
+
 ## 00 | PRE-FLIGHT CHECKLIST
 
 Before you begin, ensure you have the following ready:
@@ -906,13 +1040,17 @@ Before you begin, ensure you have the following ready:
 | [ ] | Notion workspace with content calendar |
 | [ ] | Terminal access on your machine |
 
+> 💡 **TIP:** Have 2-3 of your best-performing tweets and one newsletter issue ready to paste as voice examples during the prompt injection phase. The more samples your agent has, the better it mirrors your tone.
+
 ---
 
 ## 01 | THE SECURITY HANDSHAKE
 
 When you launch `openclaw-onboard`, OpenClaw presents its security manifesto. As a content creator, this ensures your drafts and unpublished content stay within your boundary.
 
-> **ACTION:** Select "Yes" to acknowledge the single-operator boundary.
+> ✅ **ACTION:** Select "Yes" to acknowledge the single-operator boundary.
+
+> ⚠️ **WARNING:** Your agent will process your unpublished content — video scripts, draft threads, newsletter ideas. All of this stays local. However, if you share your machine or use a shared workspace, ensure no one else has access to `~/.openclaw/data/` where drafts are cached.
 
 ---
 
@@ -922,21 +1060,25 @@ When you launch `openclaw-onboard`, OpenClaw presents its security manifesto. As
 
 We recommend **Anthropic Claude** for its strong writing capabilities and ability to match your voice across formats.
 
-> **ACTION:** Select "Anthropic" from the provider list.
+> ✅ **ACTION:** Select "Anthropic" from the provider list.
 
 ### API Key Authentication
 
-> **ACTION:** Paste your Anthropic API key from [console.anthropic.com](https://console.anthropic.com) and press Enter.
+> ✅ **ACTION:** Paste your Anthropic API key from [console.anthropic.com](https://console.anthropic.com) and press Enter.
+
+> 💡 **TIP:** Set a monthly spend limit on your Anthropic account. Content repurposing generates a lot of tokens — a 20-minute video transcript plus 5 output formats can use 10-15K tokens per run. At 4 videos/month, budget accordingly.
 
 ### Model Selection
 
-> **ACTION:** Select `anthropic/claude-sonnet-4-20250514` for fast, high-quality content generation.
+> ✅ **ACTION:** Select `anthropic/claude-sonnet-4-20250514` for fast, high-quality content generation.
+
+> 💡 **TIP:** Sonnet is the sweet spot for content work: fast enough to generate all 5 formats in under 30 seconds, creative enough to write engaging hooks. Use Opus only for long-form newsletter deep-dives.
 
 ### Channel — Slack Workspace
 
 Slack integrates naturally with your existing content workflow and team collaboration.
 
-> **ACTION:** Select "Slack (Workspace Bot)" from the channel list.
+> ✅ **ACTION:** Select "Slack (Workspace Bot)" from the channel list.
 
 ### Slack App Setup
 
@@ -945,6 +1087,8 @@ Slack integrates naturally with your existing content workflow and team collabor
 3. Under OAuth & Permissions, add scopes: `chat:write`, `channels:read`, `files:write`
 4. Install the app to your workspace
 5. Copy the Bot User OAuth Token and paste it into your terminal
+
+> ⚠️ **WARNING:** The `files:write` scope allows your agent to upload draft documents to Slack. This is needed for sharing newsletter drafts and thread previews. If your Slack workspace has external guests, create a private `#content-pipeline` channel that only you can see.
 
 ---
 
@@ -958,7 +1102,9 @@ Skills tailored to content repurposing:
 | `tavily-web-search` | Research trending topics & competitor content |
 | `notion` | Sync with content calendar & idea backlog |
 
-> **ACTION:** Select "Skip for now" — install via Web UI after setup.
+> ✅ **ACTION:** Select "Skip for now" — install via Web UI after setup.
+
+> 💡 **TIP:** Install `notion` first — it syncs your content calendar so the agent knows your publishing schedule and can time repurposed content to match. No more manually checking "did I already tweet about that video?"
 
 ---
 
@@ -966,7 +1112,7 @@ Skills tailored to content repurposing:
 
 Your content agent is ready to launch.
 
-> **ACTION:** Select "Open the Web UI" to access your control panel at `http://127.0.0.1:18789`.
+> ✅ **ACTION:** Select "Open the Web UI" to access your control panel at `http://127.0.0.1:18789`.
 
 ### Agent 2 Handoff
 
@@ -979,6 +1125,8 @@ With the Web UI running, **Agent 2 injects your personalized configuration**.
 | Primary Pain Point | Hours spent manually repurposing each video |
 | First Automation Target | YouTube → Twitter thread + newsletter draft pipeline |
 
+> ⚠️ **WARNING:** Review every generated draft before publishing. AI-generated content can occasionally produce claims you didn't make in the original video, or miss nuance that's obvious in video format. Your agent drafts — you publish.
+
 ---
 
 ## QUICK REFERENCE
@@ -988,7 +1136,9 @@ With the Web UI running, **Agent 2 injects your personalized configuration**.
 | Web UI URL | `http://127.0.0.1:18789` |
 | Model Provider | Anthropic Claude (API Key) |
 | Channel | Slack Bot |
+| Content Cadence | 1 video/week → 3 threads + 1 newsletter + 1 LinkedIn |
 | Documentation | https://docs.openclaw.ai |
+| Security Audit | `openclaw security audit --deep` |
 
 ---
 
@@ -1112,6 +1262,19 @@ HEALTHCARE_GUIDE = r"""# OPENCLAW ONBOARDING GUIDE
 
 ---
 
+## KEY MOMENTS IN THIS GUIDE
+
+| Step | What Happens | Why It Matters |
+|------|-------------|----------------|
+| Security Handshake | Establish single-operator boundary | Patient data (names, appointments, procedures) NEVER leaves your machine |
+| Compliance Check | Review HIPAA considerations | Your practice handles PHI — this boundary must be airtight |
+| Model Provider | Connect Google Gemini via API key | Native Google Workspace integration for Calendar and Gmail |
+| WhatsApp Channel | Connect Twilio for patient messaging | 48h + 2h reminders via the channel your patients already use daily |
+| Skills | Configure Calendar sync + summarizer | Auto-read tomorrow's schedule, condense insurance docs for front desk |
+| Agent Hatching | Launch the Web UI control panel | Your practice communication hub — reminders, follow-ups, staff briefings |
+
+---
+
 ## 00 | PRE-FLIGHT CHECKLIST
 
 Before you begin, ensure you have the following ready:
@@ -1123,15 +1286,19 @@ Before you begin, ensure you have the following ready:
 | [ ] | Google Workspace (Calendar + Gmail) |
 | [ ] | Terminal access on your machine |
 
+> 💡 **TIP:** Use your practice's Google Workspace account (not personal Gmail) for the Calendar integration. This ensures the agent reads the correct appointment calendar and staff schedule — especially important if you have multiple providers sharing the same calendar system.
+
 ---
 
 ## 01 | SECURITY & COMPLIANCE NOTE
 
 When you launch `openclaw-onboard`, OpenClaw presents its security manifesto. For a healthcare context, this boundary is especially critical — patient data never leaves your local environment.
 
-> **ACTION:** Select "Yes" to acknowledge the single-operator boundary.
+> ✅ **ACTION:** Select "Yes" to acknowledge the single-operator boundary.
 
-> **IMPORTANT:** This agent operates on your local machine only. No patient data is sent to external servers. Ensure your HIPAA compliance officer reviews this setup before processing real patient information.
+> ⚠️ **WARNING:** This agent will process patient names, appointment details, and procedure types. ALL data stays on your local machine — nothing is sent to external AI servers for training. However, you MUST have your HIPAA compliance officer review this setup before processing real patient information. OpenClaw provides the technical boundary; your practice provides the policy boundary.
+
+> ⚠️ **WARNING:** WhatsApp messages to patients travel through Twilio's infrastructure. Ensure your Twilio account has a signed Business Associate Agreement (BAA) before sending any messages that contain Protected Health Information (PHI). Generic reminders ("Your appointment is tomorrow at 2 PM") are safe; specific procedure names in messages are not.
 
 ---
 
@@ -1141,17 +1308,19 @@ When you launch `openclaw-onboard`, OpenClaw presents its security manifesto. Fo
 
 We recommend **Google Gemini** for its integration with Google Workspace, which your practice already uses for scheduling.
 
-> **ACTION:** Select "Google Gemini" from the provider list.
+> ✅ **ACTION:** Select "Google Gemini" from the provider list.
 
 ### API Key Authentication
 
-> **ACTION:** Paste your Gemini API key from [Google AI Studio](https://aistudio.google.com) and press Enter.
+> ✅ **ACTION:** Paste your Gemini API key from [Google AI Studio](https://aistudio.google.com) and press Enter.
+
+> 💡 **TIP:** The Gemini free tier handles appointment reminders easily — at 40 appointments/day, you'll use ~200 API calls/day for reminders + follow-ups, well within free limits. Only upgrade if you add insurance document summarization.
 
 ### Channel — WhatsApp via Twilio
 
 WhatsApp is the most accessible channel for patient communication across all age groups.
 
-> **ACTION:** Select "WhatsApp (Twilio)" from the channel list.
+> ✅ **ACTION:** Select "WhatsApp (Twilio)" from the channel list.
 
 ### Twilio Setup
 
@@ -1159,6 +1328,10 @@ WhatsApp is the most accessible channel for patient communication across all age
 2. Activate the WhatsApp sandbox or connect your WhatsApp Business number
 3. Copy your Account SID, Auth Token, and WhatsApp number
 4. Paste each value into the terminal when prompted
+
+> 💡 **TIP:** Use a dedicated WhatsApp Business number — not your personal or front-desk number. This keeps patient automated messages separate from manual conversations. Patients can still reply to reschedule, and those replies route to your agent.
+
+> ⚠️ **WARNING:** Twilio charges per WhatsApp message (~$0.005-0.05 depending on region). At 40 appointments/day with 2 reminders each, budget ~$120-150/month for messaging costs. The ROI from reduced no-shows (18% → <8%) far exceeds this — but set up Twilio spending alerts to avoid surprises.
 
 ---
 
@@ -1172,17 +1345,27 @@ WhatsApp is the most accessible channel for patient communication across all age
 | `summarize` | Condense patient notes and insurance docs |
 | `google-calendar` | Direct calendar read/write for scheduling |
 
-> **ACTION:** Select "Skip for now" — install via Web UI after setup.
+> ✅ **ACTION:** Select "Skip for now" — install via Web UI after setup.
+
+> 💡 **TIP:** Install `google-calendar` first — it's the backbone of the reminder system. Once connected, the agent automatically reads tomorrow's schedule each evening and queues the 48h reminders. No manual intervention needed.
 
 ### Launch
 
-> **ACTION:** Select "Open the Web UI" to access `http://127.0.0.1:18789`.
+> ✅ **ACTION:** Select "Open the Web UI" to access `http://127.0.0.1:18789`.
+
+### Agent 2 Handoff
+
+With the Web UI running, **Agent 2 injects your personalized configuration**.
 
 | Field | Value |
 |-------|-------|
 | SOUL.md Location | `~/.openclaw/SOUL.md` |
-| Primary Pain Point | No-shows and last-minute cancellations |
+| openclaw.json Location | `~/.openclaw/openclaw.json` |
+| Primary Pain Point | No-shows and last-minute cancellations (18% rate) |
 | First Automation Target | 48h + 2h appointment reminders via WhatsApp |
+| Target No-Show Rate | < 8% within 30 days of activation |
+
+> ⚠️ **WARNING:** Run the agent in "shadow mode" for the first week — let it generate reminders but have front desk send them manually after review. This catches any template issues before they reach patients. Disable shadow mode via the Web UI once you're confident in the output.
 
 ---
 
@@ -1193,7 +1376,10 @@ WhatsApp is the most accessible channel for patient communication across all age
 | Web UI URL | `http://127.0.0.1:18789` |
 | Model Provider | Google Gemini (API Key) |
 | Channel | WhatsApp (Twilio) |
+| Reminder Schedule | 48h before + 2h before each appointment |
+| Quiet Hours | No messages before 8 AM or after 7 PM |
 | Documentation | https://docs.openclaw.ai |
+| Security Audit | `openclaw security audit --deep` |
 
 ---
 
@@ -1294,17 +1480,17 @@ MESSAGE RULES:
 DEMO_GUIDES = {
     "demo-restaurant": {
         "guide_id": "demo-restaurant",
-        "title": "Restaurant Operations",
-        "subtitle": "Multi-location scheduling, suppliers & daily briefings",
+        "title": "Scouts Coffee",
+        "subtitle": "Staff scheduling & supplier automation for a growing SF café",
         "category": "Small Business",
-        "icon": "utensils",
+        "icon": "coffee",
         "color": "amber",
         "status": "complete",
         "message": "Demo guide generated successfully.",
         "scorecard": {
-            "context_depth": 0.92,
-            "sections_covered": 8,
-            "sections_total": 8,
+            "context_depth": 0.96,
+            "sections_covered": 11,
+            "sections_total": 11,
             "follow_ups": [],
         },
         "outputs": {
