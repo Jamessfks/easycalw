@@ -52,8 +52,8 @@ def test_generate_guide_real_api(test_guide_output_dir):
     assert guide_id, "Response missing guide_id"
     assert data.get("status") == "generating"
 
-    # 2. Poll for completion (max 120 seconds — Claude can take time)
-    deadline = time.time() + 120
+    # 2. Poll for completion (max 480 seconds — Claude Agent SDK with KB search needs ~5-6 min)
+    deadline = time.time() + 480
     guide_data = None
 
     while time.time() < deadline:
@@ -70,20 +70,26 @@ def test_generate_guide_real_api(test_guide_output_dir):
 
         time.sleep(5)
     else:
-        pytest.fail(f"Guide did not complete within 120s. Last status: {guide_data}")
+        pytest.fail(f"Guide did not complete within 480s. Last status: {guide_data}")
 
     # 3. Verify guide content quality
     outputs = guide_data.get("outputs", {})
-    guide_text = outputs.get("guide", "")
+    guide_text = outputs.get("setup_guide") or outputs.get("guide") or ""
 
     assert len(guide_text) > 500, (
         f"Guide text too short ({len(guide_text)} chars). "
         "Expected >500 chars of meaningful content."
     )
 
-    # 4. Verify scorecard exists if present
+    # 4. Report quality scores
     scorecard = guide_data.get("scorecard")
     if scorecard:
-        total = scorecard.get("total_score") or scorecard.get("total", 0)
-        print(f"\n✓ Guide quality score: {total}/10")
-        # Log but don't hard-fail on score — the short transcript is minimal
+        print(f"\n✓ Scorecard: sections={scorecard.get('sections_covered')}/{scorecard.get('sections_total')}, depth={scorecard.get('context_depth')}")
+
+    quality_eval = guide_data.get("quality_eval")
+    if quality_eval:
+        mean = quality_eval.get("mean_score", 0)
+        score_10 = round(mean * 2, 1)  # Convert 1-5 scale to 1-10
+        print(f"✓ Quality eval: {score_10}/10 (mean={mean}/5, passed={quality_eval.get('passed')})")
+        print(f"  Scores: {quality_eval.get('scores')}")
+        # Warn but don't hard-fail — the short transcript is minimal
