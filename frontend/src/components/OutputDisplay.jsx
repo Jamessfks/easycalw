@@ -331,6 +331,18 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const refDocs = outputs?.reference_documents || [];
     const prompts = outputs?.prompts_to_send || '';
 
+    // Parse hero stats from guide content
+    const heroStats = useMemo(() => {
+        const skillCount = (guide.match(/skill|plugin|integration/gi) || []).length;
+        const stepCount = (guide.match(/^#{2,3}\s+(?:step|\d+[\.\)]\s)/gim) || []).length || Math.max(5, Math.min(12, Math.floor(guide.length / 800)));
+        const estMinutes = Math.max(5, Math.min(30, Math.round(stepCount * 2.5)));
+        return {
+            skills: Math.max(3, Math.min(15, Math.ceil(skillCount / 3))),
+            steps: stepCount,
+            minutes: estMinutes,
+        };
+    }, [guide]);
+
     const handleDownloadAll = async () => {
         const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
@@ -471,6 +483,49 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                     })}
                 </div>
             </header>
+
+            {/* Hero Summary Card */}
+            <div className="relative z-10 max-w-5xl mx-auto px-6 pt-8 pb-2">
+                <div className="glass rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                    <div className="flex-1 min-w-0">
+                        <p className="section-label mb-1">Personalized for you</p>
+                        <h2 className="text-xl font-display font-bold text-white mb-3">
+                            {guideData.title || 'Your Personalized OpenClaw Setup'}
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+                                {heroStats.skills} skills recommended
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                                {heroStats.steps} setup steps
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-violet-500/10 border border-violet-500/20 text-violet-400">
+                                Est. {heroStats.minutes}min setup time
+                            </span>
+                        </div>
+                    </div>
+                    {guideData.quality_eval && (
+                        <div className={`shrink-0 flex flex-col items-center px-5 py-3 rounded-xl border ${
+                            guideData.quality_eval.patched
+                                ? 'bg-amber-500/10 border-amber-500/20'
+                                : guideData.quality_eval.passed
+                                    ? 'bg-emerald-500/10 border-emerald-500/20'
+                                    : 'bg-rose-500/10 border-rose-500/20'
+                        }`}>
+                            <span className={`text-2xl font-display font-bold ${
+                                guideData.quality_eval.patched ? 'text-amber-400'
+                                    : guideData.quality_eval.passed ? 'text-emerald-400'
+                                    : 'text-rose-400'
+                            }`}>
+                                {guideData.quality_eval.mean_score}/5
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider mt-0.5">
+                                Quality{guideData.quality_eval.patched ? ' (improved)' : ''}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Content */}
             <main className="relative z-10 max-w-5xl mx-auto px-6 py-8">

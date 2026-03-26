@@ -163,6 +163,9 @@ export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode 
                     <h1 className="animate-fade-up opacity-0 delay-100 text-6xl sm:text-7xl font-display font-bold tracking-tight leading-[1.05] mb-2">
                         <span className="text-gradient animate-gradient-x">EasyClaw</span>
                     </h1>
+                    <p className="animate-fade-up opacity-0 delay-150 text-sm font-mono text-cyan-400/60 tracking-wide mt-2">
+                        Voice interview → Personalized AI setup guide
+                    </p>
                     <p className="animate-fade-up opacity-0 delay-200 text-xl sm:text-2xl font-display font-light text-gray-400 mt-4 max-w-2xl leading-relaxed">
                         Install OpenClaw with your voice. One conversation, one personalized setup guide — ready in minutes.
                     </p>

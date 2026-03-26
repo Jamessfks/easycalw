@@ -11,6 +11,22 @@ const FALLBACK_STAGES = [
     { icon: Sparkles,  label: 'Wrapping up...', detail: 'Almost there', progress: 98 },
 ];
 
+// Document names to cycle through during "Reading documents..." stage
+const DOC_NAMES = [
+    'mac_mini_setup.md',
+    'skill_registry.md',
+    'telegram.md',
+    'domain_knowledge.md',
+    'openclaw-docs/install.md',
+    'setup_guides/existing_mac.md',
+    'agents/TRAINING.md',
+    'SOUL.md',
+    'config/skills.yaml',
+    'docs/architecture.md',
+    'prompts/onboarding.md',
+    'reference/api_keys.md',
+];
+
 // Map SSE stage strings to icons
 function getStageIcon(stage) {
     if (!stage) return Sparkles;
@@ -48,6 +64,59 @@ function estimateTimeRemaining(turn, maxTurns, elapsedSeconds) {
     return `~${m}m ${s > 0 ? `${s}s` : ''} remaining`;
 }
 
+function DocumentScroller() {
+    const [currentIdx, setCurrentIdx] = useState(0);
+    const [exiting, setExiting] = useState(false);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setExiting(true);
+            setTimeout(() => {
+                setCurrentIdx(prev => (prev + 1) % DOC_NAMES.length);
+                setExiting(false);
+            }, 300);
+        }, 1500);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="flex items-center gap-2 h-6 overflow-hidden mb-4">
+            <FileText size={12} className="text-cyan-500/60 shrink-0" />
+            <span
+                className={`text-xs font-mono text-cyan-400/70 transition-all duration-300 ${
+                    exiting ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'
+                }`}
+            >
+                {DOC_NAMES[currentIdx]}
+            </span>
+        </div>
+    );
+}
+
+function QualityMeter({ elapsed }) {
+    // Slowly fills from 0% to 85% over ~90 seconds, then crawls
+    const target = Math.min(85, (elapsed / 90) * 85);
+    const displayPct = Math.round(target);
+
+    return (
+        <div className="w-48 mx-auto mt-4">
+            <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Quality</span>
+                <span className="text-[10px] font-mono text-cyan-400/80">{displayPct}%</span>
+            </div>
+            <div className="h-1 bg-surface-2 rounded-full overflow-hidden">
+                <div
+                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                    style={{
+                        width: `${target}%`,
+                        background: `linear-gradient(90deg, #06b6d4 0%, #3b82f6 ${Math.min(100, target + 20)}%, #8b5cf6 100%)`,
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
+
 const LoadingScreen = ({ progress }) => {
     const [fallbackIdx, setFallbackIdx] = useState(0);
     const [elapsed, setElapsed] = useState(0);
@@ -76,6 +145,11 @@ const LoadingScreen = ({ progress }) => {
     const timeEstimate = hasRealProgress
         ? estimateTimeRemaining(progress.turn, progress.maxTurns, elapsed)
         : null;
+
+    // Show doc scroller during reading/exploring stages
+    const showDocScroller = hasRealProgress
+        ? (progress.stage || '').toLowerCase().match(/read|scan|search|glob|explor/)
+        : fallbackIdx <= 1;
 
     if (hasRealProgress) {
         // Real progress from SSE
@@ -122,9 +196,16 @@ const LoadingScreen = ({ progress }) => {
                 <h2 className="text-xl font-display font-semibold text-white mb-2">
                     {label}
                 </h2>
-                <p className="text-sm text-gray-500 font-mono mb-6">
+                <p className="text-sm text-gray-500 font-mono mb-4">
                     {detail}
                 </p>
+
+                {/* Document scroller */}
+                {showDocScroller && (
+                    <div className="flex justify-center">
+                        <DocumentScroller />
+                    </div>
+                )}
 
                 {/* Progress bar */}
                 <div className="w-64 mx-auto h-1 bg-surface-2 rounded-full overflow-hidden mb-4">
@@ -133,6 +214,9 @@ const LoadingScreen = ({ progress }) => {
                         style={{ width: `${progressPct}%` }}
                     />
                 </div>
+
+                {/* Quality meter */}
+                <QualityMeter elapsed={elapsed} />
 
                 {/* Live indicator + time estimate when SSE is connected */}
                 {hasRealProgress && (

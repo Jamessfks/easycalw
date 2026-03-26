@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import EasyClawLanding from './EasyClawLanding';
@@ -86,8 +86,32 @@ function MainFlow() {
         setPhase('landing');
     }, []);
 
+    // Demo reset toast
+    const [showResetToast, setShowResetToast] = useState(false);
+
+    // Ctrl/Cmd+Shift+D → instant demo reset
+    useEffect(() => {
+        const handler = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+                e.preventDefault();
+                setTranscriptData(null);
+                setMockGuide(null);
+                setPhase('landing');
+                setShowResetToast(true);
+                setTimeout(() => setShowResetToast(false), 1500);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
     if (phase === 'landing') {
-        return <EasyClawLanding onStart={handleStartInterview} onDemo={handleMockDemo} onResume={handleResume} onDemoMode={handleDemoMode} />;
+        return (
+            <>
+                <EasyClawLanding onStart={handleStartInterview} onDemo={handleMockDemo} onResume={handleResume} onDemoMode={handleDemoMode} />
+                {showResetToast && <ResetToast />}
+            </>
+        );
     }
 
     if (phase === 'interview') {
@@ -123,11 +147,26 @@ function MainFlow() {
     }
 
     return (
-        <SetupGuideView
-            transcriptData={transcriptData}
-            onBack={handleRestart}
-            onRestart={handleRestart}
-        />
+        <>
+            <SetupGuideView
+                transcriptData={transcriptData}
+                onBack={handleRestart}
+                onRestart={handleRestart}
+            />
+            {showResetToast && <ResetToast />}
+        </>
+    );
+}
+
+function ResetToast() {
+    return (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-fade-up">
+            <div className="glass rounded-xl px-5 py-3 border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+                <span className="text-sm font-display font-medium text-emerald-400">
+                    Demo Reset ✓
+                </span>
+            </div>
+        </div>
     );
 }
 
