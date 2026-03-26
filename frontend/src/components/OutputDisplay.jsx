@@ -626,6 +626,13 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                                     </span>
                                 )}
                             </div>
+                            {(guideData.agent_turns || guideData.agent_cost_usd) && (
+                                <p className="text-xs text-gray-400 font-mono mt-1">
+                                    {guideData.agent_turns && `Generated in ${guideData.agent_turns} turns`}
+                                    {guideData.agent_turns && guideData.agent_cost_usd && ' · '}
+                                    {guideData.agent_cost_usd && `$${Number(guideData.agent_cost_usd).toFixed(2)}`}
+                                </p>
+                            )}
                         </div>
                     </div>
 
