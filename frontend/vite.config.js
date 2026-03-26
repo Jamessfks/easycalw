@@ -14,6 +14,8 @@ export default defineConfig({
             '/health': 'http://localhost:8000',
             '/events': 'http://localhost:8000',
             '/demos': 'http://localhost:8000',
+            '/demo-stream': 'http://localhost:8000',
+            '/retry-guide': 'http://localhost:8000',
         },
     },
 })
