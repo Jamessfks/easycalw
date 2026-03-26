@@ -29,10 +29,10 @@ def _anthropic_available() -> bool:
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     return bool(key) and not key.startswith("not-needed")
 
-async def generate_guide_smart(formatted_transcript: str, event_queue=None) -> dict:
+async def generate_guide_smart(formatted_transcript: str, event_queue=None, guide_id=None) -> dict:
     """Auto-select Claude or Gemini based on API key availability."""
     if _anthropic_available():
-        return await generate_guide(formatted_transcript, event_queue=event_queue)
+        return await generate_guide(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
     else:
         logger.warning("[GUIDE] Anthropic key unavailable — using Gemini 2.5 Pro fallback")
         return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
@@ -186,7 +186,7 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
     """
     event_queue = _event_queues.get(guide_id)
     try:
-        result = await generate_guide_smart(formatted_transcript, event_queue=event_queue)
+        result = await generate_guide_smart(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
         # Attach scorecard to completed guides
         if result.get("status") == "complete" and result.get("outputs"):
             result["scorecard"] = compute_scorecard(result["outputs"])

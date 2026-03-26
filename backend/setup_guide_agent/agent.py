@@ -86,6 +86,7 @@ def _classify_stage(msg) -> str:
 async def generate_guide(
     formatted_transcript: str,
     event_queue = None,
+    guide_id: str = None,
 ) -> dict:
     """Generate an OpenClaw setup guide from a formatted interview transcript.
     Falls back to Gemini if Claude Agent SDK is unavailable.
@@ -98,7 +99,7 @@ async def generate_guide(
     Returns:
         Dict with guide_id, status, cost, and output file contents.
     """
-    guide_id = str(uuid.uuid4())[:8]
+    guide_id = guide_id or str(uuid.uuid4())[:8]
     output_dir = _OUTPUT_BASE / guide_id
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "reference_documents").mkdir(exist_ok=True)
@@ -191,6 +192,7 @@ async def generate_guide(
                 max_turns=40,
                 max_budget_usd=3.0,
                 model=MODEL,
+                cli_path="/opt/homebrew/bin/claude",  # Use authenticated system Claude Code
             ),
         ):
             # Stream intermediate progress to SSE queue
