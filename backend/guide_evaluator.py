@@ -67,7 +67,7 @@ async def evaluate_guide(guide: str, transcript: str, threshold: float = 3.5) ->
         contents=EVAL_PROMPT.format(transcript=transcript, guide=guide),
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
-            max_output_tokens=1024,
+            max_output_tokens=4096,
             temperature=0.0,
         ),
     )
