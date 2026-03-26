@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2 } from 'lucide-react';
+import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2, RefreshCw, AlertTriangle, XCircle, Clock } from 'lucide-react';
 import { addGuideToHistory } from '../lib/guideHistory';
 import Scorecard from './Scorecard';
 
@@ -213,9 +213,26 @@ function ReferenceDocCard({ doc, index }) {
     );
 }
 
+function categorizeError(message) {
+    if (!message) return { type: 'unknown', label: 'Unknown Error', icon: XCircle, color: 'rose' };
+    const m = message.toLowerCase();
+    if (m.includes('timeout') || m.includes('timed out'))
+        return { type: 'timeout', label: 'Generation Timed Out', icon: Clock, color: 'amber' };
+    if (m.includes('format') || m.includes('parse') || m.includes('markdown'))
+        return { type: 'format', label: 'Output Format Error', icon: AlertTriangle, color: 'amber' };
+    if (m.includes('500') || m.includes('server') || m.includes('internal'))
+        return { type: 'server', label: 'Server Error', icon: XCircle, color: 'rose' };
+    if (m.includes('rate') || m.includes('limit') || m.includes('429'))
+        return { type: 'ratelimit', label: 'Rate Limited', icon: Clock, color: 'amber' };
+    return { type: 'generation', label: 'Generation Failed', icon: AlertTriangle, color: 'rose' };
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
 const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const [activeTab, setActiveTab] = useState('guide');
     const [linkCopied, setLinkCopied] = useState(false);
+    const [retrying, setRetrying] = useState(false);
 
     // Save to history when a completed guide renders
     useEffect(() => {
@@ -224,22 +241,62 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
         }
     }, [guideData]);
 
+    const handleRetry = async () => {
+        if (!guideData?.guide_id || retrying) return;
+        setRetrying(true);
+        try {
+            const res = await fetch(`${API_BASE}/retry-guide/${guideData.guide_id}`, { method: 'POST' });
+            if (res.ok) {
+                // Reload to pick up the new guide generation
+                window.location.reload();
+            } else {
+                setRetrying(false);
+            }
+        } catch {
+            setRetrying(false);
+        }
+    };
+
     if (!guideData || guideData.status === 'error') {
+        const err = categorizeError(guideData?.message);
+        const ErrIcon = err.icon;
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-surface-0 text-gray-100 gap-6 px-6">
-                <div className="w-20 h-20 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
-                    <FileText size={32} className="text-rose-400" />
+                <div className={`w-20 h-20 rounded-full bg-${err.color}-500/10 border border-${err.color}-500/20 flex items-center justify-center`}>
+                    <ErrIcon size={32} className={`text-${err.color}-400`} />
                 </div>
                 <h2 className="text-2xl font-display font-bold text-white">
-                    {guideData?.status === 'error' ? 'Generation Failed' : 'No Guide Available'}
+                    {err.label}
                 </h2>
                 <p className="text-gray-400 text-sm max-w-md text-center">
                     {guideData?.message || 'Something went wrong. Please try running the interview again.'}
                 </p>
-                {onRestart && (
-                    <button onClick={onRestart} className="btn-primary mt-2">
-                        Start New Interview
-                    </button>
+                {err.type === 'timeout' && (
+                    <p className="text-gray-500 text-xs max-w-sm text-center">
+                        Guide generation took longer than expected. This can happen with complex interview transcripts. Retrying usually works.
+                    </p>
+                )}
+                <div className="flex items-center gap-3 mt-2">
+                    {guideData?.guide_id && (
+                        <button
+                            onClick={handleRetry}
+                            disabled={retrying}
+                            className="btn-primary flex items-center gap-2 !py-2.5 !px-6 !text-sm"
+                        >
+                            <RefreshCw size={14} className={retrying ? 'animate-spin' : ''} />
+                            {retrying ? 'Retrying...' : 'Retry Guide'}
+                        </button>
+                    )}
+                    {onRestart && (
+                        <button onClick={onRestart} className="btn-ghost !py-2.5 !px-5 !text-sm">
+                            Start New Interview
+                        </button>
+                    )}
+                </div>
+                {guideData?.guide_id && (
+                    <p className="text-[10px] font-mono text-gray-600 mt-2">
+                        Guide ID: {guideData.guide_id}
+                    </p>
                 )}
             </div>
         );

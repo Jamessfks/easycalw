@@ -4,17 +4,19 @@ import useVapi from './useVapi';
 import AgentPresence from './components/AgentPresence';
 import Transcript from './components/Transcript';
 
-const MIN_TRANSCRIPT_LENGTH = 200;
+const MIN_TRANSCRIPT_LENGTH = 800;
+const MIN_WORD_COUNT = 100;
 
 export default function InterviewView({ onInterviewComplete, onBack }) {
     const { callStatus, voiceState, transcript, formattedTranscript, error, startCall, endCall } = useVapi();
 
-    // Check if user said enough
+    // Check if user said enough (both character and word minimums)
     const userText = transcript
         .filter(e => e.isFinal && e.role === 'user')
         .map(e => e.text)
         .join(' ');
-    const isTooShort = callStatus === 'ended' && !error && userText.length < MIN_TRANSCRIPT_LENGTH;
+    const userWordCount = userText.trim().split(/\s+/).filter(Boolean).length;
+    const isTooShort = callStatus === 'ended' && !error && (userText.length < MIN_TRANSCRIPT_LENGTH || userWordCount < MIN_WORD_COUNT);
 
     React.useEffect(() => {
         // Only proceed if call ended successfully with enough transcript data
@@ -143,11 +145,16 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
                             <AlertTriangle size={24} className="text-amber-400" />
                         </div>
                         <h2 className="text-xl font-display font-bold text-white mb-2">
-                            Not Enough Context
+                            Interview Too Brief
                         </h2>
-                        <p className="text-gray-400 text-sm mb-6">
-                            We need a bit more detail about your use case to generate a useful guide. Try having a longer conversation with the agent.
+                        <p className="text-gray-400 text-sm mb-3">
+                            Your guide quality depends on what you share. For a great personalized setup guide, please describe:
                         </p>
+                        <ul className="text-gray-400 text-sm text-left max-w-xs mx-auto mb-6 space-y-1.5">
+                            <li className="flex items-start gap-2"><span className="text-cyan-400 mt-0.5">&#x2022;</span> Your industry or what you do</li>
+                            <li className="flex items-start gap-2"><span className="text-cyan-400 mt-0.5">&#x2022;</span> What you want OpenClaw to help with</li>
+                            <li className="flex items-start gap-2"><span className="text-cyan-400 mt-0.5">&#x2022;</span> Your comfort level with technology</li>
+                        </ul>
                         <div className="flex items-center justify-center gap-3">
                             <button
                                 onClick={() => window.location.reload()}

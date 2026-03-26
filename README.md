@@ -14,7 +14,7 @@ User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → Formatter → G
 
 1. **Interview Phase** — The user has a voice conversation with a Vapi-powered AI agent. Vapi handles all audio streaming, speech recognition, text-to-speech, interruption handling, and turn-taking. Our frontend displays a two-panel UI (agent avatar + live transcript).
 2. **Formatter** — A single LLM call (Gemini Flash primary, Claude Haiku fallback) cleans up the raw transcript into structured Markdown.
-3. **Setup Guide Creation Phase** — Three sequential LLM calls generate the setup guide, reference documents, and initialization prompts.
+3. **Setup Guide Creation Phase** — A Claude Agent SDK agent follows a 7-step reasoning chain (with budget pressure protocol and quality bar validation) to generate the setup guide, reference documents, and initialization prompts. The agent reads from an enriched knowledge base covering 11 industries with concrete automation recipes and compliance guidance.
 
 **Output:**
 - `OPENCLAW_ENGINE_SETUP_GUIDE.md` — the main setup guide

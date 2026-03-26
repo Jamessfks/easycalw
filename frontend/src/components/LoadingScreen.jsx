@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, FileText, BookOpen, Search, Clock, Cpu } from 'lucide-react';
 
 // Fallback stages when no real progress is available (polling mode)
@@ -36,6 +36,18 @@ function formatTokens(tokens) {
     return `${tokens} tokens`;
 }
 
+function estimateTimeRemaining(turn, maxTurns, elapsedSeconds) {
+    if (!turn || turn < 2 || !elapsedSeconds || elapsedSeconds < 5) return null;
+    const secsPerTurn = elapsedSeconds / turn;
+    const remainingTurns = (maxTurns || 40) - turn;
+    if (remainingTurns <= 0) return null;
+    const remainingSecs = Math.round(secsPerTurn * remainingTurns);
+    if (remainingSecs < 60) return `~${remainingSecs}s remaining`;
+    const m = Math.floor(remainingSecs / 60);
+    const s = remainingSecs % 60;
+    return `~${m}m ${s > 0 ? `${s}s` : ''} remaining`;
+}
+
 const LoadingScreen = ({ progress }) => {
     const [fallbackIdx, setFallbackIdx] = useState(0);
     const [elapsed, setElapsed] = useState(0);
@@ -60,6 +72,10 @@ const LoadingScreen = ({ progress }) => {
 
     // Determine what to display
     let label, detail, progressPct, StageIcon;
+
+    const timeEstimate = hasRealProgress
+        ? estimateTimeRemaining(progress.turn, progress.maxTurns, elapsed)
+        : null;
 
     if (hasRealProgress) {
         // Real progress from SSE
@@ -118,13 +134,20 @@ const LoadingScreen = ({ progress }) => {
                     />
                 </div>
 
-                {/* Live indicator when SSE is connected */}
+                {/* Live indicator + time estimate when SSE is connected */}
                 {hasRealProgress && (
-                    <div className="flex items-center justify-center gap-1.5 mt-4">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-[10px] font-mono text-emerald-400/70 uppercase tracking-wider">
-                            Live
-                        </span>
+                    <div className="flex items-center justify-center gap-3 mt-4">
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-[10px] font-mono text-emerald-400/70 uppercase tracking-wider">
+                                Live
+                            </span>
+                        </div>
+                        {timeEstimate && (
+                            <span className="text-[10px] font-mono text-gray-500">
+                                {timeEstimate}
+                            </span>
+                        )}
                     </div>
                 )}
 
