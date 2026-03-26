@@ -183,10 +183,38 @@ Write files in this exact order:
 #### 5A: Write `OPENCLAW_ENGINE_SETUP_GUIDE.md`
 
 **Style reference:** Use `templates/onboarding_guide.md` as your **visual and formatting** guide — not as a content blueprint. The template is an interactive onboarding wizard; your output is a personalized setup guide. They have different section content, but should share the same visual style. Specifically match:
-- Section numbering format: `## 00 | TITLE`
-- Header table layout (the `PREPARED FOR` / `MISSION` / `DATE` / `STATUS` table — your output adds a `DEPLOYMENT` row not in the template)
-- `**ACTION:**` callout format for user instructions
+- Section numbering format: `## 00 | TITLE` with emoji section icons (e.g., `## 00 | ✅ PRE-FLIGHT CHECKLIST`)
+- Header table layout (the `PREPARED FOR` / `MISSION` / `DATE` / `DEPLOYMENT` / `CHANNEL` / `MODEL` / `STATUS` table)
+- Callout box format using blockquotes: `> ⚠️ **WARNING:**`, `> 💡 **TIP:**`, `> ✅ **ACTION:**`
 - Overall professional tone
+
+**Additional style rules (MANDATORY):**
+
+1. **Opening impact line** — Immediately after the header table and separator, include a single bold sentence that captures what this guide will accomplish for THIS specific user. Format: *"This guide configures your OpenClaw agent to [specific outcome from interview] — built around your [industry] workflow and the tools you already use."* This line must reference the user's actual pain point and industry, not be generic.
+
+2. **"Key Moments" summary** — Before Section 00, include a `## 🎯 Key Moments — What You Will Accomplish` section with exactly 3 bullet points summarizing the tangible outcomes: (a) a running instance connected to their channel, (b) their tailored automations, (c) industry-grade guardrails. These must be specific to the user, not boilerplate.
+
+3. **Bespoke industry callouts** — For every user's industry, include at least one industry-specific callout box using blockquote format. Source these from `domain_knowledge_final/` files. Examples:
+   - Healthcare/Dental: `> ⚕️ **HIPAA Note:** ...` — encryption, PHI handling, audit trails
+   - Real estate: `> 🏠 **Fair Housing Note:** ...` — protected class filtering, lead handling
+   - Finance: `> 💳 **PCI Note:** ...` — cardholder data, transaction limits
+   - Food service: `> 🍽️ **Food Safety Note:** ...` — health code compliance, temp logging
+   - Legal: `> ⚖️ **Attorney-Client Privilege Note:** ...` — confidentiality boundaries
+   If no domain knowledge file exists for their industry, include a general `> 🔒 **Data Handling Note:** ...` about keeping sensitive business data off third-party APIs unless necessary.
+
+4. **Command verification** — Every `openclaw` or `clawhub` CLI command in the guide MUST be followed by a "Verify it worked:" block showing the expected successful output. Format:
+   ```
+   **Verify it worked:**
+   ```
+   $ command
+   expected output line
+   ```
+   ```
+   This is non-negotiable. Users must be able to confirm each step succeeded before moving on.
+
+5. **Personal touches** — Use the user's first name naturally in section introductions (e.g., "Sarah, these steps prepare your Mac Mini..." not "The following steps prepare the Mac Mini..."). Reference their specific tools and workflows where relevant (e.g., "Since you use Google Calendar for both locations..." rather than generic instructions).
+
+6. **The "Why this matters" principle** — Before any complex or multi-step section (particularly Sections 01, 05, 06, 08), add a single sentence in a `> 💡 **TIP:**` callout explaining why THIS specific user benefits from this step. Reference their interview answers. Example: *"Why this matters: these automations replace the manual morning schedule check you described spending 20 minutes on each day."*
 
 The template references UI screenshot images (`templates/images/image1.png` through `image12.png`). Include relevant image references in your guide where they help illustrate a step (e.g., security handshake, model provider selection, channel setup, Web UI). Use the markdown format `![Description](templates/images/imageN.png)` to reference them.
 

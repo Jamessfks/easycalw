@@ -1,41 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import QRCode from 'qrcode';
-import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2, RefreshCw, AlertTriangle, XCircle, Clock, QrCode, X, ArrowRightLeft } from 'lucide-react';
+import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2, RefreshCw, AlertTriangle, XCircle, Clock, X, ArrowRightLeft } from 'lucide-react';
 import { addGuideToHistory } from '../lib/guideHistory';
 import Scorecard from './Scorecard';
-
-function QrShareModal({ url, onClose }) {
-    const [qrSrc, setQrSrc] = useState(null);
-
-    useEffect(() => {
-        QRCode.toDataURL(url, { width: 256, margin: 2, color: { dark: '#ffffff', light: '#00000000' } })
-            .then(setQrSrc);
-    }, [url]);
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-            <div
-                className="glass rounded-2xl p-6 max-w-xs w-full mx-4 text-center animate-fade-up"
-                onClick={e => e.stopPropagation()}
-            >
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-display font-semibold text-white">Share via QR</h3>
-                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-                        <X size={16} />
-                    </button>
-                </div>
-                {qrSrc ? (
-                    <img src={qrSrc} alt="QR Code" className="mx-auto rounded-xl w-48 h-48" />
-                ) : (
-                    <div className="w-48 h-48 mx-auto rounded-xl bg-white/5 animate-pulse" />
-                )}
-                <p className="text-[11px] font-mono text-gray-500 mt-3 break-all leading-relaxed">{url}</p>
-            </div>
-        </div>
-    );
-}
 
 function BeforeAfterTeaser({ guideData }) {
     const [expanded, setExpanded] = useState(false);
@@ -238,6 +206,32 @@ function GuideTableOfContents({ content }) {
     );
 }
 
+function classifyCallout(children) {
+    const extract = (node) => {
+        if (typeof node === 'string') return node;
+        if (Array.isArray(node)) return node.map(extract).join('');
+        if (node?.props?.children) return extract(node.props.children);
+        return '';
+    };
+    const text = extract(children);
+    if (/\u26a0\ufe0f|WARNING/.test(text)) return 'callout-warning';
+    if (/\ud83d\udca1|TIP/.test(text)) return 'callout-tip';
+    if (/\u2705|ACTION/.test(text)) return 'callout-action';
+    return '';
+}
+
+function ClickableHeading({ level, id, children, ...props }) {
+    const Tag = `h${level}`;
+    return (
+        <Tag id={id} className="scroll-mt-28 group cursor-pointer" {...props}>
+            <a href={`#${id}`} className="no-underline border-none hover:border-none flex items-center gap-2">
+                {children}
+                <span className="opacity-0 group-hover:opacity-50 transition-opacity text-gray-500 text-sm font-normal">#</span>
+            </a>
+        </Tag>
+    );
+}
+
 function MarkdownRenderer({ content }) {
     if (!content) return null;
     return (
@@ -247,11 +241,15 @@ function MarkdownRenderer({ content }) {
                 components={{
                     h2({ children, ...props }) {
                         const id = headingId(children);
-                        return <h2 id={id} className="scroll-mt-28" {...props}>{children}</h2>;
+                        return <ClickableHeading level={2} id={id} {...props}>{children}</ClickableHeading>;
                     },
                     h3({ children, ...props }) {
                         const id = headingId(children);
-                        return <h3 id={id} className="scroll-mt-28" {...props}>{children}</h3>;
+                        return <ClickableHeading level={3} id={id} {...props}>{children}</ClickableHeading>;
+                    },
+                    blockquote({ children, ...props }) {
+                        const cls = classifyCallout(children);
+                        return <blockquote className={cls} {...props}>{children}</blockquote>;
                     },
                     pre({ children }) {
                         return <pre>{children}</pre>;
@@ -271,6 +269,40 @@ function MarkdownRenderer({ content }) {
                 {content}
             </ReactMarkdown>
         </div>
+    );
+}
+
+function CopyAllPromptsButton({ prompts }) {
+    const [copied, setCopied] = useState(false);
+
+    const extractPrompts = (md) => {
+        if (!md) return '';
+        const blocks = [];
+        const regex = /```[\s\S]*?```/g;
+        let match;
+        while ((match = regex.exec(md)) !== null) {
+            const block = match[0].replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+            if (block.trim()) blocks.push(block.trim());
+        }
+        return blocks.join('\n\n---\n\n');
+    };
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(extractPrompts(prompts));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono
+                       border border-cyan-500/20 text-cyan-400 hover:text-cyan-300 hover:border-cyan-500/40
+                       bg-cyan-500/5 hover:bg-cyan-500/10 transition-all duration-200"
+        >
+            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+            {copied ? 'All Prompts Copied' : 'Copy All Prompts'}
+        </button>
     );
 }
 
@@ -334,7 +366,6 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const [activeTab, setActiveTab] = useState(tabFromHash);
     const [linkCopied, setLinkCopied] = useState(false);
     const [retrying, setRetrying] = useState(false);
-    const [showQr, setShowQr] = useState(false);
 
     // Sync tab to URL hash
     useEffect(() => {
@@ -427,15 +458,16 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const refDocs = outputs?.reference_documents || [];
     const prompts = outputs?.prompts_to_send || '';
 
-    // Parse hero stats from guide content
+    // Parse hero stats from guide content with sensible fallbacks
     const heroStats = useMemo(() => {
         const skillCount = (guide.match(/skill|plugin|integration/gi) || []).length;
         const stepCount = (guide.match(/^#{2,3}\s+(?:step|\d+[\.\)]\s)/gim) || []).length || Math.max(5, Math.min(12, Math.floor(guide.length / 800)));
         const estMinutes = Math.max(5, Math.min(30, Math.round(stepCount * 2.5)));
+        const skills = Math.max(3, Math.min(15, Math.ceil(skillCount / 3)));
         return {
-            skills: Math.max(3, Math.min(15, Math.ceil(skillCount / 3))),
-            steps: stepCount,
-            minutes: estMinutes,
+            skills: (!skills || isNaN(skills)) ? 10 : skills,
+            steps: (!stepCount || isNaN(stepCount)) ? 8 : stepCount,
+            minutes: (!estMinutes || isNaN(estMinutes)) ? 45 : estMinutes,
         };
     }, [guide]);
 
@@ -523,27 +555,18 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
 
                     <div className="flex items-center gap-2">
                         {guideData.guide_id && !guideData.guide_id.startsWith('demo-') && (
-                            <>
-                                <button
-                                    onClick={() => setShowQr(true)}
-                                    className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs"
-                                >
-                                    <QrCode size={14} />
-                                    Share via QR
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        const url = `${window.location.origin}/view/${guideData.guide_id}`;
-                                        navigator.clipboard.writeText(url);
-                                        setLinkCopied(true);
-                                        setTimeout(() => setLinkCopied(false), 2000);
-                                    }}
-                                    className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs"
-                                >
-                                    {linkCopied ? <Check size={14} className="text-emerald-400" /> : <Link2 size={14} />}
-                                    {linkCopied ? 'Link Copied' : 'Share Link'}
-                                </button>
-                            </>
+                            <button
+                                onClick={() => {
+                                    const url = `${window.location.origin}/view/${guideData.guide_id}`;
+                                    navigator.clipboard.writeText(url);
+                                    setLinkCopied(true);
+                                    setTimeout(() => setLinkCopied(false), 2000);
+                                }}
+                                className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs"
+                            >
+                                {linkCopied ? <Check size={14} className="text-emerald-400" /> : <Link2 size={14} />}
+                                {linkCopied ? 'Link Copied' : 'Copy Link'}
+                            </button>
                         )}
                         <button onClick={handleDownloadAll} className="btn-ghost flex items-center gap-2 !py-2 !px-4 !text-xs">
                             <Archive size={14} />
@@ -588,14 +611,6 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                     })}
                 </div>
             </header>
-
-            {/* QR Share Modal */}
-            {showQr && (
-                <QrShareModal
-                    url={`${window.location.origin}/view/${guideData.guide_id}`}
-                    onClose={() => setShowQr(false)}
-                />
-            )}
 
             {/* Before/After Teaser */}
             <BeforeAfterTeaser guideData={guideData} />
@@ -692,6 +707,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                 {activeTab === 'prompts' && (
                     <div className="animate-fade-in">
                         <div className="flex justify-end gap-2 mb-4">
+                            <CopyAllPromptsButton prompts={prompts} />
                             <DownloadButton content={prompts} filename="prompts_to_send.md" />
                             <CopyButton text={prompts} />
                         </div>
