@@ -461,13 +461,13 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     // Parse hero stats from guide content with sensible fallbacks
     const heroStats = useMemo(() => {
         const skillCount = (guide.match(/skill|plugin|integration/gi) || []).length;
-        const stepCount = (guide.match(/^#{2,3}\s+(?:step|\d+[\.\)]\s)/gim) || []).length || Math.max(5, Math.min(12, Math.floor(guide.length / 800)));
-        const estMinutes = Math.max(5, Math.min(30, Math.round(stepCount * 2.5)));
-        const skills = Math.max(3, Math.min(15, Math.ceil(skillCount / 3)));
+        const stepCount = (guide.match(/^#{2,3}\s+(?:step|\d+[\.\)]\s)/gim) || []).length;
+        const rawSkills = Math.ceil(skillCount / 3);
+        const rawMinutes = Math.round(stepCount * 2.5);
         return {
-            skills: (!skills || isNaN(skills)) ? 10 : skills,
-            steps: (!stepCount || isNaN(stepCount)) ? 8 : stepCount,
-            minutes: (!estMinutes || isNaN(estMinutes)) ? 45 : estMinutes,
+            skills: (rawSkills > 0 && !isNaN(rawSkills)) ? `${Math.min(15, rawSkills)}` : '10+',
+            steps: (stepCount > 0 && !isNaN(stepCount)) ? `${stepCount}` : '8',
+            minutes: (rawMinutes > 0 && !isNaN(rawMinutes)) ? `~${rawMinutes}` : '~45',
         };
     }, [guide]);
 
@@ -557,7 +557,8 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                         {guideData.guide_id && !guideData.guide_id.startsWith('demo-') && (
                             <button
                                 onClick={() => {
-                                    const url = `${window.location.origin}/view/${guideData.guide_id}`;
+                                    const publicBase = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+                                    const url = `${publicBase}/view/${guideData.guide_id}`;
                                     navigator.clipboard.writeText(url);
                                     setLinkCopied(true);
                                     setTimeout(() => setLinkCopied(false), 2000);
@@ -631,7 +632,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                                 {heroStats.steps} setup steps
                             </span>
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-violet-500/10 border border-violet-500/20 text-violet-400">
-                                Est. {heroStats.minutes}min setup time
+                                {heroStats.minutes} min setup time
                             </span>
                         </div>
                     </div>

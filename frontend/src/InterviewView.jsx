@@ -254,7 +254,7 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
                 {/* Right — Transcript */}
                 <div className="flex-1 md:w-3/5 bg-surface-1/30 relative">
                     <Transcript entries={transcript} />
-                    <DemoCoachingCard visible={callStatus === 'active' || callStatus === 'idle'} />
+                    <DemoCoachingCard visible={callStatus === 'active'} />
                 </div>
             </div>
         </div>
