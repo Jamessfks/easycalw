@@ -255,3 +255,43 @@ test('empty references — shows helpful empty state message', async ({ page }) 
     const refsTab = page.locator('button', { hasText: 'Reference Docs' });
     await expect(refsTab).toBeVisible();
 });
+
+// ───────────────────────────────────────────
+// Callout CSS — blockquotes with emoji markers get correct class
+// ───────────────────────────────────────────
+test('callout CSS — blockquotes with emoji markers get color classes', async ({ page }) => {
+    await loadDemoGuide(page);
+
+    // Check that the classifyCallout logic is wired: any blockquote whose text
+    // contains ⚠️, 💡, or ✅ should have the matching callout-* class.
+    const calloutCount = await page.evaluate(() => {
+        const bqs = document.querySelectorAll('.prose-dark blockquote');
+        let matched = 0;
+        for (const bq of bqs) {
+            const txt = bq.textContent || '';
+            if (/⚠️|WARNING/.test(txt) && bq.classList.contains('callout-warning')) matched++;
+            if (/💡|TIP/.test(txt) && bq.classList.contains('callout-tip')) matched++;
+            if (/✅|ACTION/.test(txt) && bq.classList.contains('callout-action')) matched++;
+        }
+        return matched;
+    });
+
+    // If the demo guide has callout blockquotes they should be classified.
+    // Even if 0 callouts exist in this demo, verify no misclassified blockquotes.
+    const misclassified = await page.evaluate(() => {
+        const bqs = document.querySelectorAll('.prose-dark blockquote');
+        let bad = 0;
+        for (const bq of bqs) {
+            const txt = bq.textContent || '';
+            const hasCls = bq.classList.contains('callout-warning')
+                || bq.classList.contains('callout-tip')
+                || bq.classList.contains('callout-action');
+            const hasMarker = /⚠️|WARNING|💡|TIP|✅|ACTION/.test(txt);
+            if (hasMarker && !hasCls) bad++;
+            if (!hasMarker && hasCls) bad++;
+        }
+        return bad;
+    });
+
+    expect(misclassified).toBe(0);
+});
