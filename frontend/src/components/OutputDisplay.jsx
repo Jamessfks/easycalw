@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2, RefreshCw, AlertTriangle, XCircle, Clock, X, ArrowRightLeft } from 'lucide-react';
+import { FileText, BookOpen, MessageSquare, Download, ArrowLeft, Copy, Check, ChevronDown, ChevronRight, Archive, Link2, Share2, RefreshCw, AlertTriangle, XCircle, Clock, X, ArrowRightLeft, List } from 'lucide-react';
 import { addGuideToHistory } from '../lib/guideHistory';
 import Scorecard from './Scorecard';
 
@@ -203,6 +203,73 @@ function GuideTableOfContents({ content }) {
                 ))}
             </div>
         </nav>
+    );
+}
+
+function FloatingTocButton({ content }) {
+    const [open, setOpen] = useState(false);
+    const [visible, setVisible] = useState(false);
+
+    const headings = useMemo(() => {
+        if (!content) return [];
+        const matches = [...content.matchAll(/^(#{2,3})\s+(.+)$/gm)];
+        return matches.map(([, hashes, text]) => ({
+            id: headingId(text),
+            label: text.replace(/^\d+\s*\|\s*/, ''),
+            level: hashes.length,
+        }));
+    }, [content]);
+
+    useEffect(() => {
+        const onScroll = () => setVisible(window.scrollY > 300);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    if (headings.length < 4 || !visible) return null;
+
+    return (
+        <>
+            {/* Floating button — only show on screens where sidebar TOC is hidden */}
+            <button
+                onClick={() => setOpen(true)}
+                className="xl:hidden fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full bg-cyan-500/90 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/25 flex items-center justify-center transition-all duration-200"
+                aria-label="Table of Contents"
+            >
+                <List size={20} />
+            </button>
+
+            {/* Overlay */}
+            {open && (
+                <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" onClick={() => setOpen(false)}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                    <nav
+                        className="relative z-50 w-full sm:w-96 max-h-[70vh] overflow-y-auto glass rounded-t-2xl sm:rounded-2xl p-6"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="section-label !mb-0">Table of Contents</p>
+                            <button onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-white/10 text-gray-400">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="space-y-0.5">
+                            {headings.map(h => (
+                                <a
+                                    key={h.id}
+                                    href={`#${h.id}`}
+                                    onClick={() => setOpen(false)}
+                                    className={`block text-sm font-mono text-gray-400 hover:text-white transition-colors
+                                               py-1.5 truncate ${h.level === 3 ? 'pl-4 text-gray-500 text-xs' : ''}`}
+                                >
+                                    {h.label}
+                                </a>
+                            ))}
+                        </div>
+                    </nav>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -458,6 +525,13 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
     const refDocs = outputs?.reference_documents || [];
     const prompts = outputs?.prompts_to_send || '';
 
+    // Reading time estimate (200 wpm)
+    const readingTime = useMemo(() => {
+        const words = guide.trim().split(/\s+/).filter(Boolean).length;
+        const minutes = Math.max(1, Math.round(words / 200));
+        return `~${minutes} min read`;
+    }, [guide]);
+
     // Parse hero stats from guide content with sensible fallbacks
     const heroStats = useMemo(() => {
         const skillCount = (guide.match(/skill|plugin|integration/gi) || []).length;
@@ -634,6 +708,10 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-violet-500/10 border border-violet-500/20 text-violet-400">
                                 {heroStats.minutes} min setup time
                             </span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-gray-500/10 border border-gray-500/20 text-gray-400">
+                                <Clock size={12} />
+                                {readingTime}
+                            </span>
                         </div>
                     </div>
                     {guideData.quality_eval && (
@@ -677,10 +755,15 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                         </div>
                         <div className="flex gap-6">
                             <GuideTableOfContents content={guide} />
-                            <div className="flex-1 min-w-0 glass rounded-2xl p-8">
-                                <MarkdownRenderer content={guide} />
+                            <div className="flex-1 min-w-0 glass rounded-2xl p-8 relative">
+                                <div className="max-h-[80vh] overflow-y-auto scroll-smooth pr-2" style={{ scrollbarGutter: 'stable' }}>
+                                    <MarkdownRenderer content={guide} />
+                                </div>
+                                {/* Bottom fade */}
+                                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 rounded-b-2xl bg-gradient-to-t from-[var(--surface-1,#0d1117)] to-transparent" />
                             </div>
                         </div>
+                        <FloatingTocButton content={guide} />
                     </div>
                 )}
 

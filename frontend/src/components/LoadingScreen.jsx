@@ -11,6 +11,16 @@ const FALLBACK_STAGES = [
     { icon: Sparkles,  label: 'Wrapping up...', detail: 'Almost there', progress: 98 },
 ];
 
+// Fun facts to rotate during the wait
+const FUN_FACTS = [
+    'Your guide will include skill recommendations from a registry of 435 verified tools',
+    'We search through 499 knowledge base documents to find what matters for your setup',
+    'The AI reads OpenClaw docs, domain knowledge, and setup guides — all tailored to you',
+    'Your guide includes security hardening steps specific to your deployment type',
+    'Average guide length: 20,000+ characters of personalized setup instructions',
+    'Each guide is unique — no two users get the same recommendations',
+];
+
 // Document names to cycle through during "Reading documents..." stage
 const DOC_NAMES = [
     'mac_mini_setup.md',
@@ -93,9 +103,54 @@ function DocumentScroller() {
     );
 }
 
+function FactTicker() {
+    const [idx, setIdx] = useState(0);
+    const [fading, setFading] = useState(false);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setFading(true);
+            setTimeout(() => {
+                setIdx(prev => (prev + 1) % FUN_FACTS.length);
+                setFading(false);
+            }, 400);
+        }, 15000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="max-w-sm mx-auto mt-6 h-10 flex items-center justify-center">
+            <p
+                className={`text-[11px] font-mono text-gray-500 text-center leading-relaxed transition-opacity duration-400 ${
+                    fading ? 'opacity-0' : 'opacity-100'
+                }`}
+            >
+                💡 {FUN_FACTS[idx]}
+            </p>
+        </div>
+    );
+}
+
+function getTimeEstimateFromElapsed(elapsed) {
+    if (elapsed < 60) return 'Estimated time: ~5 minutes';
+    if (elapsed < 180) return 'Estimated time: ~4 minutes';
+    if (elapsed < 300) return 'Estimated time: ~2 minutes';
+    return 'Almost done...';
+}
+
 function QualityMeter({ elapsed }) {
-    // Slowly fills from 0% to 85% over ~90 seconds, then crawls
-    const target = Math.min(85, (elapsed / 90) * 85);
+    // Smoother curve over ~6 minutes:
+    // 0→40% in first 2 min, 40→80% in next 2 min, 80→95% in last 2 min
+    let target;
+    if (elapsed <= 120) {
+        target = (elapsed / 120) * 40;
+    } else if (elapsed <= 240) {
+        target = 40 + ((elapsed - 120) / 120) * 40;
+    } else if (elapsed <= 360) {
+        target = 80 + ((elapsed - 240) / 120) * 15;
+    } else {
+        target = 95;
+    }
     const displayPct = Math.round(target);
 
     return (
@@ -218,6 +273,13 @@ const LoadingScreen = ({ progress }) => {
                 {/* Quality meter */}
                 <QualityMeter elapsed={elapsed} />
 
+                {/* Elapsed-based time estimate (always visible) */}
+                <div className="mt-3">
+                    <span className="text-[11px] font-mono text-gray-500">
+                        {hasRealProgress && timeEstimate ? timeEstimate : getTimeEstimateFromElapsed(elapsed)}
+                    </span>
+                </div>
+
                 {/* Live indicator + time estimate when SSE is connected */}
                 {hasRealProgress && (
                     <div className="flex items-center justify-center gap-3 mt-4">
@@ -260,6 +322,9 @@ const LoadingScreen = ({ progress }) => {
                 <p className="text-xs font-mono text-gray-600 mt-3">
                     Building your personalized guide. Please don't close this page.
                 </p>
+
+                {/* Fun fact ticker */}
+                <FactTicker />
             </div>
         </div>
     );
