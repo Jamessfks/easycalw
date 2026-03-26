@@ -92,7 +92,9 @@ Read `INTERVIEW_TRANSCRIPT.md` from your working directory. Extract and internal
 
 ### Step 2 — Map the Knowledge Base (1-2 turns)
 
-Glob the knowledge base directory to understand what is available. Identify:
+Read `KNOWLEDGE_INDEX.md` from the knowledge base directory. This index maps every deployment scenario, channel, provider, and industry to specific files. Use it to identify exactly which files to read — do NOT Glob the entire directory.
+
+From the index, identify:
 - Which setup guide matches the user's deployment scenario
 - Which tiers of the skill registry are relevant to their industry/use case
 - Which openclaw-docs sections you will need (channels, automation, providers, security)

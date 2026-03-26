@@ -429,6 +429,38 @@ def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
     return result
 
 
+@app.post("/retry-guide/{guide_id}")
+@limiter.limit("3/hour")
+async def retry_guide(guide_id: str, request: Request, background_tasks: BackgroundTasks):
+    """Retry guide generation for a guide that failed or got stuck.
+
+    The original formatted transcript must be on disk.
+    Use when: webhook delivered transcript but guide generation failed.
+    """
+    guide_dir = os.path.join(
+        os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output"), guide_id
+    )
+    transcript_path = os.path.join(guide_dir, "INTERVIEW_TRANSCRIPT.md")
+
+    if not os.path.isfile(transcript_path):
+        raise HTTPException(
+            status_code=404,
+            detail="No transcript found for this guide ID. Cannot retry."
+        )
+
+    with open(transcript_path, "r") as f:
+        formatted_transcript = f.read()
+
+    # Reset status and retry
+    guide_store[guide_id] = {"guide_id": guide_id, "status": "retrying"}
+    _persist_store()
+    _event_queues[guide_id] = asyncio.Queue()
+    background_tasks.add_task(_run_guide_agent, guide_id, formatted_transcript)
+
+    logger.info(f"[RETRY] Retrying guide generation: {guide_id}")
+    return {"guide_id": guide_id, "status": "retrying", "message": "Guide generation restarted"}
+
+
 @app.get("/events/{guide_id}")
 async def guide_events(guide_id: str):
     """SSE stream for real-time guide generation progress."""
