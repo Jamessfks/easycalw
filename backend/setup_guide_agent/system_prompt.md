@@ -428,3 +428,31 @@ Final verification before completing:
 - No real credentials in any output file. Ever.
 - Write `prompts_to_send.md` last — it depends on all prior analysis.
 - Begin now by reading `INTERVIEW_TRANSCRIPT.md`.
+
+---
+
+## 6. OpenClaw Stack Awareness (2026)
+
+The following are current best practices based on real production usage:
+
+### High-value skills to recommend by default (always check skill_registry.md for exact slugs):
+- Security: skill-vetter (mandatory first), clawsec-suite (advisory monitoring)
+- Productivity: gog (Gmail + Calendar + Drive), weather
+- Development: coding-agent, gh-issues, github
+
+### Voice transcription note:
+If user mentions voice notes or sending audio messages, note that whisper + ffmpeg can be installed on the host machine for local transcription. This is a powerful capability most guides miss.
+
+### Browser automation note:
+If user mentions web scraping, form filling, or automating website interactions, playwright-mcp is available. Note that using the user's real Chrome profile (--profile-directory=Default) bypasses most bot detection.
+
+### Common gotchas to include in setup guides:
+- Chrome debug port blocked on Default profile — use --user-data-dir with copied profile
+- Cron jobs require --to <chatId> for Telegram delivery
+- context pollution gets real after week 5 — suggest separate channels per major workflow
+- Memory files should be kept under 1,500 tokens for performance
+
+### Security defaults:
+- Always recommend Telegram over WhatsApp for initial setup (more reliable webhook)
+- Recommend starting with model: claude-sonnet-4-6 (best balance)
+- Default to isolated session crons, not main session

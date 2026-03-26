@@ -1,6 +1,8 @@
 import os
 import json
 import uuid
+import hmac
+import hashlib
 import shutil
 import asyncio
 import logging
@@ -60,8 +62,16 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Request size limit
 MAX_TRANSCRIPT_BYTES = 100 * 1024  # 100KB
 
+# Webhook HMAC authentication
+_VAPI_WEBHOOK_SECRET = os.environ.get("VAPI_WEBHOOK_SECRET", "")
+if not _VAPI_WEBHOOK_SECRET:
+    logger.warning(
+        "[SECURITY] VAPI_WEBHOOK_SECRET is not set — webhook signature verification disabled. "
+        "Set VAPI_WEBHOOK_SECRET in .env for production use."
+    )
+
 # Guide cleanup
-_GUIDE_OUTPUT_DIR = os.environ.get("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides")
+_GUIDE_OUTPUT_DIR = os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output")
 _GUIDE_MAX_AGE_DAYS = int(os.environ.get("GUIDE_MAX_AGE_DAYS", "7"))
 
 # In-memory store for generated guides
@@ -244,8 +254,22 @@ async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
     """VAPI server URL — receives transcript events, function-call requests,
     and end-of-call reports.
     """
+    # HMAC signature verification
+    raw_body = await request.body()
+    if _VAPI_WEBHOOK_SECRET:
+        signature = request.headers.get("x-vapi-signature", "")
+        if not signature:
+            logger.warning("[WEBHOOK] Missing x-vapi-signature header — rejecting request")
+            raise HTTPException(status_code=401, detail="Missing webhook signature")
+        expected = hmac.new(
+            _VAPI_WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            logger.warning("[WEBHOOK] Invalid webhook signature — rejecting request")
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
     try:
-        body = await request.json()
+        body = json.loads(raw_body)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body")
 
@@ -353,7 +377,7 @@ async def get_guide(guide_id: str):
 
     # Fallback: try to recover from disk output directory
     guide_dir = os.path.join(
-        os.environ.get("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides"), guide_id
+        os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output"), guide_id
     )
     guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
     if os.path.isfile(guide_file):

@@ -170,6 +170,12 @@ test_results/
 frontend/dist/
 
 # =========================
+# Generated guides
+# =========================
+guide_output/*
+!guide_output/.gitkeep
+
+# =========================
 # Misc
 # =========================
 .context/

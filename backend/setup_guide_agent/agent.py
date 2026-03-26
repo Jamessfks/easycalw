@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _AGENT_DIR = Path(__file__).parent
 _CONTEXT_DIR = _AGENT_DIR / "context"
 _SYSTEM_PROMPT_PATH = _AGENT_DIR / "system_prompt.md"
-_OUTPUT_BASE = Path(os.getenv("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides"))
+_OUTPUT_BASE = Path(os.getenv("GUIDE_OUTPUT_DIR", "./guide_output"))
 
 
 def _load_system_prompt() -> str:
