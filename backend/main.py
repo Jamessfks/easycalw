@@ -477,14 +477,19 @@ async def guide_events(guide_id: str):
     async def event_generator():
         try:
             while True:
-                event = await asyncio.wait_for(queue.get(), timeout=300)
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=25)
+                except asyncio.TimeoutError:
+                    # Heartbeat — keeps Railway proxy + client connection alive
+                    yield {"event": "heartbeat", "data": "{}"}
+                    continue
                 if event is None:
                     final = guide_store.get(guide_id, {})
                     yield {"event": "complete", "data": json.dumps(final, default=str)}
                     break
                 yield {"event": event.get("type", "progress"), "data": json.dumps(event, default=str)}
         except asyncio.TimeoutError:
-            yield {"event": "error", "data": json.dumps({"message": "Stream timed out"})}
+            yield {"event": "error", "data": json.dumps({"message": "Stream timed out after 5 minutes"})}
         except asyncio.CancelledError:
             pass
 
@@ -508,3 +513,6 @@ else:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=PORT)
+
+# ── SSE Heartbeat patch (prevents Railway 60s proxy timeout) ──────────────────
+# Applied 2026-03-26 — replaces event_generator in /events/{guide_id}
