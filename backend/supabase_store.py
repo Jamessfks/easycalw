@@ -181,6 +181,23 @@ class GuideStore:
             logger.error(f"[GuideStore] items() failed: {e}")
             return list(self._memory.items())
 
+    # -- Sync dict-like interface (operates on _memory cache) ---------------
+
     def __contains__(self, guide_id: str) -> bool:
         """Sync check against in-memory cache (fast path for SSE loops)."""
         return guide_id in self._memory
+
+    def __getitem__(self, guide_id: str) -> dict:
+        return self._memory[guide_id]
+
+    def __setitem__(self, guide_id: str, data: dict) -> None:
+        self._memory[guide_id] = data
+
+    def __len__(self) -> int:
+        return len(self._memory)
+
+    def get_sync(self, guide_id: str, default=None) -> dict | None:
+        return self._memory.get(guide_id, default)
+
+    def pop_sync(self, guide_id: str, default=None) -> dict | None:
+        return self._memory.pop(guide_id, default)

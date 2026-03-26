@@ -23,6 +23,7 @@ from sse_starlette.sse import EventSourceResponse
 from formatter import format_transcript
 from setup_guide_agent.agent import generate_guide
 from setup_guide_agent.gemini_agent import generate_guide_gemini
+from supabase_store import GuideStore
 
 def _anthropic_available() -> bool:
     key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -87,37 +88,11 @@ if not _VAPI_WEBHOOK_SECRET:
 _GUIDE_OUTPUT_DIR = os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output")
 _GUIDE_MAX_AGE_DAYS = int(os.environ.get("GUIDE_MAX_AGE_DAYS", "7"))
 
-# In-memory store for generated guides
-# Persists to disk as JSON so guides survive server restarts
-guide_store: dict[str, dict] = {}
-_GUIDE_STORE_PATH = os.getenv("GUIDE_STORE_PATH", "/tmp/easyclaw_guide_store.json")
+# Guide store — uses Supabase when SUPABASE_URL is set, else in-memory
+guide_store = GuideStore()
 
 # SSE event queues — maps guide_id -> asyncio.Queue for streaming progress
 _event_queues: dict[str, asyncio.Queue] = {}
-
-
-def _persist_store():
-    """Write guide_store to disk for crash recovery."""
-    try:
-        with open(_GUIDE_STORE_PATH, "w") as f:
-            json.dump(guide_store, f, default=str)
-    except Exception as e:
-        logger.warning(f"[STORE] Failed to persist guide store: {e}")
-
-
-def _load_store():
-    """Load guide_store from disk on startup."""
-    global guide_store
-    try:
-        if os.path.isfile(_GUIDE_STORE_PATH):
-            with open(_GUIDE_STORE_PATH, "r") as f:
-                guide_store = json.load(f)
-            logger.info(f"[STORE] Loaded {len(guide_store)} guides from disk")
-    except Exception as e:
-        logger.warning(f"[STORE] Failed to load guide store: {e}")
-
-
-_load_store()
 
 
 def _cleanup_old_guides():
@@ -136,13 +111,12 @@ def _cleanup_old_guides():
         if mtime < cutoff:
             try:
                 shutil.rmtree(path)
-                guide_store.pop(entry, None)
+                guide_store.pop_sync(entry, None)
                 removed += 1
             except Exception as e:
                 logger.warning(f"[CLEANUP] Failed to remove {path}: {e}")
 
     if removed > 0:
-        _persist_store()
         logger.info(f"[CLEANUP] Removed {removed} guides older than {_GUIDE_MAX_AGE_DAYS} days")
 
 
@@ -216,20 +190,18 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
         # Attach scorecard to completed guides
         if result.get("status") == "complete" and result.get("outputs"):
             result["scorecard"] = compute_scorecard(result["outputs"])
-        guide_store[guide_id] = {
+        await guide_store.set(guide_id, {
             **result,
             "guide_id": guide_id,
-        }
-        _persist_store()
+        })
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
-        guide_store[guide_id] = {
+        await guide_store.set(guide_id, {
             "guide_id": guide_id,
             "status": "error",
             "message": str(e),
             "outputs": {},
-        }
-        _persist_store()
+        })
         if event_queue:
             await event_queue.put({"type": "error", "message": str(e)})
     finally:
@@ -339,8 +311,7 @@ async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             formatted = await format_transcript(transcript_text)
             guide_id = str(uuid.uuid4())[:8]
-            guide_store[guide_id] = {"guide_id": guide_id, "status": "generating"}
-            _persist_store()
+            await guide_store.set(guide_id, {"guide_id": guide_id, "status": "generating"})
             background_tasks.add_task(_run_guide_agent, guide_id, formatted)
             logger.info(f"[WEBHOOK] Guide generation started: {guide_id}")
         except Exception as e:
@@ -374,8 +345,7 @@ async def generate_guide_endpoint(
     guide_id = str(uuid.uuid4())[:8]
     logger.info(f"[GUIDE {guide_id}] Received formatted transcript ({len(req.formatted_transcript)} chars)")
 
-    guide_store[guide_id] = {"guide_id": guide_id, "status": "generating"}
-    _persist_store()
+    await guide_store.set(guide_id, {"guide_id": guide_id, "status": "generating"})
 
     # Create event queue for SSE streaming
     _event_queues[guide_id] = asyncio.Queue()
@@ -476,8 +446,7 @@ async def get_guide(guide_id: str):
     guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
     if os.path.isfile(guide_file):
         result = _load_guide_from_disk(guide_id, guide_dir)
-        guide_store[guide_id] = result
-        _persist_store()
+        await guide_store.set(guide_id, result)
         return result
 
     return {
@@ -546,8 +515,7 @@ async def retry_guide(guide_id: str, request: Request, background_tasks: Backgro
         formatted_transcript = f.read()
 
     # Reset status and retry
-    guide_store[guide_id] = {"guide_id": guide_id, "status": "retrying"}
-    _persist_store()
+    await guide_store.set(guide_id, {"guide_id": guide_id, "status": "retrying"})
     _event_queues[guide_id] = asyncio.Queue()
     background_tasks.add_task(_run_guide_agent, guide_id, formatted_transcript)
 
@@ -561,7 +529,8 @@ async def guide_events(guide_id: str):
     queue = _event_queues.get(guide_id)
 
     if queue is None:
-        if guide_id in guide_store and guide_store[guide_id].get("status") in ("complete", "error"):
+        entry = guide_store.get_sync(guide_id)
+        if entry and entry.get("status") in ("complete", "error"):
             async def already_done():
                 yield {"event": "complete", "data": json.dumps(guide_store[guide_id], default=str)}
             return EventSourceResponse(already_done())
@@ -578,7 +547,7 @@ async def guide_events(guide_id: str):
                     yield {"event": "heartbeat", "data": "{}"}
                     continue
                 if event is None:
-                    final = guide_store.get(guide_id, {})
+                    final = guide_store.get_sync(guide_id, {})
                     yield {"event": "complete", "data": json.dumps(final, default=str)}
                     break
                 yield {"event": event.get("type", "progress"), "data": json.dumps(event, default=str)}
