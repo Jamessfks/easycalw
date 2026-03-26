@@ -8,19 +8,89 @@ import SetupGuideView from './SetupGuideView';
 import OutputDisplay from './components/OutputDisplay';
 import LoadingScreen from './components/LoadingScreen';
 import GuidePageView from './GuidePageView';
+import { getTranscriptBackup, clearTranscriptBackup } from './lib/transcriptBackup';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
+
+function formatTimeAgo(isoString) {
+    const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+}
+
+function RecoveryBanner({ backup, onRecover, onDismiss }) {
+    const hasFullTranscript = !!backup.formattedTranscript;
+    const timeAgo = formatTimeAgo(backup.savedAt);
+
+    return (
+        <div className="fixed top-0 left-0 right-0 z-50">
+            <div className="bg-amber-900/80 backdrop-blur-sm border-b border-amber-500/30 px-4 py-3">
+                <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+                    <p className="text-sm text-amber-200 font-display">
+                        {hasFullTranscript
+                            ? `Previous interview recovered (from ${timeAgo}) — Skip to guide generation?`
+                            : `Partial interview saved — ${backup.entries?.length || 0} turns recorded. Resume from beginning?`}
+                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                        {hasFullTranscript && (
+                            <button
+                                onClick={onRecover}
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 text-black hover:bg-amber-400 transition-colors"
+                            >
+                                Generate Guide Now
+                            </button>
+                        )}
+                        <button
+                            onClick={onDismiss}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-500/40 text-amber-300 hover:bg-amber-800/50 transition-colors"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function MainFlow() {
     const [phase, setPhase] = useState('landing');
     const [transcriptData, setTranscriptData] = useState(null);
     const [mockGuide, setMockGuide] = useState(null);
+    const [recoveryBanner, setRecoveryBanner] = useState(null);
+
+    // Check for transcript backup on mount
+    useEffect(() => {
+        const backup = getTranscriptBackup();
+        if (backup && (backup.formattedTranscript || backup.entries?.length)) {
+            setRecoveryBanner(backup);
+        }
+    }, []);
+
+    const dismissRecovery = useCallback(() => {
+        clearTranscriptBackup();
+        setRecoveryBanner(null);
+    }, []);
+
+    const handleRecoverTranscript = useCallback(() => {
+        if (recoveryBanner?.formattedTranscript) {
+            setTranscriptData(recoveryBanner.formattedTranscript);
+            setRecoveryBanner(null);
+            setPhase('processing');
+        }
+    }, [recoveryBanner]);
 
     const handleStartInterview = useCallback(() => {
+        setRecoveryBanner(null);
         setPhase('interview');
     }, []);
 
     const handleDemoMode = useCallback(() => {
+        setRecoveryBanner(null);
         setPhase('demo-interview');
     }, []);
 
@@ -113,6 +183,13 @@ function MainFlow() {
     if (phase === 'landing') {
         return (
             <>
+                {recoveryBanner && (
+                    <RecoveryBanner
+                        backup={recoveryBanner}
+                        onRecover={handleRecoverTranscript}
+                        onDismiss={dismissRecovery}
+                    />
+                )}
                 <EasyClawLanding onStart={handleStartInterview} onDemo={handleMockDemo} onResume={handleResume} onDemoMode={handleDemoMode} />
                 {showResetToast && <ResetToast />}
             </>
