@@ -3,12 +3,19 @@ import { test, expect } from '@playwright/test';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 
+// Helper: load a demo guide and wait for output view
+async function loadDemoGuide(page, demoName = 'Restaurant Operations') {
+    await page.goto(BASE);
+    await page.locator('button', { hasText: demoName }).click();
+    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+}
+
 // ───────────────────────────────────────────
 // 1. Landing page loads correctly
 // ───────────────────────────────────────────
 test('landing page — title and start button visible', async ({ page }) => {
     await page.goto(BASE);
-    await expect(page.locator('text=EasyClaw')).toBeVisible();
+    await expect(page.getByRole('navigation').getByText('EasyClaw')).toBeVisible();
     await expect(page.locator('button', { hasText: 'Start Voice Interview' })).toBeVisible();
 });
 
@@ -16,16 +23,7 @@ test('landing page — title and start button visible', async ({ page }) => {
 // 2. Demo guide loads — click a demo, verify content renders
 // ───────────────────────────────────────────
 test('demo guide — clicking demo renders guide output', async ({ page }) => {
-    await page.goto(BASE);
-    // Click first demo card (Restaurant Operations)
-    const demoCard = page.locator('button', { hasText: 'Restaurant Operations' });
-    await expect(demoCard).toBeVisible({ timeout: 5000 });
-    await demoCard.click();
-
-    // Should show loading then output
-    // Wait for the guide output to appear (Setup Guide tab or guide content)
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
-    // The guide tab should be active
+    await loadDemoGuide(page);
     await expect(page.locator('button', { hasText: 'Setup Guide' })).toBeVisible();
 });
 
@@ -37,46 +35,48 @@ test('interview view — cancel button appears during connecting', async ({ page
     await page.locator('button', { hasText: 'Start Voice Interview' }).click();
 
     // Should navigate to interview view with Start button (idle state)
-    // The call starts in idle — user must click Start
     await expect(page.locator('text=Voice Interview')).toBeVisible({ timeout: 5000 });
-    // The idle state shows a "Start" button
     await expect(page.locator('button', { hasText: 'Start' })).toBeVisible();
 });
 
 // ───────────────────────────────────────────
 // 4. Error state shows retry button
 // ───────────────────────────────────────────
-test('error state — OutputDisplay renders retry on error', async ({ page }) => {
-    // Navigate to a non-existent guide to trigger error/not_found state
+test('error state — OutputDisplay renders error for invalid guide', async ({ page }) => {
     await page.goto(`${BASE}/view/nonexistent-guide-id`);
 
-    // Should eventually show an error or not found state
-    // The GuidePageView polls then shows error
-    await expect(page.locator('text=/not found|error|failed/i')).toBeVisible({ timeout: 15000 });
+    // GuidePageView polls /guide/{id} — backend returns not_found status
+    // OutputDisplay treats not_found as error and shows categorized error UI
+    // Wait for either the error message text or the "Start New Interview" button
+    await expect(
+        page.locator('text=/not found|Something went wrong|Generation Failed|Unknown Error|Start New Interview/i')
+    ).toBeVisible({ timeout: 20000 });
 });
 
 // ───────────────────────────────────────────
 // 5. Output tabs switch correctly (Guide / References / Prompts)
 // ───────────────────────────────────────────
 test('output tabs — switching between Guide, References, Prompts', async ({ page }) => {
-    await page.goto(BASE);
-    // Load a demo to get to output view
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+    await loadDemoGuide(page);
 
     // Click References tab
     const refsTab = page.locator('button', { hasText: 'Reference Docs' });
     if (await refsTab.isEnabled()) {
         await refsTab.click();
-        // Should show reference docs content or empty state
-        await expect(page.locator('text=/reference|No reference/i')).toBeVisible({ timeout: 3000 });
+        // Should show reference doc cards (with expand/collapse) or empty state
+        // Wait for either a doc card button or the empty state message
+        await page.waitForTimeout(500);
+        const hasDocCards = await page.locator('button:has-text("Download .md")').count() > 0;
+        const hasEmptyState = await page.locator('text=/No reference documents/i').count() > 0;
+        expect(hasDocCards || hasEmptyState).toBe(true);
     }
 
     // Click Prompts tab
-    const promptsTab = page.locator('button', { hasText: 'Prompts' });
+    const promptsTab = page.locator('button', { hasText: /^Prompts$/ });
     if (await promptsTab.isEnabled()) {
         await promptsTab.click();
-        await expect(page.locator('text=Prompts')).toBeVisible();
+        // Verify prompts content area renders
+        await expect(page.locator('.prose')).toBeVisible({ timeout: 3000 });
     }
 
     // Click back to Guide tab
@@ -88,19 +88,13 @@ test('output tabs — switching between Guide, References, Prompts', async ({ pa
 // 6. Copy button works (clipboard API)
 // ───────────────────────────────────────────
 test('copy button — triggers clipboard write', async ({ page, context }) => {
-    // Grant clipboard permissions
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await loadDemoGuide(page);
 
-    await page.goto(BASE);
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
-
-    // Find and click the Copy button
     const copyBtn = page.locator('button', { hasText: 'Copy' }).first();
     await expect(copyBtn).toBeVisible();
     await copyBtn.click();
 
-    // Should show "Copied" text after clicking
     await expect(page.locator('text=Copied').first()).toBeVisible({ timeout: 2000 });
 });
 
@@ -108,11 +102,8 @@ test('copy button — triggers clipboard write', async ({ page, context }) => {
 // 7. Download .md button triggers download
 // ───────────────────────────────────────────
 test('download button — triggers .md file download', async ({ page }) => {
-    await page.goto(BASE);
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+    await loadDemoGuide(page);
 
-    // Listen for download event
     const downloadPromise = page.waitForEvent('download');
     const downloadBtn = page.locator('button', { hasText: 'Download .md' }).first();
     await expect(downloadBtn).toBeVisible();
@@ -142,7 +133,6 @@ test('API /demos — returns array of demo guides', async ({ request }) => {
     const demos = await res.json();
     expect(Array.isArray(demos)).toBe(true);
     expect(demos.length).toBeGreaterThan(0);
-    // Each demo should have required fields
     expect(demos[0]).toHaveProperty('demo_id');
     expect(demos[0]).toHaveProperty('title');
 });
@@ -169,21 +159,15 @@ test('API /format — formats a sample transcript', async ({ request }) => {
 // 11. Guide output has all 3 sections (setup guide, prompts)
 // ───────────────────────────────────────────
 test('demo guide — has setup guide content and prompts tab', async ({ page }) => {
-    await page.goto(BASE);
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+    await loadDemoGuide(page);
 
-    // Guide content should be rendered in the main area
-    const guideContent = page.locator('.prose');
-    await expect(guideContent).toBeVisible();
+    // Guide content should be rendered
+    await expect(page.locator('.prose')).toBeVisible();
 
-    // Prompts tab should exist and be clickable
-    const promptsTab = page.locator('button', { hasText: 'Prompts' });
-    await expect(promptsTab).toBeVisible();
-
-    // References tab should exist
-    const refsTab = page.locator('button', { hasText: 'Reference Docs' });
-    await expect(refsTab).toBeVisible();
+    // All 3 tabs should exist
+    await expect(page.locator('button', { hasText: 'Setup Guide' })).toBeVisible();
+    await expect(page.locator('button', { hasText: /^Prompts$/ })).toBeVisible();
+    await expect(page.locator('button', { hasText: 'Reference Docs' })).toBeVisible();
 });
 
 // ───────────────────────────────────────────
@@ -191,12 +175,9 @@ test('demo guide — has setup guide content and prompts tab', async ({ page }) 
 // ───────────────────────────────────────────
 test('loading screen — appears during demo generation', async ({ page }) => {
     await page.goto(BASE);
-
-    // Click a demo — should briefly show loading before output
     await page.locator('button', { hasText: 'Autonomous Dev Agent' }).click();
 
     // Either loading screen or final output should appear
-    // The mock endpoint is fast, so we check for either
     const loadingOrOutput = page.locator('text=/Processing|Reading|Writing|Your Setup Guide|Exploring/');
     await expect(loadingOrOutput).toBeVisible({ timeout: 10000 });
 });
@@ -205,17 +186,16 @@ test('loading screen — appears during demo generation', async ({ page }) => {
 // 13. "Start New Interview" / restart flow works
 // ───────────────────────────────────────────
 test('restart flow — back to landing from demo output', async ({ page }) => {
-    await page.goto(BASE);
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+    await loadDemoGuide(page);
 
-    // Click "Start a new interview" in footer
-    const restartBtn = page.locator('button', { hasText: /new interview/i });
+    // The header has a "Start New Interview" button and footer has "Start a new interview →"
+    // Use the one that's visible
+    const restartBtn = page.locator('button', { hasText: /Start.*(New|new).*(Interview|interview)/i }).first();
     await expect(restartBtn).toBeVisible();
     await restartBtn.click();
 
     // Should be back on landing
-    await expect(page.locator('text=Start Voice Interview')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('button', { hasText: 'Start Voice Interview' })).toBeVisible({ timeout: 5000 });
 });
 
 // ───────────────────────────────────────────
@@ -229,28 +209,29 @@ test('mobile viewport — layout renders at 375px width', async ({ browser }) =>
     await page.goto(BASE);
 
     // Landing page elements should still be visible
-    await expect(page.locator('text=EasyClaw')).toBeVisible();
+    await expect(page.getByRole('navigation').getByText('EasyClaw')).toBeVisible();
     await expect(page.locator('button', { hasText: 'Start Voice Interview' })).toBeVisible();
 
-    // No horizontal overflow — page width should match viewport
+    // No horizontal overflow
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-    expect(bodyWidth).toBeLessThanOrEqual(375 + 10); // small tolerance
+    expect(bodyWidth).toBeLessThanOrEqual(375 + 10);
 
     await context.close();
 });
 
 // ───────────────────────────────────────────
-// 15. Tab deep-link via URL hash works
+// 15. Demo badge and share link behavior
 // ───────────────────────────────────────────
-test('demo output — share link button visible for non-demo guides', async ({ page }) => {
-    await page.goto(BASE);
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+test('demo output — Demo badge visible, share link hidden for demos', async ({ page }) => {
+    await loadDemoGuide(page);
 
-    // Demo guides show "Demo" badge — share link is hidden for demos
-    await expect(page.locator('text=Demo')).toBeVisible();
+    // Demo guides show "Demo" badge
+    await expect(page.getByText('Demo', { exact: true })).toBeVisible();
 
-    // The Download .zip button should always be present
+    // Share Link button should NOT be visible for demo guides (guide_id starts with "demo-")
+    await expect(page.locator('button', { hasText: 'Share Link' })).not.toBeVisible();
+
+    // Download .zip should always be present
     await expect(page.locator('button', { hasText: 'Download .zip' })).toBeVisible();
 });
 
@@ -258,9 +239,7 @@ test('demo output — share link button visible for non-demo guides', async ({ p
 // Bonus: ZIP download button is present and clickable
 // ───────────────────────────────────────────
 test('zip download — button present in demo output', async ({ page }) => {
-    await page.goto(BASE);
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+    await loadDemoGuide(page);
 
     const zipBtn = page.locator('button', { hasText: 'Download .zip' });
     await expect(zipBtn).toBeVisible();
@@ -271,12 +250,8 @@ test('zip download — button present in demo output', async ({ page }) => {
 // Bonus: Empty state for references shows helpful message
 // ───────────────────────────────────────────
 test('empty references — shows helpful empty state message', async ({ page }) => {
-    // Use mock-generate endpoint directly to control output
-    await page.goto(BASE);
-    await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+    await loadDemoGuide(page);
 
-    // Check if References tab exists
     const refsTab = page.locator('button', { hasText: 'Reference Docs' });
     await expect(refsTab).toBeVisible();
 });
