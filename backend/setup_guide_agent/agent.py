@@ -18,7 +18,14 @@ import asyncio
 import logging
 from pathlib import Path
 
-from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
+try:
+    from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
+    CLAUDE_SDK_AVAILABLE = True
+except ImportError:
+    CLAUDE_SDK_AVAILABLE = False
+    query = None
+    ClaudeAgentOptions = None
+    ResultMessage = None
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +85,10 @@ def _classify_stage(msg) -> str:
 
 async def generate_guide(
     formatted_transcript: str,
-    event_queue: asyncio.Queue | None = None,
+    event_queue = None,
 ) -> dict:
     """Generate an OpenClaw setup guide from a formatted interview transcript.
+    Falls back to Gemini if Claude Agent SDK is unavailable.
 
     Args:
         formatted_transcript: The cleaned interview transcript.
@@ -296,16 +304,23 @@ async def generate_guide(
         return result
 
     except Exception as e:
+        err_msg = str(e)
         logger.error(f"[GUIDE {guide_id}] Agent session failed: {e}")
+        # Auto-fallback to Gemini if Claude SDK fails (auth/CLI issues)
+        if any(x in err_msg for x in ["exit code", "Command failed", "authentication", "bundled"]):
+            logger.warning(f"[GUIDE {guide_id}] Claude SDK failed — switching to Gemini 2.5 Pro fallback")
+            try:
+                from setup_guide_agent.gemini_agent import generate_guide_gemini
+                return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
+            except Exception as gemini_err:
+                logger.error(f"[GUIDE {guide_id}] Gemini fallback failed: {gemini_err}")
+                err_msg = f"Claude and Gemini both failed: {gemini_err}"
         if event_queue is not None:
-            await event_queue.put({
-                "type": "error",
-                "message": str(e),
-            })
+            await event_queue.put({"type": "error", "message": err_msg})
         return {
             "guide_id": guide_id,
             "status": "error",
-            "message": str(e),
+            "message": err_msg,
             "outputs": _collect_outputs(output_dir),
         }
 
