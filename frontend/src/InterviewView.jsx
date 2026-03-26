@@ -248,12 +248,12 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
             {/* Two-panel layout — stacks vertically on mobile */}
             <div className="relative z-10 flex-1 flex flex-col md:flex-row overflow-hidden">
                 {/* Left — Agent Presence */}
-                <div className="hidden md:block md:w-2/5 border-r border-white/[0.04] bg-surface-0/50">
+                <div className="w-full md:w-2/5 shrink-0 border-b md:border-b-0 md:border-r border-white/[0.04] bg-surface-0/50 h-48 md:h-auto">
                     <AgentPresence voiceState={voiceState} callStatus={callStatus} />
                 </div>
 
                 {/* Right — Transcript */}
-                <div className="flex-1 md:w-3/5 bg-surface-1/30 relative">
+                <div className="flex-1 w-full md:w-3/5 bg-surface-1/30 relative">
                     <Transcript entries={transcript} />
                     <DemoCoachingCard visible={callStatus === 'active'} />
                 </div>
