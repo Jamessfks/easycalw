@@ -102,6 +102,7 @@ function MainFlow() {
     const handleMockDemo = useCallback(async (demoId = 'demo-restaurant') => {
         // Use demo-stream for accelerated SSE playback (~20s instead of 5-10min)
         // Falls back to instant mock-generate if SSE fails
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setPhase('mock-loading');
         
         try {
