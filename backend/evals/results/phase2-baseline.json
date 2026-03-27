@@ -1,0 +1,105 @@
+{
+  "phase": 2,
+  "timestamp": "2026-03-27T06:42:41.795566+00:00",
+  "judge_model": "claude-haiku-4-5-20251001",
+  "guide_model": "claude-sonnet-4-6",
+  "transcript_count": 5,
+  "completed_count": 5,
+  "results": [
+    {
+      "persona": "developer",
+      "status": "complete",
+      "error": null,
+      "guide_chars": 25949,
+      "code_score": 100.0,
+      "generation_time_s": 370.3,
+      "code_grader": {
+        "section_count": 15,
+        "word_count": 3954,
+        "callout_count": 8,
+        "has_personalization": true,
+        "has_cli_verification": true,
+        "has_prepared_for_header": true,
+        "passed": true,
+        "checks_passed": 9,
+        "checks_total": 9
+      }
+    },
+    {
+      "persona": "entrepreneur",
+      "status": "complete",
+      "error": null,
+      "guide_chars": 26969,
+      "code_score": 88.9,
+      "generation_time_s": 420.3,
+      "code_grader": {
+        "section_count": 11,
+        "word_count": 4186,
+        "callout_count": 13,
+        "has_personalization": true,
+        "has_cli_verification": true,
+        "has_prepared_for_header": true,
+        "passed": false,
+        "checks_passed": 8,
+        "checks_total": 9
+      }
+    },
+    {
+      "persona": "healthcare",
+      "status": "complete",
+      "error": null,
+      "guide_chars": 30892,
+      "code_score": 100.0,
+      "generation_time_s": 420.3,
+      "code_grader": {
+        "section_count": 11,
+        "word_count": 4692,
+        "callout_count": 11,
+        "has_personalization": true,
+        "has_cli_verification": true,
+        "has_prepared_for_header": true,
+        "passed": true,
+        "checks_passed": 9,
+        "checks_total": 9
+      }
+    },
+    {
+      "persona": "realestate",
+      "status": "complete",
+      "error": null,
+      "guide_chars": 18315,
+      "code_score": 66.7,
+      "generation_time_s": 280.2,
+      "code_grader": {
+        "section_count": 0,
+        "word_count": 2754,
+        "callout_count": 0,
+        "has_personalization": true,
+        "has_cli_verification": true,
+        "has_prepared_for_header": true,
+        "passed": false,
+        "checks_passed": 6,
+        "checks_total": 9
+      }
+    },
+    {
+      "persona": "restaurant",
+      "status": "complete",
+      "error": null,
+      "guide_chars": 23352,
+      "code_score": 100.0,
+      "generation_time_s": 370.3,
+      "code_grader": {
+        "section_count": 11,
+        "word_count": 3602,
+        "callout_count": 13,
+        "has_personalization": true,
+        "has_cli_verification": true,
+        "has_prepared_for_header": true,
+        "passed": true,
+        "checks_passed": 9,
+        "checks_total": 9
+      }
+    }
+  ]
+}

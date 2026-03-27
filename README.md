@@ -1,106 +1,105 @@
-# OpenClaw Concierge
+# EasyClaw
 
-A two-phase AI system that interviews users via voice and generates a personalized OpenClaw engine setup guide. Uses [Vapi](https://vapi.ai/) for voice infrastructure.
+![Commits](https://img.shields.io/github/commit-activity/t/kaanclaw/easyclaw?style=flat-square&color=00d8ff&label=commits)
+![Tests](https://img.shields.io/badge/tests-21%20passing-brightgreen?style=flat-square)
+![Deploy](https://img.shields.io/badge/deploy-Railway-blueviolet?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
+
+**Voice interview → personalized AI setup guide.**
+Talk for 2 minutes, get a complete OpenClaw configuration.
 
 ---
 
-## How it works
+<!-- TODO: Add demo GIF here — screen recording of a full interview → guide flow -->
+> 🎬 **Demo GIF coming soon** — a 30-second walkthrough from voice interview to finished guide.
+
+---
+
+## 🔍 How it works
 
 ```
-User (voice) ↔ Vapi Cloud (ASR + LLM + TTS) → transcript → Formatter → Guide Pipeline → Output
+🎙️ Talk  →  🤖 AI reads 499 docs  →  📋 Get your guide
 ```
 
-1. **Interview Phase** — The user has a voice conversation with a Vapi-powered AI agent. Vapi handles all audio streaming, speech recognition, text-to-speech, interruption handling, and turn-taking. Our frontend displays a two-panel UI (agent avatar + live transcript).
-2. **Formatter** — A single LLM call (Anthropic Claude) cleans up the raw transcript into structured Markdown.
-3. **Setup Guide Creation Phase** — Three sequential LLM calls generate the setup guide, reference documents, and initialization prompts.
-
-**Output:**
-- `OPENCLAW_ENGINE_SETUP_GUIDE.md` — the main setup guide
-- `reference_documents/` — sub-setup docs for conditional steps
-- `prompts_to_send.md` — messages to initialize the user's OpenClaw agent
+1. **Talk** — Have a voice conversation about your business needs
+2. **Process** — AI searches 499 knowledge base docs, picks the 12 most relevant
+3. **Receive** — Get a 28K-character setup guide with install commands, config, and prompts
 
 ---
 
-## Documentation
+## ✨ What makes it good
 
-| # | Document | Purpose |
-|---|----------|---------|
-| 1 | **This README** | Project overview |
-| 2 | [`docs/architecture.md`](docs/architecture.md) | Technical architecture, Vapi integration, data flow |
-| 3 | [`docs/design-considerations.md`](docs/design-considerations.md) | Engineering decisions, UI specs, debates, open questions |
-| 4 | [`AGENTS.md`](AGENTS.md) | Instructions for AI coding agents (invariants, build order, do-not rules) |
-
----
-
-## Project structure
-
-```
-backend/
-├── main.py                    # FastAPI: Vapi webhook + pipeline endpoints
-├── setup_guide_agent/         # Phase 2: Setup Guide Creation Agent
-│   ├── agent.py               # Claude Agent SDK orchestration
-│   └── context/               # Knowledge base (domain knowledge, openclaw-docs, templates)
-├── formatter.py               # Interview transcript formatter
-└── vapi_config.py             # Vapi assistant ID, keys, webhook handling
-
-frontend/
-├── src/
-│   ├── InterviewView.jsx      # Two-panel: agent avatar + live transcript
-│   ├── SetupGuideView.jsx     # Loading → output display
-│   └── useVapi.js             # Vapi SDK hook (replaces all WebSocket/audio code)
-└── public/
-    ├── agent_listening_avatar.png   # Avatar (listening state)
-    ├── agent_thinking_avatar.png    # Avatar (thinking state)
-    └── agent_talking_avatar.png     # Avatar (talking state)
-
-docs/                           # Architecture & design docs
-AGENTS.md                       # AI coding agent instructions
-```
+- 🎙️ **Voice-first** — Vapi handles ASR/TTS/interruption
+- 🧠 **Semantic retrieval** — FAISS indexes 499 KB docs, pre-selects the 12 most relevant per user
+- ✅ **Quality gating** — Gemini Flash evaluates every guide on 5 criteria before delivery
+- ⚡ **Demo mode** — pre-cached guides load in 20 seconds
+- 🔄 **Auto-fallback** — switches to Gemini 2.5 Pro if Anthropic is unavailable
+- 📱 **Mobile-ready** — responsive interview + output UI
+- 🛡️ **Production-hardened** — SSE heartbeat, persistent storage, HMAC webhooks
 
 ---
 
-## Build order
-
-1. **Interview Phase** — Connect Vapi SDK to frontend, build two-panel UI
-2. **Formatter** — LLM call for transcript cleanup
-3. **Setup Guide Creation** — 3-step LLM pipeline + output display UI
-
-See [`AGENTS.md`](AGENTS.md) for detailed build instructions.
-
----
-
-## Developer setup
-
-### Prerequisites
-
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Python | >= 3.11 | Backend |
-| `uv` | any recent | Python package manager |
-| Node.js | 20+ | Frontend |
-| Docker | any recent | Optional (containerized deployment) |
-| `gcloud` CLI | any recent | Google Cloud authentication |
-
-### Google Cloud authentication
-
-This project uses **gcloud CLI project configuration** for all Google Cloud auth — **not `.env` files with API keys or project IDs**.
+## 🚀 Quick Start
 
 ```bash
-# One-time setup
-gcloud auth login
-gcloud auth application-default login
-gcloud config set project YOUR_PROJECT_ID
+# 1. Install & configure
+uv sync && cp backend/.env.template backend/.env   # fill in API keys
+
+# 2. Start backend
+cd backend && uvicorn main:app --host 0.0.0.0 --port 8000
+
+# 3. Start frontend (new terminal)
+cd frontend && npm install && npm run dev
 ```
 
-Google Cloud SDKs resolve credentials automatically via [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials). ADC checks, in order:
-1. `GOOGLE_APPLICATION_CREDENTIALS` env var (if set)
-2. User credentials from `gcloud auth application-default login`
-3. Service account credentials (if running on GCP)
-
-**No `.env` file is needed for Google Cloud auth.**
-
-App-level env vars (PORT, REDIS_HOST, MODEL_ID, etc.) have sensible defaults and only need overriding for non-standard setups.
+Open **http://localhost:5173** and start talking.
 
 ---
 
-*OpenClaw Concierge v4.3 — 2026-03-24*
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  User (voice) ↔ Vapi Cloud ↔ Interview Agent       │
+└──────────────────────┬──────────────────────────────┘
+                       │ transcript
+          ┌────────────▼────────────┐
+          │  Formatter              │
+          │  Gemini Flash → Haiku   │
+          └────────────┬────────────┘
+                       │
+          ┌────────────▼──────────────────────────┐
+          │  Setup Guide Agent                    │
+          │  • FAISS semantic search (499 docs)   │
+          │  • Claude Sonnet (40 turns)           │
+          │  • LLM-as-judge quality gate          │
+          └────────────┬──────────────────────────┘
+                       │
+          ┌────────────▼────────────┐
+          │  Output                 │
+          │  • 28K char guide       │
+          │  • Reference docs       │
+          │  • Prompts to send      │
+          └─────────────────────────┘
+```
+
+---
+
+## 📚 Knowledge Base
+
+| Resource | Count |
+|----------|-------|
+| OpenClaw documentation | 349 pages |
+| Domain use cases | 70 industries |
+| Skills registry | 153 skills |
+| Setup guides | 5 deployment types |
+
+---
+
+## 🛠️ Built with
+
+**Vapi** · **Claude Agent SDK** · **Gemini** · **FastAPI** · **React + Vite** · **FAISS** · **Railway**
+
+---
+
+Built at a hackathon in SF, March 2026.

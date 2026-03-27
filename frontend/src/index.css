@@ -172,6 +172,117 @@
     border-bottom-color: #22d3ee;
 }
 
+/* H2 left border accent */
+.prose-dark h2 {
+    border-left: 3px solid rgba(34, 211, 238, 0.4);
+    padding-left: 0.75rem;
+}
+
+/* Callout boxes — blockquotes starting with emoji markers */
+.prose-dark blockquote:has(> p > strong:first-child) {
+    border-left: 3px solid rgba(100, 116, 139, 0.4);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* WARNING callout */
+.prose-dark .callout-warning {
+    border-left-color: rgba(245, 158, 11, 0.6);
+    background: rgba(245, 158, 11, 0.06);
+}
+
+/* TIP callout */
+.prose-dark .callout-tip {
+    border-left-color: rgba(34, 211, 238, 0.5);
+    background: rgba(34, 211, 238, 0.05);
+}
+
+/* ACTION callout */
+.prose-dark .callout-action {
+    border-left-color: rgba(16, 185, 129, 0.6);
+    background: rgba(16, 185, 129, 0.06);
+}
+
+/* Table styling — alternating rows + clear headers */
+.prose-dark table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.prose-dark thead th {
+    background: rgba(255, 255, 255, 0.06);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    padding: 0.625rem 0.75rem;
+}
+
+.prose-dark tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.prose-dark tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.prose-dark tbody td {
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Code block syntax hint label */
+.prose-dark pre {
+    position: relative;
+}
+
+/* Checkbox styling — render - [ ] as styled checkboxes */
+.prose-dark li.task-list-item {
+    list-style: none;
+    margin-left: -1.25rem;
+}
+
+.prose-dark li.task-list-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border: 1.5px solid rgba(100, 116, 139, 0.5);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    vertical-align: middle;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease;
+}
+
+.prose-dark li.task-list-item input[type="checkbox"]:checked {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.6);
+}
+
+.prose-dark li.task-list-item input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: -1px;
+    left: 2px;
+    font-size: 0.7rem;
+    color: #10b981;
+    font-weight: bold;
+}
+
+.prose-dark li.task-list-item input[type="checkbox"]:hover {
+    border-color: rgba(34, 211, 238, 0.5);
+    background: rgba(34, 211, 238, 0.05);
+}
+
 .prose-dark img {
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.08);

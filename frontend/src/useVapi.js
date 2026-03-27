@@ -8,6 +8,8 @@ const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID;
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 const BACKUP_INTERVAL = 5; // save backup every N final entries
 
+const CONNECTION_TIMEOUT_MS = 30000;
+
 export default function useVapi() {
     const [callStatus, setCallStatus] = useState('idle'); // idle | connecting | active | ended
     const [voiceState, setVoiceState] = useState('idle'); // idle | user-speaking | agent-thinking | agent-speaking
@@ -16,6 +18,8 @@ export default function useVapi() {
     const [error, setError] = useState(null);
     const fullTranscriptRef = useRef([]);
     const vapiRef = useRef(null);
+    const connectTimeoutRef = useRef(null);
+    const retryCountRef = useRef(0);
 
     // Initialize Vapi instance once
     useEffect(() => {
@@ -32,6 +36,10 @@ export default function useVapi() {
 
         // --- Call lifecycle ---
         vapi.on('call-start', () => {
+            if (connectTimeoutRef.current) {
+                clearTimeout(connectTimeoutRef.current);
+                connectTimeoutRef.current = null;
+            }
             setCallStatus('active');
             setVoiceState('idle');
             setError(null);
@@ -80,12 +88,27 @@ export default function useVapi() {
             setVoiceState('idle');
         });
 
-        // --- Error handling ---
+        // --- Error handling with auto-retry ---
         vapi.on('error', (err) => {
             console.error('[VAPI] Error:', err);
-            setError(err?.message || 'Voice call encountered an error');
-            setCallStatus('ended');
-            setVoiceState('idle');
+            if (connectTimeoutRef.current) {
+                clearTimeout(connectTimeoutRef.current);
+                connectTimeoutRef.current = null;
+            }
+            if (retryCountRef.current < 1) {
+                retryCountRef.current += 1;
+                console.log('[VAPI] Auto-retrying after error...');
+                setTimeout(() => {
+                    if (vapiRef.current) {
+                        setCallStatus('connecting');
+                        vapiRef.current.start(VAPI_ASSISTANT_ID);
+                    }
+                }, 2000);
+            } else {
+                setError(err?.message || 'Voice call encountered an error');
+                setCallStatus('ended');
+                setVoiceState('idle');
+            }
         });
 
         // --- Transcript messages ---
@@ -139,25 +162,48 @@ export default function useVapi() {
 
         // Cleanup on unmount
         return () => {
+            if (connectTimeoutRef.current) {
+                clearTimeout(connectTimeoutRef.current);
+            }
             vapi.stop();
         };
     }, []);
 
-    const startCall = useCallback(() => {
+    const startCall = useCallback(async () => {
         if (vapiRef.current && callStatus === 'idle') {
+            // Check mic permission before starting
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (e) {
+                setError('Microphone access denied. Please allow microphone access and try again.');
+                return;
+            }
+
             setCallStatus('connecting');
             setTranscript([]);
             setFormattedTranscript(null);
             setError(null);
             fullTranscriptRef.current = [];
+            retryCountRef.current = 0;
             clearTranscriptBackup(); // fresh start
             vapiRef.current.start(VAPI_ASSISTANT_ID);
+
+            // Connection timeout — if call-start hasn't fired in 30s, abort
+            connectTimeoutRef.current = setTimeout(() => {
+                if (vapiRef.current) {
+                    vapiRef.current.stop();
+                }
+                setError('Connection timed out. Please check your microphone and try again.');
+                setCallStatus('ended');
+            }, CONNECTION_TIMEOUT_MS);
         }
     }, [callStatus]);
 
     const endCall = useCallback(() => {
-        if (vapiRef.current && callStatus === 'active') {
+        if (vapiRef.current && (callStatus === 'active' || callStatus === 'connecting')) {
             vapiRef.current.stop();
+            setCallStatus('ended');
+            setVoiceState('idle');
         }
     }, [callStatus]);
 

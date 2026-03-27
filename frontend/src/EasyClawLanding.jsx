@@ -1,8 +1,40 @@
-import React, { useState } from 'react';
-import { Mic, ArrowRight, Sparkles, FileText, Zap, Shield, MessageSquare, Settings, Clock, ExternalLink, RotateCcw, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mic, ArrowRight, Sparkles, FileText, Zap, Shield, MessageSquare, Settings, Clock, ExternalLink, RotateCcw, X, Send } from 'lucide-react';
 import { getGuideHistory } from './lib/guideHistory';
 import { getTranscriptBackup, clearTranscriptBackup } from './lib/transcriptBackup';
 import DemoNavigator from './components/DemoNavigator';
+
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
+function PreWarmIndicator() {
+    const [status, setStatus] = useState('warming'); // 'warming' | 'ready' | 'error'
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch(`${API_BASE}/health`)
+            .then(res => {
+                if (!cancelled) setStatus(res.ok ? 'ready' : 'error');
+            })
+            .catch(() => {
+                if (!cancelled) setStatus('error');
+            });
+        return () => { cancelled = true; };
+    }, []);
+
+    const config = {
+        warming: { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Warming up...' },
+        ready:   { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Ready' },
+        error:   { color: 'bg-gray-500', ring: 'ring-gray-500/30', label: 'Offline' },
+    };
+    const c = config[status];
+
+    return (
+        <div className="flex items-center gap-2 text-[11px] font-mono text-gray-500">
+            <span className={`w-2 h-2 rounded-full ${c.color} ring-2 ${c.ring} ${status === 'warming' ? 'animate-pulse' : ''}`} />
+            {c.label}
+        </div>
+    );
+}
 
 const STEPS = [
     {
@@ -121,7 +153,76 @@ function ResumeBar({ onResume }) {
     );
 }
 
-export default function EasyClawLanding({ onStart, onDemo, onResume }) {
+const VALUE_BULLETS = [
+    { emoji: '📋', text: '12 personalized setup steps', detail: 'tailored to your exact workflow' },
+    { emoji: '🧠', text: '8 skills recommended for your industry', detail: 'pre-configured and ready to go' },
+    { emoji: '🔒', text: 'Security hardening checklist included', detail: 'your hardware, your data' },
+    { emoji: '💬', text: '5 ready-to-paste system prompts', detail: 'no prompt engineering needed' },
+    { emoji: '📚', text: 'Reference docs for complex procedures', detail: 'step-by-step with screenshots' },
+];
+
+function SampleGuideShowcase({ onStart }) {
+    return (
+        <div className="animate-fade-up opacity-0 delay-275 mt-10 w-full max-w-2xl">
+            <p className="text-xs font-mono text-gray-500 mb-3 tracking-wide uppercase">See what you'll get</p>
+            <div className="glass rounded-2xl border border-white/[0.06] overflow-hidden">
+                {/* Value bullets */}
+                <div className="px-6 py-5 space-y-3.5">
+                    {VALUE_BULLETS.map((b, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                            <span className="text-lg mt-0.5 shrink-0">{b.emoji}</span>
+                            <div>
+                                <p className="text-sm font-display font-semibold text-white">{b.text}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{b.detail}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Stat cards */}
+                <div className="border-t border-white/[0.04] px-5 py-4 grid grid-cols-3 gap-3">
+                    <div className="glass-light rounded-lg px-3 py-2.5 text-center">
+                        <p className="text-sm font-display font-bold text-white">12</p>
+                        <p className="text-[10px] font-mono text-gray-500">setup steps</p>
+                    </div>
+                    <div className="glass-light rounded-lg px-3 py-2.5 text-center">
+                        <p className="text-sm font-display font-bold text-white">5</p>
+                        <p className="text-[10px] font-mono text-gray-500">system prompts</p>
+                    </div>
+                    <div className="glass-light rounded-lg px-3 py-2.5 text-center">
+                        <p className="text-sm font-display font-bold text-white">Channel</p>
+                        <p className="text-[10px] font-mono text-gray-500">config included</p>
+                    </div>
+                </div>
+
+                {/* CTA */}
+                <div className="border-t border-white/[0.04] px-5 py-4">
+                    <button
+                        onClick={() => onStart({})}
+                        className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+                    >
+                        <Send size={14} />
+                        Start interview to get yours
+                        <ArrowRight size={14} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode }) {
+    const [selectedIndustry, setSelectedIndustry] = useState(null);
+
+    const INDUSTRIES = [
+        { id: 'restaurant', emoji: '🍽️', label: 'Restaurant / Cafe' },
+        { id: 'healthcare', emoji: '🏥', label: 'Healthcare / Dental' },
+        { id: 'realestate', emoji: '🏠', label: 'Real Estate' },
+        { id: 'developer', emoji: '💻', label: 'Developer / DevOps' },
+        { id: 'freelancer', emoji: '📋', label: 'Freelancer / Consultant' },
+        { id: 'other', emoji: '🎯', label: 'Something else' },
+    ];
+
     return (
         <div className="min-h-screen bg-surface-0 relative overflow-hidden">
             {/* Background grid */}
@@ -143,6 +244,7 @@ export default function EasyClawLanding({ onStart, onDemo, onResume }) {
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
+                        <PreWarmIndicator />
                         <span className="section-label text-gray-500">
                             Voice-Powered Setup
                         </span>
@@ -163,16 +265,80 @@ export default function EasyClawLanding({ onStart, onDemo, onResume }) {
                     <h1 className="animate-fade-up opacity-0 delay-100 text-6xl sm:text-7xl font-display font-bold tracking-tight leading-[1.05] mb-2">
                         <span className="text-gradient animate-gradient-x">EasyClaw</span>
                     </h1>
+                    <p className="animate-fade-up opacity-0 delay-150 text-sm font-mono text-cyan-400/60 tracking-wide mt-2">
+                        Voice interview → Personalized AI setup guide
+                    </p>
                     <p className="animate-fade-up opacity-0 delay-200 text-xl sm:text-2xl font-display font-light text-gray-400 mt-4 max-w-2xl leading-relaxed">
                         Install OpenClaw with your voice. One conversation, one personalized setup guide — ready in minutes.
                     </p>
 
+                    {/* Industry Quick-Start */}
+                    <div className="animate-fade-up opacity-0 delay-250 mt-10 w-full max-w-2xl">
+                        <p className="text-xs font-mono text-gray-500 mb-3 tracking-wide uppercase">Quick-start: pick your industry</p>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                            {INDUSTRIES.map((ind) => (
+                                <button
+                                    key={ind.id}
+                                    onClick={() => setSelectedIndustry(ind)}
+                                    className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-display font-medium
+                                        border transition-all duration-200 cursor-pointer
+                                        w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)]
+                                        ${selectedIndustry?.id === ind.id
+                                            ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/20'
+                                            : 'border-white/[0.06] bg-white/[0.03] text-gray-400 hover:border-white/10 hover:bg-white/[0.06] hover:text-white'
+                                        }`}
+                                >
+                                    <span>{ind.emoji}</span>
+                                    <span>{ind.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Confirmation step */}
+                        {selectedIndustry && (
+                            <div className="mt-4 glass rounded-xl border border-cyan-500/20 px-5 py-4 animate-fade-up">
+                                <p className="text-sm font-display text-white mb-1">
+                                    You selected <span className="font-semibold text-cyan-300">{selectedIndustry.emoji} {selectedIndustry.label}</span>
+                                </p>
+                                <p className="text-xs text-gray-500 mb-4">
+                                    We'll personalize your voice interview for {selectedIndustry.label.toLowerCase()} workflows.
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => onStart({ industry: selectedIndustry.id === 'other' ? null : selectedIndustry.id })}
+                                        className="btn-primary !py-2 !px-5 !text-sm flex items-center gap-2"
+                                    >
+                                        <Mic size={14} />
+                                        Start Interview
+                                        <ArrowRight size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedIndustry(null)}
+                                        className="btn-ghost !py-2 !px-4 !text-sm"
+                                    >
+                                        Back
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* See What You'll Get — Sample Guide Showcase */}
+                    <SampleGuideShowcase onStart={onStart} />
+
                     {/* CTA */}
-                    <div className="animate-fade-up opacity-0 delay-300 mt-10 flex flex-col sm:flex-row items-center gap-4">
-                        <button onClick={onStart} className="btn-primary flex items-center gap-2.5 text-base">
+                    <div className="animate-fade-up opacity-0 delay-300 mt-6 flex flex-col sm:flex-row items-center gap-4">
+                        <button onClick={() => onStart({})} className="btn-primary flex items-center gap-2.5 text-base">
                             <Mic size={18} />
                             Start Voice Interview
                             <ArrowRight size={16} className="ml-1" />
+                        </button>
+                        <button
+                            onClick={onDemoMode}
+                            className="btn-ghost flex items-center gap-2 text-sm"
+                        >
+                            <FileText size={16} />
+                            Try Demo (No Mic Needed)
                         </button>
                         <a
                             href="#demos"
@@ -180,6 +346,15 @@ export default function EasyClawLanding({ onStart, onDemo, onResume }) {
                         >
                             Or explore demo outputs ↓
                         </a>
+                    </div>
+
+                    {/* Quick explainer */}
+                    <div className="animate-fade-up opacity-0 delay-400 mt-8 flex items-center justify-center gap-3 text-[13px] font-mono text-gray-500">
+                        <span>🎙️ Talk for 2 minutes</span>
+                        <span className="text-gray-700">→</span>
+                        <span>🤖 AI reads 500+ docs</span>
+                        <span className="text-gray-700">→</span>
+                        <span>📋 Get your setup guide</span>
                     </div>
 
                     {/* Hero visual — orbiting mic */}

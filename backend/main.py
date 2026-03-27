@@ -1,6 +1,8 @@
 import os
 import json
 import uuid
+import hmac
+import hashlib
 import shutil
 import asyncio
 import logging
@@ -20,6 +22,20 @@ from sse_starlette.sse import EventSourceResponse
 
 from formatter import format_transcript
 from setup_guide_agent.agent import generate_guide
+from setup_guide_agent.gemini_agent import generate_guide_gemini
+from supabase_store import GuideStore
+
+def _anthropic_available() -> bool:
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    return bool(key) and not key.startswith("not-needed")
+
+async def generate_guide_smart(formatted_transcript: str, event_queue=None, guide_id=None) -> dict:
+    """Auto-select Claude or Gemini based on API key availability."""
+    if _anthropic_available():
+        return await generate_guide(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
+    else:
+        logger.warning("[GUIDE] Anthropic key unavailable — using Gemini 2.5 Pro fallback")
+        return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
 from mock_data import DEMO_GUIDES, compute_scorecard
 
 # Load environment variables
@@ -60,41 +76,29 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Request size limit
 MAX_TRANSCRIPT_BYTES = 100 * 1024  # 100KB
 
-# Guide cleanup
-_GUIDE_OUTPUT_DIR = os.environ.get("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides")
-_GUIDE_MAX_AGE_DAYS = int(os.environ.get("GUIDE_MAX_AGE_DAYS", "7"))
+# Webhook HMAC authentication
+_VAPI_WEBHOOK_SECRET = os.environ.get("VAPI_WEBHOOK_SECRET", "")
+if not _VAPI_WEBHOOK_SECRET:
+    logger.warning(
+        "[SECURITY] VAPI_WEBHOOK_SECRET is not set — webhook signature verification disabled. "
+        "Set VAPI_WEBHOOK_SECRET in .env for production use."
+    )
 
-# In-memory store for generated guides
-# Persists to disk as JSON so guides survive server restarts
-guide_store: dict[str, dict] = {}
-_GUIDE_STORE_PATH = os.getenv("GUIDE_STORE_PATH", "/tmp/easyclaw_guide_store.json")
+# Guide cleanup
+_on_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
+_GUIDE_OUTPUT_DIR = os.environ.get(
+    "GUIDE_OUTPUT_DIR",
+    "/data/guide_output" if _on_railway else "./guide_output",
+)
+_GUIDE_MAX_AGE_DAYS = int(os.environ.get("GUIDE_MAX_AGE_DAYS", "7"))
+_is_persistent = _GUIDE_OUTPUT_DIR.startswith("/data")
+logger.info(f"Guide output directory: {_GUIDE_OUTPUT_DIR} (persistent: {_is_persistent})")
+
+# Guide store — uses Supabase when SUPABASE_URL is set, else in-memory
+guide_store = GuideStore()
 
 # SSE event queues — maps guide_id -> asyncio.Queue for streaming progress
 _event_queues: dict[str, asyncio.Queue] = {}
-
-
-def _persist_store():
-    """Write guide_store to disk for crash recovery."""
-    try:
-        with open(_GUIDE_STORE_PATH, "w") as f:
-            json.dump(guide_store, f, default=str)
-    except Exception as e:
-        logger.warning(f"[STORE] Failed to persist guide store: {e}")
-
-
-def _load_store():
-    """Load guide_store from disk on startup."""
-    global guide_store
-    try:
-        if os.path.isfile(_GUIDE_STORE_PATH):
-            with open(_GUIDE_STORE_PATH, "r") as f:
-                guide_store = json.load(f)
-            logger.info(f"[STORE] Loaded {len(guide_store)} guides from disk")
-    except Exception as e:
-        logger.warning(f"[STORE] Failed to load guide store: {e}")
-
-
-_load_store()
 
 
 def _cleanup_old_guides():
@@ -113,19 +117,26 @@ def _cleanup_old_guides():
         if mtime < cutoff:
             try:
                 shutil.rmtree(path)
-                guide_store.pop(entry, None)
+                guide_store.pop_sync(entry, None)
                 removed += 1
             except Exception as e:
                 logger.warning(f"[CLEANUP] Failed to remove {path}: {e}")
 
     if removed > 0:
-        _persist_store()
         logger.info(f"[CLEANUP] Removed {removed} guides older than {_GUIDE_MAX_AGE_DAYS} days")
 
 
 @app.on_event("startup")
-async def startup_cleanup():
+async def startup_tasks():
     _cleanup_old_guides()
+    # Pre-build KB embedding index in background
+    try:
+        from setup_guide_agent.kb_search import kb_index
+
+        asyncio.create_task(kb_index.build())
+        logger.info("[STARTUP] KB embedding index building in background...")
+    except Exception as e:
+        logger.warning(f"[STARTUP] KB index pre-build failed (will retry on first search): {e}")
 
 
 # ========================================
@@ -181,24 +192,22 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
     """
     event_queue = _event_queues.get(guide_id)
     try:
-        result = await generate_guide(formatted_transcript, event_queue=event_queue)
+        result = await generate_guide_smart(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
         # Attach scorecard to completed guides
         if result.get("status") == "complete" and result.get("outputs"):
             result["scorecard"] = compute_scorecard(result["outputs"])
-        guide_store[guide_id] = {
+        await guide_store.set(guide_id, {
             **result,
             "guide_id": guide_id,
-        }
-        _persist_store()
+        })
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
-        guide_store[guide_id] = {
+        await guide_store.set(guide_id, {
             "guide_id": guide_id,
             "status": "error",
             "message": str(e),
             "outputs": {},
-        }
-        _persist_store()
+        })
         if event_queue:
             await event_queue.put({"type": "error", "message": str(e)})
     finally:
@@ -214,12 +223,29 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
 @app.get("/health")
 async def health_check():
     """Health check for monitoring and load balancers."""
+    from setup_guide_agent.agent import MODEL as _guide_model
+
     return {
         "status": "ok",
         "service": "easyclaw",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "guides_in_memory": len(guide_store),
+        "models": {
+            "guide_generation": _guide_model,
+            "formatter_primary": "gemini-2.5-flash",
+            "formatter_fallback": "claude-haiku-4-5-20251001",
+            "evaluator": "gemini-2.5-flash",
+            "embeddings": "gemini-embedding-001",
+        },
     }
+
+
+@app.get("/guides")
+async def list_guides(limit: int = 20, offset: int = 0):
+    """List recent guides — metadata only (no content). For dashboard/demo use."""
+    guides = await guide_store.list_guides(limit=limit, offset=offset)
+    total = await guide_store.count_guides()
+    return {"guides": guides, "total": total}
 
 
 @app.get("/demos")
@@ -244,8 +270,22 @@ async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
     """VAPI server URL — receives transcript events, function-call requests,
     and end-of-call reports.
     """
+    # HMAC signature verification
+    raw_body = await request.body()
+    if _VAPI_WEBHOOK_SECRET:
+        signature = request.headers.get("x-vapi-signature", "")
+        if not signature:
+            logger.warning("[WEBHOOK] Missing x-vapi-signature header — rejecting request")
+            raise HTTPException(status_code=401, detail="Missing webhook signature")
+        expected = hmac.new(
+            _VAPI_WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            logger.warning("[WEBHOOK] Invalid webhook signature — rejecting request")
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
     try:
-        body = await request.json()
+        body = json.loads(raw_body)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body")
 
@@ -285,8 +325,7 @@ async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             formatted = await format_transcript(transcript_text)
             guide_id = str(uuid.uuid4())[:8]
-            guide_store[guide_id] = {"guide_id": guide_id, "status": "generating"}
-            _persist_store()
+            await guide_store.set(guide_id, {"guide_id": guide_id, "status": "generating"})
             background_tasks.add_task(_run_guide_agent, guide_id, formatted)
             logger.info(f"[WEBHOOK] Guide generation started: {guide_id}")
         except Exception as e:
@@ -305,7 +344,7 @@ async def format_endpoint(request: Request, req: FormatRequest):
 
 
 @app.post("/generate-guide")
-@limiter.limit("5/hour")
+@limiter.limit("20/hour")
 async def generate_guide_endpoint(
     request: Request,
     req: GenerateGuideRequest,
@@ -320,8 +359,7 @@ async def generate_guide_endpoint(
     guide_id = str(uuid.uuid4())[:8]
     logger.info(f"[GUIDE {guide_id}] Received formatted transcript ({len(req.formatted_transcript)} chars)")
 
-    guide_store[guide_id] = {"guide_id": guide_id, "status": "generating"}
-    _persist_store()
+    await guide_store.set(guide_id, {"guide_id": guide_id, "status": "generating"})
 
     # Create event queue for SSE streaming
     _event_queues[guide_id] = asyncio.Queue()
@@ -341,6 +379,70 @@ async def mock_generate(demo_id: str = "demo-restaurant"):
     return guide
 
 
+
+
+@app.get("/demo-stream/{demo_id}")
+async def demo_stream(demo_id: str):
+    """SSE stream for demo golden path — replays a pre-generated guide at 10x speed.
+    
+    Eliminates the 5-10 minute wait for live demos. Streams fake progress events
+    at ~0.5s intervals, completes in ~20s. Output is visually identical to real generation.
+    """
+    guide = DEMO_GUIDES.get(demo_id)
+    if not guide:
+        raise HTTPException(status_code=404, detail=f"Demo '{demo_id}' not found")
+
+    async def stream():
+        stages = [
+            ("Starting agent session...", 1),
+            ("Reading transcript...", 2),
+            ("Reading documents...", 3),
+            ("Scanning knowledge base...", 4),
+            ("Reading documents...", 5),
+            ("Searching documentation...", 6),
+            ("Reading documents...", 7),
+            ("Searching documentation...", 8),
+            ("Reading documents...", 9),
+            ("Processing...", 10),
+            ("Reading documents...", 12),
+            ("Searching documentation...", 14),
+            ("Reading documents...", 16),
+            ("Processing...", 18),
+            ("Writing output files...", 20),
+            ("Writing output files...", 22),
+            ("Writing output files...", 24),
+            ("Writing output files...", 26),
+            ("Writing output files...", 28),
+            ("Finalizing...", 30),
+        ]
+        
+        for stage, turn in stages:
+            await asyncio.sleep(0.6)  # ~0.6s per turn = ~18s total
+            yield {
+                "event": "progress",
+                "data": json.dumps({
+                    "type": "progress",
+                    "stage": stage,
+                    "turn": turn,
+                    "max_turns": 32,
+                    "cost": round(turn * 0.019, 4),
+                })
+            }
+        
+        # Final complete event with real guide data
+        await asyncio.sleep(0.5)
+        yield {
+            "event": "complete",
+            "data": json.dumps({
+                **guide,
+                "guide_id": f"demo-{demo_id}",
+                "status": "complete",
+                "is_demo": True,
+            }, default=str)
+        }
+
+    return EventSourceResponse(stream())
+
 @app.get("/guide/{guide_id}")
 async def get_guide(guide_id: str):
     """Retrieve generated output (guide + reference docs + prompts).
@@ -349,17 +451,16 @@ async def get_guide(guide_id: str):
     if guide is not in memory (e.g. after a server restart).
     """
     if guide_id in guide_store:
-        return guide_store[guide_id]
+        return guide_store.get_sync(guide_id)
 
     # Fallback: try to recover from disk output directory
     guide_dir = os.path.join(
-        os.environ.get("GUIDE_OUTPUT_DIR", "/tmp/openclaw-guides"), guide_id
+        os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output"), guide_id
     )
     guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
     if os.path.isfile(guide_file):
         result = _load_guide_from_disk(guide_id, guide_dir)
-        guide_store[guide_id] = result
-        _persist_store()
+        await guide_store.set(guide_id, result)
         return result
 
     return {
@@ -405,15 +506,47 @@ def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
     return result
 
 
+@app.post("/retry-guide/{guide_id}")
+@limiter.limit("3/hour")
+async def retry_guide(guide_id: str, request: Request, background_tasks: BackgroundTasks):
+    """Retry guide generation for a guide that failed or got stuck.
+
+    The original formatted transcript must be on disk.
+    Use when: webhook delivered transcript but guide generation failed.
+    """
+    guide_dir = os.path.join(
+        os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output"), guide_id
+    )
+    transcript_path = os.path.join(guide_dir, "INTERVIEW_TRANSCRIPT.md")
+
+    if not os.path.isfile(transcript_path):
+        raise HTTPException(
+            status_code=404,
+            detail="No transcript found for this guide ID. Cannot retry."
+        )
+
+    with open(transcript_path, "r") as f:
+        formatted_transcript = f.read()
+
+    # Reset status and retry
+    await guide_store.set(guide_id, {"guide_id": guide_id, "status": "retrying"})
+    _event_queues[guide_id] = asyncio.Queue()
+    background_tasks.add_task(_run_guide_agent, guide_id, formatted_transcript)
+
+    logger.info(f"[RETRY] Retrying guide generation: {guide_id}")
+    return {"guide_id": guide_id, "status": "retrying", "message": "Guide generation restarted"}
+
+
 @app.get("/events/{guide_id}")
 async def guide_events(guide_id: str):
     """SSE stream for real-time guide generation progress."""
     queue = _event_queues.get(guide_id)
 
     if queue is None:
-        if guide_id in guide_store and guide_store[guide_id].get("status") in ("complete", "error"):
+        entry = guide_store.get_sync(guide_id)
+        if entry and entry.get("status") in ("complete", "error"):
             async def already_done():
-                yield {"event": "complete", "data": json.dumps(guide_store[guide_id], default=str)}
+                yield {"event": "complete", "data": json.dumps(guide_store.get_sync(guide_id, {}), default=str)}
             return EventSourceResponse(already_done())
 
         raise HTTPException(status_code=404, detail="Guide not found or not generating")
@@ -421,14 +554,19 @@ async def guide_events(guide_id: str):
     async def event_generator():
         try:
             while True:
-                event = await asyncio.wait_for(queue.get(), timeout=300)
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=25)
+                except asyncio.TimeoutError:
+                    # Heartbeat — keeps Railway proxy + client connection alive
+                    yield {"event": "heartbeat", "data": "{}"}
+                    continue
                 if event is None:
-                    final = guide_store.get(guide_id, {})
+                    final = guide_store.get_sync(guide_id, {})
                     yield {"event": "complete", "data": json.dumps(final, default=str)}
                     break
                 yield {"event": event.get("type", "progress"), "data": json.dumps(event, default=str)}
         except asyncio.TimeoutError:
-            yield {"event": "error", "data": json.dumps({"message": "Stream timed out"})}
+            yield {"event": "error", "data": json.dumps({"message": "Stream timed out after 5 minutes"})}
         except asyncio.CancelledError:
             pass
 
@@ -452,3 +590,6 @@ else:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=PORT)
+
+# ── SSE Heartbeat patch (prevents Railway 60s proxy timeout) ──────────────────
+# Applied 2026-03-26 — replaces event_generator in /events/{guide_id}
