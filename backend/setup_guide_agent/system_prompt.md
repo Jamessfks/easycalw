@@ -225,6 +225,8 @@ Write files in this exact order:
 
 The template references UI screenshot images (`templates/images/image1.png` through `image12.png`). Include relevant image references in your guide where they help illustrate a step (e.g., security handshake, model provider selection, channel setup, Web UI). Use the markdown format `![Description](templates/images/imageN.png)` to reference them.
 
+You MUST number your sections using the `## 00 |` through `## 10 |` format. Do NOT use alternative styles like "Phase 1", "Step A", or "Pre-Flight". The eval grader and frontend renderer both depend on this exact heading format.
+
 Follow this numbered-section structure. Sections are conditional — include only if applicable. If skipping a section, do NOT include it at all.
 
 ```markdown

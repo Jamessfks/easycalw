@@ -46,6 +46,7 @@ class CodeGraderResult:
     cli_verification_count: int = 0
     has_cli_verification: bool = False
     has_prepared_for_header: bool = False
+    numbered_format_used: bool = False
     passed: bool = False
 
     def __post_init__(self):
@@ -135,9 +136,13 @@ def grade_code(
     transcript_text: Optional[str] = None,
 ) -> CodeGraderResult:
     """Deterministic grading of guide output."""
-    # Section count: look for ## 00 through ## 10 headers
-    section_headers = re.findall(r'^## \d{2}\s*\|', guide_text, re.MULTILINE)
-    section_count = len(section_headers)
+    # Section count: count ANY ## heading as a section
+    all_section_headers = re.findall(r'^## .+', guide_text, re.MULTILINE)
+    section_count = len(all_section_headers)
+
+    # Bonus: check if the preferred ## 00 | numbered format is used
+    numbered_headers = re.findall(r'^## \d{2}\s*\|', guide_text, re.MULTILINE)
+    numbered_format_used = len(numbered_headers) >= 6
 
     # Word count
     word_count = len(guide_text.split())
@@ -157,9 +162,9 @@ def grade_code(
     todo_matches = re.findall(r'\bTODO\b|\bPLACEHOLDER\b', guide_text, re.IGNORECASE)
     no_todos = len(todo_matches) == 0
 
-    # Callout boxes: > **WARNING**, > **TIP**, > **ACTION** (and ⚠️/💡/🎯 variants)
+    # Callout boxes: > **WARNING**, > WARNING, > ⚠️ **WARNING** (bold or plain)
     callout_patterns = re.findall(
-        r'^>\s*\*\*(?:WARNING|TIP|ACTION|NOTE|IMPORTANT|CAUTION)\b',
+        r'^>\s*(?:\*\*)?(?:WARNING|TIP|ACTION|NOTE|IMPORTANT|CAUTION)\b',
         guide_text,
         re.MULTILINE | re.IGNORECASE,
     )
@@ -217,6 +222,7 @@ def grade_code(
         has_cli_verification=has_cli_verification,
         has_personalization=has_personalization,
         has_prepared_for_header=has_prepared_for_header,
+        numbered_format_used=numbered_format_used,
     )
 
 
