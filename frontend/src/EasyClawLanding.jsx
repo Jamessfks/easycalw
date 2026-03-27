@@ -154,6 +154,22 @@ function ResumeBar({ onResume }) {
 }
 
 export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode }) {
+    const [selectedIndustry, setSelectedIndustry] = useState(null);
+
+    const INDUSTRIES = [
+        { id: 'restaurant', emoji: '🍽️', label: 'Restaurant / Cafe' },
+        { id: 'healthcare', emoji: '🏥', label: 'Healthcare / Dental' },
+        { id: 'realestate', emoji: '🏠', label: 'Real Estate' },
+        { id: 'developer', emoji: '💻', label: 'Developer / DevOps' },
+        { id: 'freelancer', emoji: '📋', label: 'Freelancer / Consultant' },
+        { id: 'other', emoji: '🎯', label: 'Something else' },
+    ];
+
+    const handleIndustryStart = (industry) => {
+        setSelectedIndustry(industry);
+        onStart({ industry: industry.id === 'other' ? null : industry.id });
+    };
+
     return (
         <div className="min-h-screen bg-surface-0 relative overflow-hidden">
             {/* Background grid */}
@@ -203,9 +219,31 @@ export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode 
                         Install OpenClaw with your voice. One conversation, one personalized setup guide — ready in minutes.
                     </p>
 
+                    {/* Industry Quick-Start */}
+                    <div className="animate-fade-up opacity-0 delay-250 mt-10 w-full max-w-2xl">
+                        <p className="text-xs font-mono text-gray-500 mb-3 tracking-wide uppercase">Quick-start: pick your industry</p>
+                        <div className="flex gap-2 overflow-x-auto pb-2 justify-center flex-wrap sm:flex-nowrap scrollbar-hide">
+                            {INDUSTRIES.map((ind) => (
+                                <button
+                                    key={ind.id}
+                                    onClick={() => handleIndustryStart(ind)}
+                                    className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-display font-medium
+                                        border transition-all duration-200 cursor-pointer
+                                        ${selectedIndustry?.id === ind.id
+                                            ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-300'
+                                            : 'border-white/[0.06] bg-white/[0.03] text-gray-400 hover:border-white/10 hover:bg-white/[0.06] hover:text-white'
+                                        }`}
+                                >
+                                    <span>{ind.emoji}</span>
+                                    <span>{ind.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* CTA */}
-                    <div className="animate-fade-up opacity-0 delay-300 mt-10 flex flex-col sm:flex-row items-center gap-4">
-                        <button onClick={onStart} className="btn-primary flex items-center gap-2.5 text-base">
+                    <div className="animate-fade-up opacity-0 delay-300 mt-6 flex flex-col sm:flex-row items-center gap-4">
+                        <button onClick={() => onStart({})} className="btn-primary flex items-center gap-2.5 text-base">
                             <Mic size={18} />
                             Start Voice Interview
                             <ArrowRight size={16} className="ml-1" />
