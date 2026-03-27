@@ -1,15 +1,14 @@
-"""LLM-as-Judge Guide Evaluator — Gemini 2.5 Flash.
+"""LLM-as-Judge Guide Evaluator — Claude Haiku 4.5.
 
 Scores generated setup guides on 5 criteria (1-5 each) using a structured
-rubric. Cost: ~$0.003 per evaluation. Used as a quality gate before
-shipping guides to users.
+rubric. Used as a quality gate before shipping guides to users.
 """
 
-import asyncio
 import json
-import os
 import logging
 from dataclasses import dataclass
+
+import anthropic
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class EvalResult:
 
 
 async def evaluate_guide(guide: str, transcript: str, threshold: float = 3.5) -> EvalResult:
-    """Evaluate a setup guide using Gemini Flash as an LLM judge.
+    """Evaluate a setup guide using Claude Haiku as an LLM judge.
 
     Args:
         guide: The generated setup guide markdown.
@@ -56,22 +55,16 @@ async def evaluate_guide(guide: str, transcript: str, threshold: float = 3.5) ->
     Returns:
         EvalResult with scores, rationales, mean_score, passed flag, and notes.
     """
-    from google import genai
-    from google.genai import types
+    client = anthropic.AsyncAnthropic()
 
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-
-    response = await asyncio.to_thread(
-        client.models.generate_content,
-        model="gemini-2.5-flash",
-        contents=EVAL_PROMPT.format(transcript=transcript, guide=guide),
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            max_output_tokens=4096,
-            temperature=0.0,
-        ),
+    response = await client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        temperature=0.0,
+        messages=[{"role": "user", "content": EVAL_PROMPT.format(transcript=transcript, guide=guide)}],
     )
-    raw = json.loads(response.text)
+
+    raw = json.loads(response.content[0].text)
     criteria = [
         "completeness",
         "personalization",

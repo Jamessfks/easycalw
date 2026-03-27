@@ -4,7 +4,7 @@ Loads a test transcript, runs it through the formatter and guide agent,
 then applies three graders:
 
 1. Code-based (deterministic): section count, word count, slug verification, etc.
-2. LLM judge (guide_evaluator.py): 5-criteria quality scoring via Gemini Flash
+2. LLM judge (guide_evaluator.py): 5-criteria quality scoring via Claude Haiku
 3. Transcript-based: turn count, cost, process metrics
 
 Output: JSON report with all scores per transcript.
@@ -225,7 +225,7 @@ def grade_code(
 # ---------------------------------------------------------------------------
 
 async def grade_llm(guide_text: str, transcript_text: str) -> LLMGraderResult:
-    """Run the existing Gemini-based LLM judge."""
+    """Run the Claude Haiku LLM judge."""
     try:
         # Import from the existing evaluator
         import sys
