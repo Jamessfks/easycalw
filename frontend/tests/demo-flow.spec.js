@@ -15,7 +15,7 @@ test.describe('Demo flow — end-to-end golden path', () => {
         await expect(page.locator('button', { hasText: 'Start Voice Interview' })).toBeVisible();
 
         // 2. Click a demo to start the flow
-        const demoButton = page.locator('button', { hasText: 'Restaurant Operations' });
+        const demoButton = page.locator('button', { hasText: 'Scouts Coffee' });
         await expect(demoButton).toBeVisible();
         await demoButton.click();
 
@@ -28,7 +28,7 @@ test.describe('Demo flow — end-to-end golden path', () => {
         await expect(loadingOrOutput).toBeVisible({ timeout: 30000 });
 
         // 4. Wait for guide output to fully render
-        await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 30000 });
+        await expect(page.getByText('Your Setup Guide', { exact: true })).toBeVisible({ timeout: 30000 });
 
         // 5. Verify guide output renders with actual content
         await expect(page.locator('.prose')).toBeVisible();
@@ -51,7 +51,7 @@ test.describe('Demo flow — end-to-end golden path', () => {
 
         // Switch back to guide tab
         await page.locator('button', { hasText: 'Setup Guide' }).click();
-        await expect(page.locator('text=Your Setup Guide')).toBeVisible();
+        await expect(page.getByText('Your Setup Guide', { exact: true })).toBeVisible();
 
         // 9. Verify demo reset shortcut (Ctrl+Shift+D → back to landing)
         await page.keyboard.press('Control+Shift+D');
@@ -65,8 +65,8 @@ test.describe('Demo flow — end-to-end golden path', () => {
         await page.goto(BASE);
 
         // Load demo guide
-        await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-        await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 30000 });
+        await page.locator('button', { hasText: 'Scouts Coffee' }).click();
+        await expect(page.getByText('Your Setup Guide', { exact: true })).toBeVisible({ timeout: 30000 });
 
         // Click copy and verify feedback
         const copyBtn = page.locator('button', { hasText: 'Copy' }).first();
@@ -90,8 +90,8 @@ test.describe('Demo flow — end-to-end golden path', () => {
         expect(bodyWidth).toBeLessThanOrEqual(375 + 10);
 
         // Load demo guide
-        await page.locator('button', { hasText: 'Restaurant Operations' }).click();
-        await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 30000 });
+        await page.locator('button', { hasText: 'Scouts Coffee' }).click();
+        await expect(page.getByText('Your Setup Guide', { exact: true })).toBeVisible({ timeout: 30000 });
 
         // No horizontal overflow on output view
         bodyWidth = await page.evaluate(() => document.body.scrollWidth);

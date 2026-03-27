@@ -1477,6 +1477,756 @@ MESSAGE RULES:
 # DEMO_GUIDES dictionary — all 5 demos
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# DEVELOPER — Code Review & CI/CD Monitoring
+# ---------------------------------------------------------------------------
+
+DEVELOPER_GUIDE = r"""# OPENCLAW ENGINE SETUP GUIDE
+
+**Your Agent. Your Hardware. Your Soul.**
+
+---
+
+**PREPARED FOR:** Marcus Chen
+**MISSION:** Automate code review triage, CI/CD pipeline monitoring, and morning dev briefings across 5 active repositories
+**DATE:** March 26, 2026
+**DEPLOYMENT:** Mac Mini M4 (Dedicated Hardware)
+**CHANNEL:** Slack
+**MODEL:** Anthropic Claude (`claude-sonnet-4-6`)
+**STATUS:** [ INITIALIZING DEPLOYMENT ]
+
+---
+
+**This guide configures your OpenClaw agent to be your always-on senior engineering partner — monitoring your CI pipelines, triaging PRs, and delivering a morning briefing before you've finished your first coffee. Built around your GitHub-centric workflow and the tools you already use.**
+
+---
+
+## 🎯 Key Moments — What You Will Accomplish
+
+By the end of this guide, you will have:
+
+- **A running OpenClaw instance** on your Mac Mini M4, connected to Slack and GitHub, delivering a comprehensive dev briefing every morning at 8:30 AM
+- **Automated PR triage** that summarizes diffs, flags risky changes, checks CI status, and posts structured reviews to your #code-reviews Slack channel
+- **CI/CD failure alerts** with error context, affected services, and suggested fixes pushed to Slack within 60 seconds of pipeline failure
+- **Weekly repo health reports** covering test coverage trends, dependency vulnerabilities, flaky test detection, and open PR aging
+- **Engineering guardrails** ensuring the agent never merges PRs, pushes to protected branches, or modifies production infrastructure without your explicit confirmation
+
+---
+
+## 00 | ✅ PRE-FLIGHT CHECKLIST
+
+Before you begin, ensure you have the following ready:
+
+| | Requirement |
+|---|---|
+| [ ] | Mac Mini M4 powered on with macOS 15+ |
+| [ ] | Terminal access (iTerm2 or built-in Terminal) |
+| [ ] | GitHub account with admin access to your 5 repos |
+| [ ] | GitHub Personal Access Token (classic, `repo` + `read:org` scopes) |
+| [ ] | Slack workspace with permission to add apps |
+| [ ] | Slack Bot Token (from your Slack App settings) |
+| [ ] | Gemini API key for web search (free tier works) |
+
+> 💡 **TIP:** If you don't have a GitHub PAT yet, go to GitHub → Settings → Developer settings → Personal access tokens → Generate new token (classic). Select `repo` and `read:org` scopes. The token is shown only once — save it in your password manager immediately.
+
+> ⚠️ **WARNING:** Never commit your GitHub PAT or Slack token to any repository. OpenClaw stores these in an encrypted local keychain — they never leave your machine.
+
+---
+
+## 01 | THE SECURITY HANDSHAKE
+
+When you launch `openclaw-onboard` in your terminal, OpenClaw greets you with its security manifesto. This establishes the "Personal-by-Default" boundary.
+
+OpenClaw runs entirely on YOUR hardware. Your code, tokens, and CI data never leave your Mac Mini.
+
+> ✅ **ACTION:** Run `openclaw-onboard` in Terminal and select "Yes" to acknowledge the security boundary.
+
+> ⚠️ **WARNING:** Your agent will have access to GitHub repos via your PAT. Treat your Mac Mini like a production server — lock the screen when away, enable FileVault disk encryption, and keep macOS auto-updates on.
+
+---
+
+## 02 | SELECTING YOUR MODEL PROVIDER
+
+Based on your interview, we recommend **Anthropic Claude** for code review and analysis tasks. Claude excels at understanding code context, explaining diffs, and providing structured technical feedback.
+
+> ✅ **ACTION:** Select "Anthropic" from the provider list.
+
+### Authentication
+
+> ✅ **ACTION:** Select "API Key" and paste your Anthropic API key. If you prefer, "Codex OAuth" works too for ChatGPT-based models.
+
+### Model Selection
+
+For code review and CI analysis workloads, we recommend `claude-sonnet-4-6` — fast enough for real-time PR triage, capable enough for complex multi-file diffs.
+
+> ✅ **ACTION:** Select `anthropic/claude-sonnet-4-6`.
+
+> 💡 **TIP:** Sonnet handles 95% of code review tasks at 5x the speed of Opus. Reserve Opus for architecture-level reviews by configuring a model override in your SOUL.md later.
+
+---
+
+## 03 | CONNECTING YOUR CHANNEL — SLACK
+
+Your agent communicates via Slack — the tool your team already lives in.
+
+> ✅ **ACTION:** Select "Slack (Bot API)" from the channel list.
+
+### Slack App Setup
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App → From Scratch
+2. Name it "DevAgent" (or your preference)
+3. Under OAuth & Permissions, add these Bot Token Scopes: `chat:write`, `channels:read`, `channels:history`, `files:write`
+4. Install to your workspace
+5. Copy the Bot User OAuth Token
+6. Paste it into your terminal when prompted
+
+> 💡 **TIP:** Create dedicated channels: `#dev-briefing` for morning reports, `#ci-alerts` for pipeline failures, `#code-reviews` for PR summaries. Pin the channels so they don't get buried.
+
+> ⚠️ **WARNING:** The Slack bot token gives your agent permission to post in any channel it's invited to. Only invite it to channels you want automated messages in. Audit channel membership monthly.
+
+---
+
+## 04 | SEARCH CONFIGURATION
+
+Your agent needs web search for checking documentation, security advisories, and package changelogs.
+
+> ✅ **ACTION:** Select "Gemini (Google Search)" and paste your Gemini API key.
+
+> 💡 **TIP:** The free tier handles 60 req/min — more than enough for checking npm advisories, GitHub release notes, and Stack Overflow during CI debugging.
+
+---
+
+## 05 | GITHUB INTEGRATION
+
+This is the core of your setup — connecting your agent to your repositories.
+
+> ✅ **ACTION:** When prompted, paste your GitHub Personal Access Token.
+
+### Repository Registration
+
+Register your 5 active repositories:
+
+| # | Repository | Primary Language | CI System |
+|---|-----------|-----------------|-----------|
+| 1 | `marcuschen/platform-api` | TypeScript | GitHub Actions |
+| 2 | `marcuschen/web-dashboard` | React/TypeScript | GitHub Actions |
+| 3 | `marcuschen/data-pipeline` | Python | GitHub Actions |
+| 4 | `marcuschen/mobile-app` | React Native | GitHub Actions + Fastlane |
+| 5 | `marcuschen/infra-config` | Terraform/YAML | GitHub Actions |
+
+> ✅ **ACTION:** Enter each repository URL when prompted. The agent will verify access and index the repo structure.
+
+---
+
+## 06 | SKILLS & HOOKS CONFIGURATION
+
+### Recommended Skills
+
+| Skill | Purpose | Tier |
+|-------|---------|------|
+| `github` | Full GitHub CLI for repos, issues, PRs, branches | 17 — Developer Workflow |
+| `coding-agent` | Orchestrate code analysis across multiple models | 17 — Developer Workflow |
+| `slack` | Read/post/manage Slack messages & channels | 3 — Communication |
+| `test-runner` | Execute test suites and report results | 17 — Developer Workflow |
+| `debug-pro` | Structured multi-language debugging | 17 — Developer Workflow |
+| `tavily-web-search` | AI-optimized web search for docs & advisories | 1 — Core |
+| `buildlog` | Record coding sessions as structured logs | 17 — Developer Workflow |
+| `agent-audit-trail` | Hash-chained action logs for compliance | 5 — Security |
+
+### Automation Hooks
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| PR Opened | GitHub webhook | Summarize diff → post to #code-reviews |
+| CI Failure | GitHub Actions status | Parse error → post to #ci-alerts with context |
+| Morning Briefing | Cron: 8:30 AM Mon-Fri | Aggregate overnight activity → post to #dev-briefing |
+| Weekly Health | Cron: 9:00 AM Monday | Full repo health report → post to #dev-briefing |
+| Security Alert | Dependabot event | Immediate triage → post to #ci-alerts |
+
+> ✅ **ACTION:** Install skills via the Web UI Skills panel: select each skill, review permissions, and confirm.
+
+---
+
+## 07 | AGENT IDENTITY — SOUL.md
+
+Your agent needs a personality and operational boundaries. OpenClaw uses a SOUL.md file for this.
+
+> ✅ **ACTION:** The SOUL.md in your reference documents is pre-configured for your workflow. Review it, customize the personality if desired, then paste it into the Web UI SOUL editor.
+
+---
+
+## 08 | MORNING BRIEFING CONFIGURATION
+
+Your daily briefing runs at 8:30 AM and covers:
+
+- **Overnight CI status** — any failures, their error context, and auto-suggested fixes
+- **Open PRs** — age, review status, merge conflicts, CI status
+- **Dependency alerts** — new Dependabot PRs, severity ratings
+- **Flaky test tracker** — tests that failed then passed on retry in the last 7 days
+- **Deploy log** — what shipped overnight, which environments were affected
+
+> 💡 **TIP:** Customize the briefing time in Settings → Automations → Morning Briefing. Most developers prefer 30 minutes before their usual start time.
+
+---
+
+## 09 | VERIFICATION & FIRST RUN
+
+Time to verify everything works:
+
+```
+openclaw verify --channel slack --provider anthropic --skills github,slack
+```
+
+Expected output:
+```
+✅ Anthropic Claude — connected (claude-sonnet-4-6)
+✅ Slack — connected (#dev-briefing, #ci-alerts, #code-reviews)
+✅ GitHub — 5 repos indexed (platform-api, web-dashboard, data-pipeline, mobile-app, infra-config)
+✅ Skills — 8/8 installed and verified
+✅ Hooks — 5 automations registered
+🟢 Agent ready. First briefing scheduled for tomorrow 8:30 AM.
+```
+
+> ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
+
+---
+
+## 10 | POST-SETUP — WHAT HAPPENS NEXT
+
+### Day 1
+- Morning briefing arrives in #dev-briefing at 8:30 AM
+- Open a test PR — within 2 minutes, a structured review appears in #code-reviews
+- Intentionally break a CI pipeline — alert appears in #ci-alerts within 60 seconds
+
+### Week 1
+- First weekly health report on Monday
+- Agent learns your merge patterns and adjusts PR urgency ratings
+- Review the audit trail in Settings → Audit Log
+
+### Month 1
+- Flaky test detector has enough data to flag persistent offenders
+- Consider adding `docker-essentials` skill if you want container management
+- Review and tune the SOUL.md personality based on your experience
+
+> 💡 **TIP:** Your agent gets better as it learns your codebase patterns. The first week of PR reviews will be generic; by week 3, it will reference your coding conventions and past decisions.
+
+---
+
+> 🐾 **Generated by EasyClaw** — Your voice, your setup, your agent.
+"""
+
+DEVELOPER_REFS = [
+    {
+        "name": "SOUL.md",
+        "content": r"""# SOUL.md — DevReviewAgent
+
+## Identity
+You are **DevReviewAgent**, the autonomous engineering partner for Marcus Chen.
+
+## Context
+- **Operator:** Marcus Chen — Senior full-stack developer, 5 active repos
+- **Stack:** TypeScript, React, Python, React Native, Terraform
+- **CI/CD:** GitHub Actions across all repos, Fastlane for mobile
+- **Hosting:** Vercel (frontend), Railway (API), AWS (infrastructure)
+- **Workflow:** Feature branches → PR → Automated triage → Human review → Merge → Auto-deploy
+
+## Personality Traits
+- Technical and precise — communicate in code terminology, show diffs and logs
+- Structured output — always use tables, bullet points, and severity ratings
+- Proactive but not pushy — flag issues, suggest fixes, wait for confirmation
+- Think like a senior SRE: reliability and clarity over speed
+
+## Communication Rules
+- CI failure: immediate Slack alert in #ci-alerts with error context + suggested fix
+- PR opened: structured review in #code-reviews within 2 minutes
+- Morning briefing: daily at 8:30 AM in #dev-briefing
+- Weekly health: Monday 9:00 AM in #dev-briefing
+- Security alert: immediate triage in #ci-alerts
+
+## Boundaries — NEVER Cross These
+- Never merge PRs without explicit "LGTM, merge" from Marcus
+- Never push to main, master, or production branches
+- Never modify Terraform state or apply infrastructure changes
+- Never access or log secrets, tokens, or credentials
+- Never post in channels you haven't been explicitly invited to
+- Escalate any security vulnerability rated HIGH or CRITICAL immediately
+""",
+    },
+]
+
+DEVELOPER_PROMPTS = r"""# PROMPTS TO SEND — DevReviewAgent
+
+Paste these prompts into your OpenClaw chat in order.
+
+---
+
+## Prompt 1 — Initialize Agent Identity
+
+```
+You are DevReviewAgent. Your personality:
+- Technical, precise, no fluff
+- Always include relevant code snippets, diffs, and error traces
+- Use structured formats: tables for comparisons, bullet points for lists
+- Rate everything: PR risk (🟢🟡🔴), CI severity (P0-P3), code quality (A-F)
+
+When reporting issues, always structure as:
+**Repo** → **Component** → **Issue** → **Impact** → **Suggested Fix**
+```
+
+---
+
+## Prompt 2 — Repository Context
+
+```
+Here are my active repositories:
+
+1. platform-api — TypeScript Express backend, 180+ endpoints, PostgreSQL
+2. web-dashboard — React 19 + TypeScript, deployed on Vercel
+3. data-pipeline — Python ETL jobs, pandas + dbt, scheduled via Airflow
+4. mobile-app — React Native 0.76, iOS + Android, Fastlane for builds
+5. infra-config — Terraform modules for AWS (ECS, RDS, CloudFront, S3)
+
+CI/CD: All repos use GitHub Actions
+- Standard pipeline: lint → typecheck → test → build → deploy
+- mobile-app adds: Fastlane build → TestFlight/Play Store upload
+- infra-config: terraform plan on PR, terraform apply on merge to main
+
+MONITORING PRIORITIES:
+1. Any CI failure on main branch = P0
+2. Failing tests on feature branches = P1
+3. Dependabot security alerts HIGH+ = P0
+4. PR open > 3 days without review = flag
+5. Flaky tests (fail then pass on retry) = track and report weekly
+```
+
+---
+
+## Prompt 3 — Morning Briefing Format
+
+```
+Every morning at 8:30 AM, post a briefing to #dev-briefing with this exact structure:
+
+## 🌅 Dev Briefing — [Date]
+
+### 🔴 Overnight Failures
+[List any CI failures with repo, branch, error summary, and link]
+
+### 📋 Open PRs
+| PR | Repo | Age | CI | Review Status |
+[Table of all open PRs sorted by age]
+
+### 🔒 Security
+[Any new Dependabot alerts or security advisories]
+
+### 📊 Weekly Stats (Mondays only)
+[Test coverage trends, deploy frequency, mean time to merge]
+
+### 🎯 Today's Focus
+[Suggest what to tackle based on priority]
+```
+
+---
+
+## Prompt 4 — PR Review Protocol
+
+```
+When a PR is opened on any of my repos:
+
+1. Read the full diff (not just file names)
+2. Summarize changes in 3-5 bullet points
+3. Flag: breaking changes, missing tests, type safety issues, large files
+4. Check CI status and report
+5. Rate the PR: 🟢 Clean / 🟡 Needs Discussion / 🔴 Risky
+6. If touching infra-config: always flag as 🔴 and require my review
+
+Post the structured review to #code-reviews.
+Never approve or merge — only analyze and report.
+```
+"""
+
+# ---------------------------------------------------------------------------
+# FREELANCER — Client Management & Scheduling
+# ---------------------------------------------------------------------------
+
+FREELANCER_GUIDE = r"""# OPENCLAW ENGINE SETUP GUIDE
+
+**Your Agent. Your Hardware. Your Soul.**
+
+---
+
+**PREPARED FOR:** Priya Sharma
+**MISSION:** Automate client management, invoice tracking, and project scheduling for a freelance graphic design practice
+**DATE:** March 26, 2026
+**DEPLOYMENT:** MacBook Pro M3 (Personal Machine)
+**CHANNEL:** WhatsApp
+**MODEL:** Anthropic Claude (`claude-sonnet-4-6`)
+**STATUS:** [ INITIALIZING DEPLOYMENT ]
+
+---
+
+**This guide configures your OpenClaw agent to become your personal business manager — handling the admin chaos of freelance life so you can focus on design. Built around your actual client workflow: Notion for projects, WhatsApp for client communication, and the invoicing process that currently eats your Sunday evenings.**
+
+---
+
+## 🎯 Key Moments — What You Will Accomplish
+
+By the end of this guide, you will have:
+
+- **A running OpenClaw instance** on your MacBook Pro, connected to WhatsApp and delivering daily client briefings every morning at 9:00 AM
+- **Automated invoice tracking** that monitors payment due dates, sends you reminders 3 days before deadlines, and drafts polite follow-up messages for overdue invoices
+- **Project scheduling assistance** that syncs with your Notion workspace, tracks milestone deadlines, and warns you when you're at risk of overlapping commitments
+- **Client communication drafts** — professional, on-brand message templates for proposals, status updates, and revision round management
+- **Freelancer guardrails** ensuring the agent never sends messages to clients, commits to deadlines, or shares pricing without your explicit approval
+
+---
+
+## 00 | ✅ PRE-FLIGHT CHECKLIST
+
+Before you begin, ensure you have the following ready:
+
+| | Requirement |
+|---|---|
+| [ ] | MacBook Pro powered on with macOS 14+ |
+| [ ] | Terminal access (Spotlight → "Terminal") |
+| [ ] | WhatsApp installed on your phone (personal or business) |
+| [ ] | Notion account with your project databases |
+| [ ] | Notion Integration Token (from notion.so/my-integrations) |
+| [ ] | A cup of chai — this takes about 15 minutes ☕ |
+
+> 💡 **TIP:** If you don't have a Notion Integration yet, go to [notion.so/my-integrations](https://notion.so/my-integrations) → New Integration → give it a name like "OpenClaw Agent" → copy the Internal Integration Secret. Then share your project databases with the integration.
+
+> ⚠️ **WARNING:** Only share the specific Notion databases your agent needs access to (Projects, Clients, Invoices). Don't share your entire workspace — principle of least access.
+
+---
+
+## 01 | THE SECURITY HANDSHAKE
+
+When you launch `openclaw-onboard`, OpenClaw establishes you as the sole operator of this agent.
+
+> ✅ **ACTION:** Run `openclaw-onboard` in Terminal and select "Yes" to acknowledge the security boundary.
+
+This is especially important as a freelancer: your client data, pricing, and business communications are sensitive. OpenClaw runs 100% on your MacBook — nothing goes to external servers except the AI model API calls.
+
+> ⚠️ **WARNING:** If you work from coffee shops or co-working spaces, always lock your screen (Ctrl+Cmd+Q) when stepping away. Your agent has access to client data and financial information.
+
+---
+
+## 02 | SELECTING YOUR MODEL PROVIDER
+
+We recommend **Anthropic Claude** for freelance business management. Claude excels at professional writing, scheduling logic, and understanding nuanced client communication.
+
+> ✅ **ACTION:** Select "Anthropic" from the provider list.
+
+### Authentication
+
+> ✅ **ACTION:** Select "Codex OAuth" for the fastest setup — sign in with your existing account.
+
+### Model Selection
+
+For client communication and project management, `claude-sonnet-4-6` provides the ideal balance — fast enough for real-time drafting, nuanced enough for professional tone.
+
+> ✅ **ACTION:** Select `anthropic/claude-sonnet-4-6`.
+
+> 💡 **TIP:** Sonnet is perfect for day-to-day tasks. If you later want to generate detailed project proposals or contracts, you can configure Opus as a model override for specific prompts.
+
+---
+
+## 03 | CONNECTING YOUR CHANNEL — WHATSAPP
+
+Your agent communicates via WhatsApp — the tool your clients already message you on.
+
+> ✅ **ACTION:** Select "WhatsApp (CLI)" from the channel list.
+
+### WhatsApp Setup
+
+OpenClaw uses the WhatsApp CLI skill to interface with your WhatsApp account:
+
+1. The agent will display a QR code in your terminal
+2. Open WhatsApp on your phone → Settings → Linked Devices → Link a Device
+3. Scan the QR code
+4. Your agent can now read and draft messages (but never send without your approval)
+
+> ⚠️ **WARNING:** Your agent can READ incoming WhatsApp messages to provide context-aware responses. It will NEVER send messages autonomously. All outgoing messages are drafted for your review and require explicit "send" confirmation. This is a hard boundary.
+
+> 💡 **TIP:** Create a WhatsApp group called "Agent Briefings" with just yourself. Your agent will post daily summaries and reminders there, keeping your client chats clean.
+
+---
+
+## 04 | SEARCH CONFIGURATION
+
+Your agent needs web search for checking design trends, pricing benchmarks, and client industry research.
+
+> ✅ **ACTION:** Select "Gemini (Google Search)" and paste your Gemini API key.
+
+> 💡 **TIP:** The free Gemini tier is more than enough for freelance use. You'll mainly use it for researching client industries before proposals and checking current market rates.
+
+---
+
+## 05 | NOTION INTEGRATION
+
+This is the backbone of your project management setup.
+
+> ✅ **ACTION:** When prompted, paste your Notion Integration Token.
+
+### Database Registration
+
+Register your key Notion databases:
+
+| # | Database | Purpose |
+|---|----------|---------|
+| 1 | Projects | Active client projects with status, deadlines, deliverables |
+| 2 | Clients | Client contact info, preferences, communication history |
+| 3 | Invoices | Invoice tracking: amounts, due dates, payment status |
+| 4 | Calendar | Availability, meetings, revision rounds |
+
+> ✅ **ACTION:** Share each database with your "OpenClaw Agent" integration in Notion (Share → Invite → select integration).
+
+> 💡 **TIP:** If your Notion setup doesn't have separate databases yet, your agent can help you create a template structure during the first run. Just ask: "Set up my freelance project management databases."
+
+---
+
+## 06 | SKILLS & HOOKS CONFIGURATION
+
+### Recommended Skills
+
+| Skill | Purpose | Tier |
+|-------|---------|------|
+| `whatsapp-cli` | Draft & manage WhatsApp messages hands-free | 1 — Core |
+| `notion` | Read/write Notion pages & databases | 1 — Core |
+| `bookkeeper` | Invoice intake, OCR extraction, payment verification | 6 — Finance |
+| `financial-overview` | Aggregate balance, transactions, invoices | 6 — Finance |
+| `summarize` | Summarize URLs, PDFs, and documents for client research | 1 — Core |
+| `contract-review` | AI analysis of freelance contracts and terms | 12 — Documents |
+| `pdf-toolkit` | Merge, split, and manage PDF proposals/contracts | 12 — Documents |
+| `tavily-web-search` | Web search for client research and pricing benchmarks | 1 — Core |
+| `apple-reminders` | Sync deadlines with macOS Reminders for notifications | 2 — Productivity |
+| `canva` | Create/edit Canva designs for client presentations | 13 — Creative |
+
+### Automation Hooks
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| Morning Briefing | Cron: 9:00 AM daily | Today's deadlines, pending invoices, client follow-ups → WhatsApp |
+| Invoice Reminder | Cron: 10:00 AM daily | Check for invoices due in 3 days → draft reminder message |
+| Overdue Alert | Cron: 10:00 AM daily | Flag invoices past due → draft polite follow-up |
+| Weekly Pipeline | Cron: Monday 9:00 AM | Project pipeline overview, capacity check, revenue forecast |
+| New Client Inquiry | WhatsApp message from unknown | Draft acknowledgment + checklist of questions to ask |
+
+> ✅ **ACTION:** Install skills via the Web UI Skills panel. Start with the Core tier skills, then add Finance and Documents skills.
+
+---
+
+## 07 | AGENT IDENTITY — SOUL.md
+
+Your agent needs a personality that matches your brand voice. The pre-configured SOUL.md in your reference documents sets up a professional, warm, detail-oriented assistant.
+
+> ✅ **ACTION:** Review the SOUL.md, customize the brand voice section to match your communication style, then paste it into the Web UI SOUL editor.
+
+---
+
+## 08 | INVOICE & PAYMENT WORKFLOW
+
+Your agent's invoice management works like this:
+
+1. **Creation:** When you complete a milestone, tell your agent: "Invoice [Client] for [Project] milestone 2 — $X,XXX"
+2. **Tracking:** Agent logs it in your Notion Invoices database with due date (Net 30 default)
+3. **Reminders:** 3 days before due date, agent drafts a friendly payment reminder
+4. **Follow-up:** If overdue, agent drafts a professional follow-up at Day 7, Day 14, and Day 30
+5. **Confirmation:** When payment arrives, tell your agent: "Payment received from [Client]" — it updates the status
+
+> 💡 **TIP:** Never chase invoices manually again. Your agent handles the awkward follow-ups with professional, pre-approved templates. You just review and hit send.
+
+> ⚠️ **WARNING:** The agent drafts all payment communications but NEVER sends them. You always review, edit if needed, and explicitly confirm before anything goes to a client.
+
+---
+
+## 09 | VERIFICATION & FIRST RUN
+
+Time to verify everything works:
+
+```
+openclaw verify --channel whatsapp --provider anthropic --skills whatsapp-cli,notion,bookkeeper
+```
+
+Expected output:
+```
+✅ Anthropic Claude — connected (claude-sonnet-4-6)
+✅ WhatsApp — linked (Priya's iPhone)
+✅ Notion — connected (4 databases shared)
+✅ Skills — 10/10 installed and verified
+✅ Hooks — 5 automations registered
+🟢 Agent ready. First briefing scheduled for tomorrow 9:00 AM.
+```
+
+> ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
+
+---
+
+## 10 | POST-SETUP — WHAT HAPPENS NEXT
+
+### Day 1
+- Morning briefing arrives on WhatsApp at 9:00 AM
+- Try: "Draft a project status update for [Client Name]" — review the output
+- Try: "What invoices are due this week?" — check the Notion sync
+
+### Week 1
+- First weekly pipeline report on Monday
+- Agent learns your client communication patterns
+- Fine-tune the morning briefing format if needed
+
+### Month 1
+- Invoice tracking fully operational with payment history
+- Agent has learned your brand voice from reviewed drafts
+- Consider adding `presentation-maker` skill for client decks
+- Review the weekly revenue tracking accuracy
+
+> 💡 **TIP:** The more you interact with your agent, the better it understands your freelance business. Correct it when the tone is off, and it will adapt. By month 2, first drafts will feel like you wrote them.
+
+---
+
+> 🐾 **Generated by EasyClaw** — Your voice, your setup, your agent.
+"""
+
+FREELANCER_REFS = [
+    {
+        "name": "SOUL.md",
+        "content": r"""# SOUL.md — FreelanceManager
+
+## Identity
+You are **FreelanceManager**, the personal business assistant for Priya Sharma, freelance graphic designer.
+
+## Context
+- **Operator:** Priya Sharma — Freelance graphic designer, 4-6 active clients at any time
+- **Services:** Brand identity, packaging design, social media assets, pitch decks
+- **Tools:** Notion (project management), WhatsApp (client comms), Canva (quick designs), Adobe CC (production work)
+- **Revenue range:** $5K-$12K/month, mostly project-based with some retainer clients
+- **Workflow:** Inquiry → Proposal → Contract → Design rounds → Delivery → Invoice → Follow-up
+
+## Personality Traits
+- Warm and professional — mirror Priya's friendly but business-savvy tone
+- Detail-oriented — track every deadline, payment, and client preference
+- Proactive with reminders — surface upcoming deadlines before they become urgent
+- Organized output — use clear tables, checklists, and timelines
+- Never pushy with clients — all follow-ups are polite and professional
+
+## Communication Rules
+- Morning briefing: 9:00 AM daily via WhatsApp "Agent Briefings" group
+- Invoice reminders: draft to review queue, never auto-send
+- Client message drafts: always include [DRAFT] tag and wait for approval
+- Weekly pipeline: Monday 9:00 AM with revenue forecast
+- Urgent: deadline within 24 hours → immediate WhatsApp alert
+
+## Boundaries — NEVER Cross These
+- Never send any message to a client without Priya's explicit approval
+- Never commit to deadlines, pricing, or project scope on Priya's behalf
+- Never share portfolio, pricing, or client info with anyone
+- Never access financial accounts directly — only read from Notion databases
+- Never modify completed/delivered project files
+- All invoice amounts must be confirmed by Priya before logging
+""",
+    },
+]
+
+FREELANCER_PROMPTS = r"""# PROMPTS TO SEND — FreelanceManager
+
+Paste these prompts into your OpenClaw chat in order.
+
+---
+
+## Prompt 1 — Initialize Agent Identity
+
+```
+You are FreelanceManager. Your personality:
+- Warm, professional, detail-oriented
+- Mirror my communication style: friendly but business-savvy
+- Use clear formatting: tables for schedules, checklists for action items
+- Always tag client-facing drafts with [DRAFT — Review before sending]
+
+When reporting, structure as:
+**Client** → **Project** → **Status** → **Next Action** → **Deadline**
+```
+
+---
+
+## Prompt 2 — Business Context
+
+```
+Here is my freelance business context:
+
+SERVICES:
+- Brand identity packages ($3K-$8K)
+- Packaging design ($2K-$5K per SKU)
+- Social media asset packs ($500-$1.5K/month retainer)
+- Pitch deck design ($1K-$3K)
+
+ACTIVE CLIENTS (update as needed):
+1. GreenLeaf Organics — Brand refresh, 3 revision rounds remaining
+2. TechStart Inc — Monthly social media retainer
+3. Artisan Bakery Co — Packaging design for 4 new products
+4. Dr. Patel's Practice — Logo + business cards + signage
+
+PAYMENT TERMS:
+- Standard: 50% upfront, 50% on delivery
+- Retainers: Monthly, due on the 1st
+- Invoice terms: Net 30
+- Late payment protocol: Friendly reminder → Formal follow-up → Pause work
+```
+
+---
+
+## Prompt 3 — Morning Briefing Format
+
+```
+Every morning at 9:00 AM, post to my "Agent Briefings" WhatsApp group:
+
+## ☀️ Morning Briefing — [Date]
+
+### 📋 Today's Priorities
+[Top 3 tasks sorted by deadline urgency]
+
+### 💰 Invoice Status
+| Client | Amount | Due Date | Status |
+[Table of pending invoices]
+
+### 📅 This Week's Deadlines
+[Upcoming deliverables with days remaining]
+
+### 💬 Client Follow-ups Needed
+[Any clients awaiting responses or overdue check-ins]
+
+### 📊 Monthly Revenue (Mondays only)
+[Invoiced, received, outstanding, projected]
+```
+
+---
+
+## Prompt 4 — Client Communication Templates
+
+```
+When I ask you to draft a client message, use these guidelines:
+
+PROPOSAL RESPONSE:
+- Thank them for their interest
+- Briefly describe my relevant experience
+- Outline proposed scope and timeline
+- Include pricing range (I'll confirm exact numbers)
+- End with next steps
+
+STATUS UPDATE:
+- Current phase and progress percentage
+- What was completed since last update
+- What's next and when they'll see it
+- Any decisions needed from them
+
+INVOICE FOLLOW-UP (overdue):
+- Day 7: Friendly check-in, "just making sure this didn't slip through"
+- Day 14: Direct but polite, reference the invoice number and amount
+- Day 30: Professional, mention pausing future work until resolved
+
+Always tag: [DRAFT — Review before sending]
+```
+"""
+
 DEMO_GUIDES = {
     "demo-restaurant": {
         "guide_id": "demo-restaurant",
@@ -1589,6 +2339,48 @@ DEMO_GUIDES = {
             "setup_guide": HEALTHCARE_GUIDE,
             "reference_documents": HEALTHCARE_REFS,
             "prompts_to_send": HEALTHCARE_PROMPTS,
+        },
+    },
+    "demo-developer": {
+        "guide_id": "demo-developer",
+        "title": "Code Review & CI/CD Ops",
+        "subtitle": "PR triage, pipeline monitoring & morning dev briefings for a senior developer",
+        "category": "Developer",
+        "icon": "code-2",
+        "color": "blue",
+        "status": "complete",
+        "message": "Demo guide generated successfully.",
+        "scorecard": {
+            "context_depth": 0.94,
+            "sections_covered": 11,
+            "sections_total": 11,
+            "follow_ups": [],
+        },
+        "outputs": {
+            "setup_guide": DEVELOPER_GUIDE,
+            "reference_documents": DEVELOPER_REFS,
+            "prompts_to_send": DEVELOPER_PROMPTS,
+        },
+    },
+    "demo-freelancer": {
+        "guide_id": "demo-freelancer",
+        "title": "Freelance Design Studio",
+        "subtitle": "Client management, invoice tracking & project scheduling for a graphic designer",
+        "category": "Freelancer",
+        "icon": "palette",
+        "color": "violet",
+        "status": "complete",
+        "message": "Demo guide generated successfully.",
+        "scorecard": {
+            "context_depth": 0.91,
+            "sections_covered": 11,
+            "sections_total": 11,
+            "follow_ups": [],
+        },
+        "outputs": {
+            "setup_guide": FREELANCER_GUIDE,
+            "reference_documents": FREELANCER_REFS,
+            "prompts_to_send": FREELANCER_PROMPTS,
         },
     },
 }

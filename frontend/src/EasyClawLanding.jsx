@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, ArrowRight, Sparkles, FileText, Zap, Shield, MessageSquare, Settings, Clock, ExternalLink, RotateCcw, X } from 'lucide-react';
+import { Mic, ArrowRight, Sparkles, FileText, Zap, Shield, MessageSquare, Settings, Clock, ExternalLink, RotateCcw, X, ChevronDown, ChevronUp, BookOpen, Code2, Send } from 'lucide-react';
 import { getGuideHistory } from './lib/guideHistory';
 import { getTranscriptBackup, clearTranscriptBackup } from './lib/transcriptBackup';
 import DemoNavigator from './components/DemoNavigator';
@@ -153,6 +153,179 @@ function ResumeBar({ onResume }) {
     );
 }
 
+const SAMPLE_GUIDE_PREVIEW = `# OPENCLAW ENGINE SETUP GUIDE
+
+**Your Agent. Your Hardware. Your Soul.**
+
+| | |
+|---|---|
+| **PREPARED FOR** | Scouts Coffee — San Francisco, CA |
+| **MISSION** | Automate staff scheduling coordination and supplier order management for an 8-person coffee shop |
+| **DEPLOYMENT** | Mac Mini (Dedicated Hardware) |
+| **CHANNEL** | Telegram |
+| **MODEL** | Anthropic Claude (\`claude-sonnet-4-6\`) |
+
+---
+
+**This guide configures your OpenClaw agent to eliminate the daily scheduling grind and supplier order chaos that eats into your time as a coffee shop owner.**`;
+
+const SAMPLE_GUIDE_FULL = SAMPLE_GUIDE_PREVIEW + `
+
+---
+
+## 🎯 Key Moments — What You Will Accomplish
+
+By the end of this guide, you will have:
+
+- **A running OpenClaw instance** on your Mac Mini, connected to Telegram and delivering you a morning briefing every day before the first shift
+- **3 tailored automations** that handle daily staff schedule checks, weekly supplier reorder reviews, and end-of-week scheduling drafts
+- **Food-service guardrails** ensuring your agent never autonomously contacts suppliers or modifies payroll data without your explicit approval
+
+## 00 | ✅ PRE-FLIGHT CHECKLIST
+
+| | Requirement |
+|---|---|
+| [ ] | Mac Mini powered on and connected to Wi-Fi |
+| [ ] | Terminal access (you'll run 3 commands total) |
+| [ ] | Telegram installed on your phone |
+| [ ] | Your Google Sheets staff schedule URL handy |
+
+> 💡 **TIP:** The entire setup takes about 12 minutes. Grab a coffee from your own shop first.
+
+## 01 | THE SECURITY HANDSHAKE
+
+OpenClaw runs on YOUR hardware. No cloud middleman. When you launch the installer, it confirms you as the sole operator…`;
+
+const SAMPLE_PROMPTS_PREVIEW = `# SYSTEM PROMPT — Scouts Coffee Agent
+
+You are the AI operations assistant for Scouts Coffee, a specialty coffee shop in San Francisco. Your operator is the shop owner.
+
+## Core Responsibilities
+- **Morning briefing**: Every day at 5:30 AM, send a Telegram summary of today's staff schedule, any call-outs, and pending supplier orders.
+- **Schedule coordination**: When staff request shift swaps via Telegram, verify coverage and confirm or flag conflicts.
+- **Supplier reorders**: Track inventory levels from the shared Google Sheet. When beans, milk, or cups drop below threshold, draft a reorder message for owner approval.
+
+## Guardrails
+- NEVER place orders without explicit owner confirmation.
+- NEVER modify payroll or financial data.
+- Always cc the owner on schedule changes.`;
+
+const SAMPLE_REFS_PREVIEW = `# REFERENCE: Telegram Bot Setup for OpenClaw
+
+## Quick Start
+1. Open Telegram → search @BotFather → /newbot
+2. Name: "Scouts Coffee Agent" → Username: scouts_coffee_claw_bot
+3. Copy the API token → paste into \`.env\` as \`TELEGRAM_BOT_TOKEN\`
+
+## Webhook Configuration
+\`\`\`bash
+curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \\
+  -d "url=https://your-ngrok-url.ngrok.io/telegram/webhook"
+\`\`\`
+
+## Message Formatting
+Use Markdown for rich messages:
+- **Bold**: \`*text*\`
+- _Italic_: \`_text_\`
+- \`Code\`: backtick-wrapped`;
+
+const SAMPLE_TABS = [
+    { key: 'guide', label: 'Setup Guide', icon: BookOpen, preview: SAMPLE_GUIDE_PREVIEW.slice(0, 300), full: SAMPLE_GUIDE_FULL },
+    { key: 'prompts', label: 'Prompts', icon: Code2, preview: SAMPLE_PROMPTS_PREVIEW.slice(0, 300), full: SAMPLE_PROMPTS_PREVIEW },
+    { key: 'refs', label: 'Reference Docs', icon: FileText, preview: SAMPLE_REFS_PREVIEW.slice(0, 300), full: SAMPLE_REFS_PREVIEW },
+];
+
+function SampleGuideShowcase({ onStart }) {
+    const [expanded, setExpanded] = useState(false);
+    const [activeTab, setActiveTab] = useState('guide');
+
+    const tab = SAMPLE_TABS.find(t => t.key === activeTab);
+
+    return (
+        <div className="animate-fade-up opacity-0 delay-275 mt-10 w-full max-w-2xl">
+            <p className="text-xs font-mono text-gray-500 mb-3 tracking-wide uppercase">See what you'll get</p>
+            <div className="glass rounded-2xl border border-white/[0.06] overflow-hidden">
+                {/* Tab bar */}
+                <div className="flex border-b border-white/[0.04]">
+                    {SAMPLE_TABS.map(t => (
+                        <button
+                            key={t.key}
+                            onClick={() => { setActiveTab(t.key); setExpanded(false); }}
+                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-mono transition-colors cursor-pointer
+                                ${activeTab === t.key
+                                    ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5'
+                                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'
+                                }`}
+                        >
+                            <t.icon size={13} />
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Content preview */}
+                <button
+                    onClick={() => setExpanded(!expanded)}
+                    className="w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                >
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <tab.icon size={18} className="text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-display font-semibold text-white text-sm">Scouts Coffee — {tab.label}</p>
+                        <p className="text-xs text-gray-500 mt-1 font-mono">Real output from a 2-minute voice interview</p>
+                        <pre className="mt-3 text-[11px] leading-relaxed text-gray-400 font-mono whitespace-pre-wrap overflow-hidden"
+                             style={{ maxHeight: expanded ? 'none' : '120px', maskImage: expanded ? 'none' : 'linear-gradient(to bottom, black 60%, transparent 100%)' }}>
+                            {expanded ? tab.full : tab.preview}
+                        </pre>
+                    </div>
+                    <div className="shrink-0 mt-1 text-gray-500">
+                        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                </button>
+
+                {/* Expand toggle label */}
+                <div className="px-5 pb-3">
+                    <button
+                        onClick={() => setExpanded(!expanded)}
+                        className="text-[11px] font-mono text-cyan-400/70 hover:text-cyan-300 transition-colors cursor-pointer"
+                    >
+                        {expanded ? '↑ Collapse' : '↓ See full preview'}
+                    </button>
+                </div>
+
+                {/* Stat cards */}
+                <div className="border-t border-white/[0.04] px-5 py-4 grid grid-cols-3 gap-3">
+                    <div className="glass-light rounded-lg px-3 py-2.5 text-center">
+                        <p className="text-sm font-display font-bold text-white">28K</p>
+                        <p className="text-[10px] font-mono text-gray-500">char guide</p>
+                    </div>
+                    <div className="glass-light rounded-lg px-3 py-2.5 text-center">
+                        <p className="text-sm font-display font-bold text-white">14K</p>
+                        <p className="text-[10px] font-mono text-gray-500">prompts</p>
+                    </div>
+                    <div className="glass-light rounded-lg px-3 py-2.5 text-center">
+                        <p className="text-sm font-display font-bold text-white">Telegram</p>
+                        <p className="text-[10px] font-mono text-gray-500">setup included</p>
+                    </div>
+                </div>
+
+                {/* CTA */}
+                <div className="border-t border-white/[0.04] px-5 py-4">
+                    <button
+                        onClick={() => onStart({})}
+                        className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+                    >
+                        <Send size={14} />
+                        Start interview to get yours
+                        <ArrowRight size={14} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode }) {
     const [selectedIndustry, setSelectedIndustry] = useState(null);
 
@@ -240,6 +413,9 @@ export default function EasyClawLanding({ onStart, onDemo, onResume, onDemoMode 
                             ))}
                         </div>
                     </div>
+
+                    {/* See What You'll Get — Sample Guide Showcase */}
+                    <SampleGuideShowcase onStart={onStart} />
 
                     {/* CTA */}
                     <div className="animate-fade-up opacity-0 delay-300 mt-6 flex flex-col sm:flex-row items-center gap-4">

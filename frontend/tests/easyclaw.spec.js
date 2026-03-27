@@ -4,10 +4,10 @@ import { test, expect } from '@playwright/test';
 const BASE = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 
 // Helper: load a demo guide and wait for output view
-async function loadDemoGuide(page, demoName = 'Restaurant Operations') {
+async function loadDemoGuide(page, demoName = 'Scouts Coffee') {
     await page.goto(BASE);
     await page.locator('button', { hasText: demoName }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Your Setup Guide', { exact: true })).toBeVisible({ timeout: 15000 });
 }
 
 // ───────────────────────────────────────────
@@ -81,7 +81,7 @@ test('output tabs — switching between Guide, References, Prompts', async ({ pa
 
     // Click back to Guide tab
     await page.locator('button', { hasText: 'Setup Guide' }).click();
-    await expect(page.locator('text=Your Setup Guide')).toBeVisible();
+    await expect(page.getByText('Your Setup Guide', { exact: true })).toBeVisible();
 });
 
 // ───────────────────────────────────────────

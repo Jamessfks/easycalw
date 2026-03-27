@@ -469,7 +469,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
         }
     };
 
-    if (!guideData || guideData.status === 'error') {
+    if (!guideData || guideData.status === 'error' || guideData.status === 'not_found') {
         const err = categorizeError(guideData?.message);
         const ErrIcon = err.icon;
         const errColorClasses = {
