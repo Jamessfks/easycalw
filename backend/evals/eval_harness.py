@@ -40,15 +40,23 @@ class CodeGraderResult:
     skill_slugs_valid: bool
     invalid_slugs: list[str] = field(default_factory=list)
     no_todos: bool = True
+    callout_count: int = 0
+    callout_count_pass: bool = False
+    has_personalization: bool = False
+    cli_verification_count: int = 0
+    has_cli_verification: bool = False
+    has_prepared_for_header: bool = False
     passed: bool = False
 
     def __post_init__(self):
+        self.callout_count_pass = self.callout_count >= 3
         self.passed = (
             self.section_count_pass
             and self.word_count_pass
             and self.has_prompts_to_send
             and self.skill_slugs_valid
             and self.no_todos
+            and self.callout_count_pass
         )
 
 
@@ -121,7 +129,11 @@ def _load_valid_slugs() -> set[str]:
     return table_slugs | install_slugs
 
 
-def grade_code(guide_text: str, prompts_text: Optional[str]) -> CodeGraderResult:
+def grade_code(
+    guide_text: str,
+    prompts_text: Optional[str],
+    transcript_text: Optional[str] = None,
+) -> CodeGraderResult:
     """Deterministic grading of guide output."""
     # Section count: look for ## 00 through ## 10 headers
     section_headers = re.findall(r'^## \d{2}\s*\|', guide_text, re.MULTILINE)
@@ -145,6 +157,52 @@ def grade_code(guide_text: str, prompts_text: Optional[str]) -> CodeGraderResult
     todo_matches = re.findall(r'\bTODO\b|\bPLACEHOLDER\b', guide_text, re.IGNORECASE)
     no_todos = len(todo_matches) == 0
 
+    # Callout boxes: > **WARNING**, > **TIP**, > **ACTION** (and ⚠️/💡/🎯 variants)
+    callout_patterns = re.findall(
+        r'^>\s*\*\*(?:WARNING|TIP|ACTION|NOTE|IMPORTANT|CAUTION)\b',
+        guide_text,
+        re.MULTILINE | re.IGNORECASE,
+    )
+    emoji_callouts = re.findall(
+        r'^>\s*[⚠️💡🎯🔴🟡✅❗]\s',
+        guide_text,
+        re.MULTILINE,
+    )
+    callout_count = len(callout_patterns) + len(emoji_callouts)
+
+    # Personalization: check if guide references user's name or business from transcript
+    has_personalization = False
+    if transcript_text:
+        # Extract likely names/business from transcript (lines with "name" or "business")
+        name_matches = re.findall(
+            r'(?:my name is|I\'m|name:\s*|business.*?called|company.*?called)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)',
+            transcript_text,
+            re.IGNORECASE,
+        )
+        for name in name_matches:
+            if name.strip() and len(name.strip()) > 2 and name.strip().lower() in guide_text.lower():
+                has_personalization = True
+                break
+    # Also check for PREPARED FOR header containing a name
+    if re.search(r'PREPARED FOR.*\|.*[A-Z][a-z]+', guide_text):
+        has_personalization = True
+
+    # CLI verification steps: look for "Verify:" or "Expected output:" after commands
+    cli_verifications = re.findall(
+        r'(?:Verify(?::|[- ])|Expected output:|Expected result:|You should see:)',
+        guide_text,
+        re.IGNORECASE,
+    )
+    cli_verification_count = len(cli_verifications)
+    has_cli_verification = cli_verification_count > 0
+
+    # PREPARED FOR header table
+    has_prepared_for_header = bool(re.search(
+        r'PREPARED FOR',
+        guide_text,
+        re.IGNORECASE,
+    ))
+
     return CodeGraderResult(
         section_count=section_count,
         section_count_pass=section_count >= 6,
@@ -154,6 +212,11 @@ def grade_code(guide_text: str, prompts_text: Optional[str]) -> CodeGraderResult
         skill_slugs_valid=len(invalid) == 0,
         invalid_slugs=sorted(invalid),
         no_todos=no_todos,
+        callout_count=callout_count,
+        cli_verification_count=cli_verification_count,
+        has_cli_verification=has_cli_verification,
+        has_personalization=has_personalization,
+        has_prepared_for_header=has_prepared_for_header,
     )
 
 
@@ -285,7 +348,7 @@ async def run_eval(
             # Continue with empty output — graders will score accordingly
 
     # Run all three graders
-    code_result = grade_code(guide_text, prompts_text)
+    code_result = grade_code(guide_text, prompts_text, transcript_text)
 
     llm_result = await grade_llm(guide_text, transcript_text) if guide_text else LLMGraderResult(
         error="No guide text to evaluate", passed=False
