@@ -31,10 +31,10 @@ def _anthropic_available() -> bool:
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     return bool(key) and not key.startswith("not-needed")
 
-async def generate_guide_smart(formatted_transcript: str, event_queue=None, guide_id=None) -> dict:
+async def generate_guide_smart(formatted_transcript: str, event_queue=None, guide_id=None, selected_outputs: list[str] | None = None) -> dict:
     """Auto-select Claude or Gemini based on API key availability."""
     if _anthropic_available():
-        return await generate_guide(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
+        return await generate_guide(formatted_transcript, event_queue=event_queue, guide_id=guide_id, selected_outputs=selected_outputs)
     else:
         logger.warning("[GUIDE] Anthropic key unavailable — using Gemini 2.5 Pro fallback")
         return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
@@ -280,6 +280,7 @@ class FormatRequest(BaseModel):
 
 class GenerateGuideRequest(BaseModel):
     formatted_transcript: str
+    selected_outputs: list[str] = ["setup_guide", "prompts", "reference_docs"]
 
     @field_validator("formatted_transcript")
     @classmethod
@@ -306,7 +307,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Background Task Runner
 # ========================================
 
-async def _run_guide_agent(guide_id: str, formatted_transcript: str):
+async def _run_guide_agent(guide_id: str, formatted_transcript: str, selected_outputs: list[str] | None = None):
     """Run the Setup Guide Agent in the background.
 
     Streams progress events to an asyncio.Queue (if an SSE client is connected),
@@ -314,7 +315,7 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
     """
     event_queue = _event_queues.get(guide_id)
     try:
-        result = await generate_guide_smart(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
+        result = await generate_guide_smart(formatted_transcript, event_queue=event_queue, guide_id=guide_id, selected_outputs=selected_outputs)
         # Attach scorecard to completed guides
         if result.get("status") == "complete" and result.get("outputs"):
             result["scorecard"] = compute_scorecard(result["outputs"])
@@ -490,7 +491,7 @@ async def generate_guide_endpoint(
     # Create event queue for SSE streaming
     _event_queues[guide_id] = asyncio.Queue()
 
-    background_tasks.add_task(_run_guide_agent, guide_id, req.formatted_transcript)
+    background_tasks.add_task(_run_guide_agent, guide_id, req.formatted_transcript, req.selected_outputs)
 
     return {"guide_id": guide_id, "status": "generating"}
 
@@ -583,8 +584,9 @@ async def get_guide(guide_id: str):
     guide_dir = os.path.join(
         os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output"), guide_id
     )
-    guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
-    if os.path.isfile(guide_file):
+    guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.txt")
+    guide_file_md = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
+    if os.path.isfile(guide_file) or os.path.isfile(guide_file_md):
         result = _load_guide_from_disk(guide_id, guide_dir)
         await guide_store.set(guide_id, result)
         return result
@@ -641,8 +643,14 @@ def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
         except FileNotFoundError:
             return ""
 
-    setup_guide = _read(os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md"))
-    prompts = _read(os.path.join(guide_dir, "prompts_to_send.md"))
+    # Prefer .txt, fall back to .md
+    setup_txt = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.txt")
+    setup_md = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
+    setup_guide = _read(setup_txt) if os.path.isfile(setup_txt) else _read(setup_md)
+
+    prompts_txt = os.path.join(guide_dir, "prompts_to_send.txt")
+    prompts_md = os.path.join(guide_dir, "prompts_to_send.md")
+    prompts = _read(prompts_txt) if os.path.isfile(prompts_txt) else _read(prompts_md)
 
     ref_docs = []
     ref_dir = os.path.join(guide_dir, "reference_documents")

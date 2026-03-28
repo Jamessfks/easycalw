@@ -13,7 +13,7 @@ const MAX_POLL_ATTEMPTS = 200;
  *
  * Returns { guideData, loading, progress }
  */
-export default function useGuideStream(formattedTranscript) {
+export default function useGuideStream(formattedTranscript, selectedOutputs) {
     const [guideData, setGuideData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [progress, setProgress] = useState({
@@ -22,6 +22,7 @@ export default function useGuideStream(formattedTranscript) {
         maxTurns: 40,
         cost: 0,
         tokens: 0,
+        docStatuses: {},
     });
 
     const eventSourceRef = useRef(null);
@@ -43,7 +44,10 @@ export default function useGuideStream(formattedTranscript) {
                 const res = await fetch(`${API_BASE}/generate-guide`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ formatted_transcript: formattedTranscript }),
+                    body: JSON.stringify({
+                        formatted_transcript: formattedTranscript,
+                        ...(selectedOutputs ? { selected_outputs: selectedOutputs } : {}),
+                    }),
                 });
 
                 if (!res.ok) {
@@ -70,11 +74,25 @@ export default function useGuideStream(formattedTranscript) {
                         receivedEventsRef.current = true;
                         const payload = JSON.parse(e.data);
                         setProgress(prev => ({
+                            ...prev,
                             stage: payload.stage || prev.stage,
                             turn: payload.turn ?? prev.turn,
                             maxTurns: payload.max_turns ?? prev.maxTurns,
                             cost: payload.cost ?? prev.cost,
                             tokens: payload.tokens ?? prev.tokens,
+                        }));
+                    });
+
+                    es.addEventListener('doc_status', (e) => {
+                        if (cancelled) return;
+                        receivedEventsRef.current = true;
+                        const payload = JSON.parse(e.data);
+                        setProgress(prev => ({
+                            ...prev,
+                            docStatuses: {
+                                ...prev.docStatuses,
+                                [payload.doc]: { status: payload.status, chars: payload.chars, count: payload.count },
+                            },
                         }));
                     });
 

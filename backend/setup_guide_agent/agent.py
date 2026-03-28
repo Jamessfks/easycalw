@@ -7,9 +7,9 @@ in a per-session directory. The agent has:
 - WRITE access to the output directory only (/tmp/openclaw-guides/<id>/)
 
 Output files:
-- OPENCLAW_ENGINE_SETUP_GUIDE.md (main deliverable)
-- reference_documents/*.md (conditional sub-setup docs)
-- prompts_to_send.md (messages to initialize the user's OpenClaw instance)
+- OPENCLAW_ENGINE_SETUP_GUIDE.txt (main deliverable)
+- reference_documents/*.txt (conditional sub-setup docs)
+- prompts_to_send.txt (messages to initialize the user's OpenClaw instance)
 """
 
 import os
@@ -62,7 +62,6 @@ def _load_system_prompt() -> str:
 
 def _classify_stage(msg) -> str:
     """Map an intermediate agent message to a human-readable stage label."""
-    # Try to extract what the agent is doing from the message
     cls_name = type(msg).__name__
 
     if cls_name == "TaskStartedMessage":
@@ -83,10 +82,66 @@ def _classify_stage(msg) -> str:
     return "Working..."
 
 
+def _detect_doc_status(output_dir: Path) -> list[dict]:
+    """Check which output docs exist and their sizes. Returns doc_status events."""
+    statuses = []
+    guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.txt"
+    if not guide_path.exists():
+        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
+    if guide_path.exists():
+        statuses.append({"type": "doc_status", "doc": "setup_guide", "status": "complete", "chars": len(guide_path.read_text())})
+
+    prompts_path = output_dir / "prompts_to_send.txt"
+    if not prompts_path.exists():
+        prompts_path = output_dir / "prompts_to_send.md"
+    if prompts_path.exists():
+        statuses.append({"type": "doc_status", "doc": "prompts", "status": "complete", "chars": len(prompts_path.read_text())})
+
+    ref_dir = output_dir / "reference_documents"
+    if ref_dir.is_dir():
+        ref_files = list(ref_dir.glob("*.txt")) + list(ref_dir.glob("*.md"))
+        if ref_files:
+            total_chars = sum(len(f.read_text()) for f in ref_files)
+            statuses.append({"type": "doc_status", "doc": "reference_docs", "status": "complete", "chars": total_chars, "count": len(ref_files)})
+
+    return statuses
+
+
+def _build_selection_instruction(selected_outputs: list[str] | None) -> str:
+    """Build a prompt instruction limiting which output files the agent generates."""
+    if not selected_outputs:
+        return ""
+    sel = set(selected_outputs)
+    all_three = {"setup_guide", "prompts", "reference_docs"}
+    if sel >= all_three:
+        return ""  # default — generate everything
+
+    parts = []
+    if "setup_guide" in sel:
+        parts.append("OPENCLAW_ENGINE_SETUP_GUIDE.txt")
+    if "prompts" in sel:
+        parts.append("prompts_to_send.txt")
+    if "reference_docs" in sel:
+        parts.append("reference_documents/*.txt")
+
+    skip = []
+    if "prompts" not in sel:
+        skip.append("prompts_to_send.txt")
+    if "reference_docs" not in sel:
+        skip.append("reference_documents/")
+
+    instruction = f"\n\n⚠️ SELECTIVE GENERATION: Generate ONLY {', '.join(parts)}."
+    if skip:
+        instruction += f" Do NOT generate {', '.join(skip)}."
+    instruction += " This saves budget — skip reading/planning for excluded outputs.\n"
+    return instruction
+
+
 async def generate_guide(
     formatted_transcript: str,
     event_queue = None,
     guide_id: str = None,
+    selected_outputs: list[str] | None = None,
 ) -> dict:
     """Generate an OpenClaw setup guide from a formatted interview transcript.
     Falls back to Gemini if Claude Agent SDK is unavailable.
@@ -157,6 +212,8 @@ async def generate_guide(
                 f"the knowledge base if needed.\n\n"
             )
 
+        selection_instruction = _build_selection_instruction(selected_outputs)
+
         async for msg in query(
             prompt=(
                 f"Your working directory contains INTERVIEW_TRANSCRIPT.md — the formatted "
@@ -176,9 +233,10 @@ async def generate_guide(
                 f"- templates/images/ — UI screenshot images (image1.png through image12.png) that illustrate the onboarding flow\n\n"
                 f"{semantic_block}"
                 f"Generate these output files in your working directory:\n"
-                f"1. OPENCLAW_ENGINE_SETUP_GUIDE.md — the master setup guide\n"
-                f"2. reference_documents/*.md — sub-step docs for complex procedures\n"
-                f"3. prompts_to_send.md — initialization prompts for the user's OpenClaw\n\n"
+                f"1. OPENCLAW_ENGINE_SETUP_GUIDE.txt — the master setup guide\n"
+                f"2. reference_documents/*.txt — sub-step docs for complex procedures\n"
+                f"3. prompts_to_send.txt — initialization prompts for the user's OpenClaw\n\n"
+                f"{selection_instruction}"
                 f"Start by reading the transcript, then explore the knowledge base, "
                 f"then generate all output files."
             ),
@@ -233,6 +291,12 @@ async def generate_guide(
                     "tokens": tokens,
                     "duration_ms": duration,
                 })
+
+                # Emit doc_status events when agent writes files
+                last_tool = getattr(msg, "last_tool_name", None) if hasattr(msg, "last_tool_name") else None
+                if last_tool == "Write":
+                    for doc_event in _detect_doc_status(output_dir):
+                        await event_queue.put(doc_event)
 
         # Collect all output files the agent wrote
         outputs = _collect_outputs(output_dir)
@@ -328,35 +392,52 @@ async def generate_guide(
 
 
 def _collect_outputs(output_dir: Path) -> dict:
-    """Walk the output directory and collect all generated files."""
+    """Walk the output directory and collect all generated files (.txt preferred, .md fallback)."""
     outputs = {
         "setup_guide": None,
         "reference_documents": [],
         "prompts_to_send": None,
     }
 
-    guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
-    if guide_path.exists():
-        outputs["setup_guide"] = guide_path.read_text()
+    # Setup guide — prefer .txt, fall back to .md
+    for ext in (".txt", ".md"):
+        guide_path = output_dir / f"OPENCLAW_ENGINE_SETUP_GUIDE{ext}"
+        if guide_path.exists():
+            outputs["setup_guide"] = guide_path.read_text()
+            break
 
+    # Reference documents — collect both .txt and .md
     ref_dir = output_dir / "reference_documents"
     if ref_dir.is_dir():
-        for f in sorted(ref_dir.glob("*.md")):
-            outputs["reference_documents"].append({
-                "name": f.name,
-                "content": f.read_text(),
-            })
+        seen = set()
+        for ext in ("*.txt", "*.md"):
+            for f in sorted(ref_dir.glob(ext)):
+                stem = f.stem
+                if stem not in seen:
+                    seen.add(stem)
+                    outputs["reference_documents"].append({
+                        "name": f.name,
+                        "content": f.read_text(),
+                    })
 
-    prompts_path = output_dir / "prompts_to_send.md"
-    if prompts_path.exists():
-        outputs["prompts_to_send"] = prompts_path.read_text()
+    # Prompts — prefer .txt, fall back to .md
+    for ext in (".txt", ".md"):
+        prompts_path = output_dir / f"prompts_to_send{ext}"
+        if prompts_path.exists():
+            outputs["prompts_to_send"] = prompts_path.read_text()
+            break
 
-    known = {"INTERVIEW_TRANSCRIPT.md", "OPENCLAW_ENGINE_SETUP_GUIDE.md", "prompts_to_send.md"}
-    for f in output_dir.glob("*.md"):
-        if f.name not in known:
-            outputs.setdefault("other_files", []).append({
-                "name": f.name,
-                "content": f.read_text(),
-            })
+    known = {
+        "INTERVIEW_TRANSCRIPT.md",
+        "OPENCLAW_ENGINE_SETUP_GUIDE.md", "OPENCLAW_ENGINE_SETUP_GUIDE.txt",
+        "prompts_to_send.md", "prompts_to_send.txt",
+    }
+    for pattern in ("*.md", "*.txt"):
+        for f in output_dir.glob(pattern):
+            if f.name not in known:
+                outputs.setdefault("other_files", []).append({
+                    "name": f.name,
+                    "content": f.read_text(),
+                })
 
     return outputs

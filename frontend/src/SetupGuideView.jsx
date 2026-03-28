@@ -3,8 +3,8 @@ import useGuideStream from './useGuideStream';
 import LoadingScreen from './components/LoadingScreen';
 import OutputDisplay from './components/OutputDisplay';
 
-export default function SetupGuideView({ transcriptData, onBack, onRestart }) {
-    const { guideData, loading, progress } = useGuideStream(transcriptData);
+export default function SetupGuideView({ transcriptData, selectedOutputs, onBack, onRestart }) {
+    const { guideData, loading, progress } = useGuideStream(transcriptData, selectedOutputs);
 
     if (loading) {
         return <LoadingScreen progress={progress} />;

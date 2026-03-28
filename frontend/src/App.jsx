@@ -8,6 +8,7 @@ import SetupGuideView from './SetupGuideView';
 import OutputDisplay from './components/OutputDisplay';
 import LoadingScreen from './components/LoadingScreen';
 import GuidePageView from './GuidePageView';
+import OutputSelector from './OutputSelector';
 import { getTranscriptBackup, clearTranscriptBackup } from './lib/transcriptBackup';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -60,6 +61,7 @@ function RecoveryBanner({ backup, onRecover, onDismiss }) {
 function MainFlow() {
     const [phase, setPhase] = useState('landing');
     const [transcriptData, setTranscriptData] = useState(null);
+    const [selectedOutputs, setSelectedOutputs] = useState(null);
     const [mockGuide, setMockGuide] = useState(null);
     const [recoveryBanner, setRecoveryBanner] = useState(null);
 
@@ -80,7 +82,7 @@ function MainFlow() {
         if (recoveryBanner?.formattedTranscript) {
             setTranscriptData(recoveryBanner.formattedTranscript);
             setRecoveryBanner(null);
-            setPhase('processing');
+            setPhase('selecting');
         }
     }, [recoveryBanner]);
 
@@ -96,6 +98,11 @@ function MainFlow() {
 
     const handleInterviewComplete = useCallback((transcript) => {
         setTranscriptData(transcript);
+        setPhase('selecting');
+    }, []);
+
+    const handleOutputSelection = useCallback((outputs) => {
+        setSelectedOutputs(outputs);
         setPhase('processing');
     }, []);
 
@@ -153,7 +160,7 @@ function MainFlow() {
 
     const handleResume = useCallback((formattedTranscript) => {
         setTranscriptData(formattedTranscript);
-        setPhase('processing');
+        setPhase('selecting');
     }, []);
 
     const handleRestart = useCallback(() => {
@@ -215,6 +222,15 @@ function MainFlow() {
         );
     }
 
+    if (phase === 'selecting') {
+        return (
+            <OutputSelector
+                onGenerate={handleOutputSelection}
+                onBack={() => setPhase('landing')}
+            />
+        );
+    }
+
     if (phase === 'mock-loading') {
         return <LoadingScreen isDemo />;
     }
@@ -233,6 +249,7 @@ function MainFlow() {
         <>
             <SetupGuideView
                 transcriptData={transcriptData}
+                selectedOutputs={selectedOutputs}
                 onBack={handleRestart}
                 onRestart={handleRestart}
             />
