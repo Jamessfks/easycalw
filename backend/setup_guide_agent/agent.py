@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Setup Guide Creation Agent — Claude Agent SDK.
 
 Takes the formatted interview transcript and produces output files

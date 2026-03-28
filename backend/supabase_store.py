@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Supabase-backed guide store — drop-in replacement for in-memory dict.
 
 Usage:
