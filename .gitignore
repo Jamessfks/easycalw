@@ -163,6 +163,7 @@ coverage.xml
 *.cover
 *.py,cover
 test_results/
+test-results/
 
 # =========================
 # Build outputs

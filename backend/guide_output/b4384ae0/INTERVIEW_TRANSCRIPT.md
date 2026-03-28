@@ -1,1 +1,0 @@
-Formatted transcript: User is Marco, a freelance web developer in Austin. Uses VS Code, GitHub, and Linear for project management. Wants AI agent to summarize daily tasks, monitor GitHub PRs, and send morning briefings. Mac Mini dedicated, Telegram channel, technically advanced.
