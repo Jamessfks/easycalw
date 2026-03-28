@@ -111,6 +111,21 @@ frontend/
 docs/
 ├── architecture.md                 # MUST READ before coding
 └── design-considerations.md        # MUST READ before coding
+
+knowledge/                             # Team knowledge base — update after every significant decision
+├── state.md                           # MUST READ for business context — current state of everything
+├── team.md                            # Roles, perspectives, who thinks what
+├── customers.md                       # Customer interaction insights (append after every conversation)
+├── decisions.md                       # Decision log with context (append-only)
+├── debates.md                         # Open disagreements to resolve
+├── vision.md                          # Product vision (evolving)
+├── roadmap.md                         # Timeline and priorities
+└── competitive/                       # Market research (3-layer analysis)
+    ├── setup-layer.md                 # 24 OpenClaw hosting providers
+    ├── upgrade-layer.md               # 34 companies across consulting/platforms
+    ├── observability-layer.md         # Layer 3 analysis (24 tools)
+    ├── positioning-matrix.md          # Cross-layer positioning + market map
+    └── differentiation.md             # What's defensible vs. reproducible
 ```
 
 ---
@@ -160,6 +175,8 @@ cd frontend && npm install && npm run dev
 - Add pause/resume (deferred to post-MVP)
 - Use sync LLM calls inside async FastAPI handlers (use asyncio.to_thread)
 - Break the `/webhook` endpoint signature or response format
+- Make product/business decisions without checking `knowledge/state.md` and `knowledge/debates.md` first
+- Modify knowledge base files without understanding the current team state
 
 ---
 
@@ -193,4 +210,69 @@ response = await asyncio.to_thread(
 
 ---
 
-*AGENTS.md updated 2026-03-26. Previous version was stale.*
+---
+
+## 10. Project context awareness
+
+### Before starting work that involves domain thinking
+
+Any task that requires business context, UI decisions, or broad architectural choices — not just pure code edits — should start with context gathering. The knowledge base is too large to read entirely into one context window, so use this pattern:
+
+**Step 1: Always read `knowledge/state.md`.** This is the 40-line snapshot that tells you where the project is at. Read it directly — it's small enough.
+
+**Step 2: For anything deeper, use a sub-agent.** Launch an Explore sub-agent to read the specific knowledge files relevant to your task. Examples:
+
+- Building a pricing UI? → Sub-agent reads `knowledge/debates.md` (pricing debate), `knowledge/customers.md` (Michael's $5K reference), `knowledge/competitive/positioning-matrix.md` (price gaps)
+- Changing the output format? → Sub-agent reads `knowledge/debates.md` (output format debate), `knowledge/decisions.md` (copy-paste prompts decision), `knowledge/vision.md` (what we're selling)
+- Adding a new feature? → Sub-agent reads `knowledge/roadmap.md` (is this in scope?), `knowledge/team.md` (who thinks what about this area), `knowledge/state.md` (current priorities)
+
+The sub-agent returns a summary of relevant context. This keeps the main context window focused on implementation while ensuring decisions align with team state.
+
+**Step 3: When in doubt, check `knowledge/debates.md`.** If your task touches an area where the team has an open disagreement, surface it to the user before implementing. Don't silently pick a side.
+
+### Knowledge file routing guide
+
+| You need to know about... | Read these files |
+|---------------------------|-----------------|
+| Current state / priorities | `state.md` |
+| Who thinks what | `team.md` |
+| Past decisions and why | `decisions.md` |
+| Open disagreements | `debates.md` |
+| Customer insights | `customers.md` |
+| Product direction | `vision.md` |
+| What's next / timeline | `roadmap.md` |
+| Market positioning | `competitive/positioning-matrix.md` |
+| Competitor details | `competitive/setup-layer.md`, `upgrade-layer.md`, `observability-layer.md` |
+| Defensibility | `competitive/differentiation.md` |
+
+---
+
+## 11. Knowledge base write-back
+
+When working on this codebase, keep the knowledge base in sync:
+
+- **Decision made?** → Append to `knowledge/decisions.md` with date, decision, why, who agreed
+- **Disagreement surfaced?** → Update `knowledge/debates.md` with each person's position
+- **Customer interaction?** → Append to `knowledge/customers.md` with insights extracted
+- **Overall state changed?** → Update `knowledge/state.md` snapshot
+- **New business context?** → Read `knowledge/state.md` first before proceeding
+
+### Prompting the user
+
+**When you detect that a conversation has produced a new decision, insight, or shift in thinking, explicitly ask the user:**
+
+> "This looks like a [decision / new customer insight / resolved debate / vision change]. Should I update `knowledge/[file]` to capture this?"
+
+Do not silently update knowledge files. Do not silently skip updating them either. Always surface it. The knowledge base grows as the team grows — it should reflect the current state of thinking at all times.
+
+Examples of when to prompt:
+- User says "let's go with X approach" → "Should I log this as a decision in decisions.md?"
+- User shares feedback from a customer call → "Should I add these insights to customers.md?"
+- User changes their mind on an open debate → "Should I update debates.md to reflect this?"
+- A feature ships that changes the project state → "Should I update state.md and roadmap.md?"
+
+The knowledge base is the team's shared brain. Any chat should be able to read `state.md` and know exactly where things stand.
+
+---
+
+*AGENTS.md updated 2026-03-27.*
