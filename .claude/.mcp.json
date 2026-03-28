@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=${SUPABASE_PROJECT_REF}",
+      "headers": {
+        "Authorization": "Bearer ${SUPABASE_ACCESS_TOKEN}"
+      }
+    },
+    "railway": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@railway/mcp-server"]
+    },
+    "vapi": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@vapi-ai/mcp-server"],
+      "env": {
+        "VAPI_API_KEY": "${VAPI_API_KEY}"
+      }
+    }
+  }
+}
