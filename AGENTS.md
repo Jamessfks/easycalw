@@ -4,13 +4,40 @@
 
 ---
 
-## 1. Source of truth (read order)
+## 1. Source of truth (two tiers)
+
+This project has two knowledge tiers. Which ones you read depends on what you're doing.
+
+### Engineering context — how the system works
 
 | Priority | Document | What you take from it |
 |----------|----------|----------------------|
-| 1 | `docs/architecture.md` | System architecture, Vapi integration, project structure, data flow |
-| 2 | `docs/design-considerations.md` | Engineering decisions, UI specs, open questions, what's deferred |
-| 3 | This file (`AGENTS.md`) | Invariants, file paths, build order, do-not rules |
+| 1 | `docs/architecture.md` | System architecture, Vapi integration, data flow, endpoints |
+| 2 | `docs/design-considerations.md` | Engineering decisions, UI specs, what's deferred |
+| 3 | This file (`AGENTS.md`) | Invariants, file paths, do-not rules |
+| Ref | `docs/vapi-system-prompt-v3.md` | How the interview agent talks to users (current prompt) |
+| Ref | `docs/vapi-kb-capabilities-overview.md` | What the interview agent knows about OpenClaw |
+| Ref | `docs/vapi-prompt-audit.md` | Known issues and improvement backlog for interview prompt |
+
+### Business context — why we're building what, where we are
+
+| Priority | Document | What you take from it |
+|----------|----------|----------------------|
+| 1 | `knowledge/state.md` | Current snapshot — read this for ANY non-trivial task |
+| 2 | `knowledge/decisions.md` | Past decisions with reasoning and who agreed |
+| 3 | `knowledge/debates.md` | Open disagreements — check before picking a side |
+| As needed | `knowledge/vision.md`, `team.md`, `customers.md`, `roadmap.md` | Product direction, team perspectives, customer insights, timeline |
+| As needed | `knowledge/competitive/*` | Market positioning, competitor analysis, defensibility |
+
+### When to read which tier
+
+| Task type | What to load |
+|-----------|-------------|
+| Bug fix / refactor | Engineering tier only |
+| New feature | **Both tiers** — engineering for feasibility, business for alignment |
+| UI/UX change | **Both** — `docs/design-considerations.md` + `knowledge/debates.md` + `knowledge/vision.md` |
+| Business decision | Business tier primarily, `docs/architecture.md` for feasibility |
+| Prompt engineering | `docs/vapi-*` files + `knowledge/customers.md` + `knowledge/vision.md` |
 
 ---
 
@@ -108,9 +135,13 @@ frontend/
 │       ├── DemoNavigator.jsx       # Demo guide browser
 │       └── ErrorBoundary.jsx       # Error fallback
 
-docs/
-├── architecture.md                 # MUST READ before coding
-└── design-considerations.md        # MUST READ before coding
+docs/                                   # Engineering context — MUST READ before coding
+├── architecture.md                     # System architecture, data flow, endpoints
+├── design-considerations.md            # Engineering decisions, UI specs, deferred items
+├── vapi-system-prompt-v3.md            # Interview agent prompt (current version)
+├── vapi-kb-capabilities-overview.md    # What interview agent knows about OpenClaw capabilities
+├── vapi-prompt-audit.md                # Interview prompt improvement backlog (10 issues)
+└── diagrams/                           # System flow diagrams (Mermaid + PNG)
 
 knowledge/                             # Team knowledge base — update after every significant decision
 ├── state.md                           # MUST READ for business context — current state of everything
@@ -214,36 +245,57 @@ response = await asyncio.to_thread(
 
 ## 10. Project context awareness
 
-### Before starting work that involves domain thinking
+### Classify your task first
 
-Any task that requires business context, UI decisions, or broad architectural choices — not just pure code edits — should start with context gathering. The knowledge base is too large to read entirely into one context window, so use this pattern:
+Before starting work, determine what context you need (see Section 1 for the full tier table):
 
-**Step 1: Always read `knowledge/state.md`.** This is the 40-line snapshot that tells you where the project is at. Read it directly — it's small enough.
+| Task type | Context to load |
+|-----------|----------------|
+| Bug fix / refactor | Engineering tier: `docs/architecture.md`, `docs/design-considerations.md` |
+| New feature | **Both tiers** — use a sub-agent to gather from docs/ and knowledge/ |
+| UI/UX change | **Both** — `docs/design-considerations.md` + `knowledge/debates.md` + `knowledge/vision.md` |
+| Business decision | Business tier primarily, `docs/architecture.md` for feasibility check |
+| Prompt engineering | `docs/vapi-*` + `knowledge/customers.md` + `knowledge/vision.md` |
 
-**Step 2: For anything deeper, use a sub-agent.** Launch an Explore sub-agent to read the specific knowledge files relevant to your task. Examples:
+### Context gathering steps
 
-- Building a pricing UI? → Sub-agent reads `knowledge/debates.md` (pricing debate), `knowledge/customers.md` (Michael's $5K reference), `knowledge/competitive/positioning-matrix.md` (price gaps)
-- Changing the output format? → Sub-agent reads `knowledge/debates.md` (output format debate), `knowledge/decisions.md` (copy-paste prompts decision), `knowledge/vision.md` (what we're selling)
-- Adding a new feature? → Sub-agent reads `knowledge/roadmap.md` (is this in scope?), `knowledge/team.md` (who thinks what about this area), `knowledge/state.md` (current priorities)
+**Step 1: Always read `knowledge/state.md`.** This is the 40-line snapshot. Read it directly for any non-trivial task — it's small enough to always fit.
 
-The sub-agent returns a summary of relevant context. This keeps the main context window focused on implementation while ensuring decisions align with team state.
+**Step 2: For anything beyond a pure bug fix, use a sub-agent.** Launch an Explore sub-agent to read the specific files from BOTH `docs/` and `knowledge/` relevant to your task. The sub-agent returns a summary so the main context stays focused on implementation.
 
-**Step 3: When in doubt, check `knowledge/debates.md`.** If your task touches an area where the team has an open disagreement, surface it to the user before implementing. Don't silently pick a side.
+Examples of cross-tier context gathering:
 
-### Knowledge file routing guide
+- **Adding a text input feature?** → Sub-agent reads `knowledge/debates.md` (voice vs text debate), `docs/architecture.md` (how voice currently flows through Vapi → formatter → agent), `knowledge/decisions.md` (voice-first decision), `docs/design-considerations.md` (what's deferred)
+
+- **Changing the output format?** → Sub-agent reads `knowledge/debates.md` (output format debate), `knowledge/vision.md` (what we're selling), `knowledge/decisions.md` (copy-paste prompts decision), `docs/architecture.md` (how guide agent produces output)
+
+- **Adding a new API endpoint?** → Sub-agent reads `docs/architecture.md` (existing endpoints, webhook contract), `AGENTS.md` section 4 (invariants — don't break /webhook), `knowledge/state.md` (current priorities)
+
+- **Improving the interview agent?** → Sub-agent reads `docs/vapi-system-prompt-v3.md` (current prompt), `docs/vapi-prompt-audit.md` (known issues), `docs/vapi-kb-capabilities-overview.md` (what it knows), `knowledge/customers.md` (what real users said)
+
+- **Making a pricing or GTM decision?** → Sub-agent reads `knowledge/debates.md` (pricing debate), `knowledge/customers.md` (Michael's $5K reference), `knowledge/competitive/positioning-matrix.md` (market gaps), `docs/architecture.md` (what's technically feasible today)
+
+**Step 3: Check for open debates.** If your task touches an area where the team has an unresolved disagreement in `knowledge/debates.md`, surface it to the user before implementing. Don't silently pick a side.
+
+### Full routing guide
 
 | You need to know about... | Read these files |
 |---------------------------|-----------------|
-| Current state / priorities | `state.md` |
-| Who thinks what | `team.md` |
-| Past decisions and why | `decisions.md` |
-| Open disagreements | `debates.md` |
-| Customer insights | `customers.md` |
-| Product direction | `vision.md` |
-| What's next / timeline | `roadmap.md` |
-| Market positioning | `competitive/positioning-matrix.md` |
-| Competitor details | `competitive/setup-layer.md`, `upgrade-layer.md`, `observability-layer.md` |
-| Defensibility | `competitive/differentiation.md` |
+| System architecture / feasibility | `docs/architecture.md` |
+| Engineering decisions / deferred work | `docs/design-considerations.md` |
+| How the interview agent works | `docs/vapi-system-prompt-v3.md` |
+| Interview agent capabilities | `docs/vapi-kb-capabilities-overview.md` |
+| Interview prompt improvement areas | `docs/vapi-prompt-audit.md` |
+| Current state / priorities | `knowledge/state.md` |
+| Who thinks what | `knowledge/team.md` |
+| Past decisions and why | `knowledge/decisions.md` |
+| Open disagreements | `knowledge/debates.md` |
+| Customer insights | `knowledge/customers.md` |
+| Product direction | `knowledge/vision.md` |
+| What's next / timeline | `knowledge/roadmap.md` |
+| Market positioning | `knowledge/competitive/positioning-matrix.md` |
+| Competitor details | `knowledge/competitive/setup-layer.md`, `upgrade-layer.md`, `observability-layer.md` |
+| Defensibility | `knowledge/competitive/differentiation.md` |
 
 ---
 
@@ -275,4 +327,4 @@ The knowledge base is the team's shared brain. Any chat should be able to read `
 
 ---
 
-*AGENTS.md updated 2026-03-27.*
+*AGENTS.md updated 2026-03-28. Added two-tier context routing (docs/ + knowledge/).*
