@@ -19,11 +19,11 @@ const COLOR_MAP = {
 
 // Static fallback in case /demos endpoint is slow
 const FALLBACK_DEMOS = [
-    { demo_id: 'demo-restaurant', title: 'Restaurant Operations', subtitle: 'Multi-location scheduling & daily briefings', category: 'Small Business', icon: 'utensils', color: 'amber' },
-    { demo_id: 'demo-devops', title: 'Autonomous Dev Agent', subtitle: 'CI/CD monitoring, PR reviews & deployments', category: 'DevOps', icon: 'code', color: 'cyan' },
-    { demo_id: 'demo-finance', title: 'Expense Tracking', subtitle: 'Automated categorization & tax prep', category: 'Finance', icon: 'dollar', color: 'emerald' },
-    { demo_id: 'demo-content', title: 'Content Repurposing', subtitle: 'Transform long-form into social & newsletters', category: 'Content', icon: 'pen', color: 'violet' },
-    { demo_id: 'demo-healthcare', title: 'Dental Reminders', subtitle: 'Patient scheduling & follow-ups', category: 'Healthcare', icon: 'heart', color: 'rose' },
+    { demo_id: 'demo-restaurant', title: 'Scouts Coffee', subtitle: 'Staff scheduling & supplier automation for a growing SF café', category: 'Small Business', icon: 'coffee', color: 'amber' },
+    { demo_id: 'demo-devops', title: 'Autonomous Dev Agent', subtitle: 'CI/CD monitoring, PR reviews & deployment automation', category: 'Developer Tools', icon: 'terminal', color: 'emerald' },
+    { demo_id: 'demo-finance', title: 'Expense Tracking', subtitle: 'Expense categorization, invoice reminders & tax prep', category: 'Finance', icon: 'receipt', color: 'blue' },
+    { demo_id: 'demo-content', title: 'Content Repurposing Pipeline', subtitle: 'Auto-repurpose videos into social posts, newsletters & threads', category: 'Content Creation', icon: 'pen-tool', color: 'purple' },
+    { demo_id: 'demo-healthcare', title: 'Dental Appointment Reminders', subtitle: 'Patient reminders, follow-ups & insurance verification', category: 'Healthcare', icon: 'heart-pulse', color: 'rose' },
 ];
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
