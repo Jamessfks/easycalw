@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import uuid
 import hmac
@@ -54,6 +55,70 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
 
+
+
+def extract_user_info(transcript: str) -> dict:
+    """Extract structured user info from formatted transcript."""
+    info = {}
+    text = transcript.lower()
+    
+    # Name - look for "my name is X" or "I'm X" or "I am X"
+    name_match = re.search(r"(?:my name is|i'?m|i am)\s+([A-Z][a-z]+)", transcript, re.IGNORECASE)
+    if name_match:
+        info["user_name"] = name_match.group(1).strip()
+    
+    # Industry keywords
+    industries = {
+        "restaurant": ["restaurant", "cafe", "coffee", "bakery", "food", "catering", "bar"],
+        "real_estate": ["real estate", "realtor", "broker", "property", "listings", "tenant"],
+        "healthcare": ["dental", "doctor", "clinic", "therapy", "medical", "patient", "healthcare"],
+        "legal": ["law firm", "attorney", "lawyer", "legal"],
+        "ecommerce": ["ecommerce", "shopify", "amazon", "online store", "etsy"],
+        "consulting": ["consultant", "consulting", "freelance", "agency"],
+        "developer": ["developer", "devops", "coding", "software", "startup", "saas"],
+        "finance": ["accounting", "bookkeeping", "finance", "investment", "trading"],
+        "education": ["school", "teacher", "tutor", "education", "student"],
+        "content": ["content", "creator", "youtube", "podcast", "newsletter", "blog"],
+    }
+    for industry, keywords in industries.items():
+        if any(kw in text for kw in keywords):
+            info["industry"] = industry
+            break
+    
+    # Tech level
+    if any(kw in text for kw in ["docker", "ssh", "api", "self-host", "linux", "terminal"]):
+        info["tech_level"] = "power_user"
+    elif any(kw in text for kw in ["comfortable", "intermediate", "follow instructions", "can use"]):
+        info["tech_level"] = "intermediate"
+    elif any(kw in text for kw in ["not technical", "beginner", "never used", "simple"]):
+        info["tech_level"] = "beginner"
+    
+    # Channel
+    for ch in ["telegram", "whatsapp", "discord", "slack", "imessage"]:
+        if ch in text:
+            info["channel"] = ch
+            break
+    
+    # Environment
+    if "mac mini" in text:
+        info["environment"] = "mac_mini"
+    elif "docker" in text:
+        info["environment"] = "docker"
+    elif "vps" in text or "cloud" in text or "server" in text:
+        info["environment"] = "vps"
+    elif "mac" in text or "laptop" in text:
+        info["environment"] = "existing_mac"
+    
+    # Autonomy
+    if any(kw in text for kw in ["fully auto", "handle it", "on its own", "autonomous"]):
+        info["autonomy_level"] = "full_auto"
+    elif any(kw in text for kw in ["draft", "approval", "check with me"]):
+        info["autonomy_level"] = "draft_approval"
+    elif any(kw in text for kw in ["flag", "notify", "just tell me"]):
+        info["autonomy_level"] = "notify_only"
+    
+    return info
+
 async def save_to_supabase(guide_id: str, result: dict) -> None:
     """POST completed guide data directly to Supabase REST API.
 
@@ -81,6 +146,10 @@ async def save_to_supabase(guide_id: str, result: dict) -> None:
         "agent_turns": agent_info.get("turns"),
         "agent_duration_ms": agent_info.get("duration_ms"),
     }
+    # Extract structured user info from transcript
+    transcript_text = result.get("formatted_transcript", "") or ""
+    user_info = extract_user_info(transcript_text)
+    row.update(user_info)
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
