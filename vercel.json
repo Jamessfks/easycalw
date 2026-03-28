@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "buildCommand": "cd frontend && npm ci && npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/health", "destination": "/api" },
+    { "source": "/format", "destination": "/api" },
+    { "source": "/generate-guide", "destination": "/api" },
+    { "source": "/guide/(.*)", "destination": "/api" },
+    { "source": "/guides", "destination": "/api" },
+    { "source": "/events/(.*)", "destination": "/api" },
+    { "source": "/webhook", "destination": "/api" },
+    { "source": "/demos", "destination": "/api" },
+    { "source": "/demo-stream/(.*)", "destination": "/api" },
+    { "source": "/mock-generate", "destination": "/api" },
+    { "source": "/retry-guide/(.*)", "destination": "/api" }
+  ],
+  "functions": {
+    "api/index.py": {
+      "runtime": "@vercel/python",
+      "maxDuration": 300
+    }
+  }
+}

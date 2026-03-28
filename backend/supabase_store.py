@@ -81,11 +81,11 @@ class GuideStore:
                 await sb.table("guides")
                 .select("*")
                 .eq("guide_id", guide_id)
-                .maybe_single()
+                .limit(1)
                 .execute()
             )
             if result.data:
-                return _from_row(result.data)
+                return _from_row(result.data[0])
             return None
         except Exception as e:
             logger.error(f"[GuideStore] get({guide_id}) failed: {e}")
