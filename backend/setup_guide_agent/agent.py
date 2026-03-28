@@ -87,9 +87,9 @@ def _detect_doc_status(output_dir: Path) -> list[dict]:
     statuses = []
     guide_path = output_dir / "EASYCLAW_SETUP.txt"
     if not guide_path.exists():
-        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.txt"
+        guide_path = output_dir / "EASYCLAW_SETUP.md"
     if not guide_path.exists():
-        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
+        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.txt"
     if not guide_path.exists():
         guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
     if guide_path.exists():
@@ -404,9 +404,10 @@ def _collect_outputs(output_dir: Path) -> dict:
         "prompts_to_send": None,
     }
 
-    # Setup guide — prefer .txt, fall back to .md
-    for ext in (".txt", ".md"):
-        guide_path = output_dir / f"OPENCLAW_ENGINE_SETUP_GUIDE{ext}"
+    # Setup guide — prefer new name, fall back to old
+    for name in ("EASYCLAW_SETUP.txt", "EASYCLAW_SETUP.md",
+                 "OPENCLAW_ENGINE_SETUP_GUIDE.txt", "OPENCLAW_ENGINE_SETUP_GUIDE.md"):
+        guide_path = output_dir / name
         if guide_path.exists():
             outputs["setup_guide"] = guide_path.read_text()
             break
@@ -434,7 +435,8 @@ def _collect_outputs(output_dir: Path) -> dict:
 
     known = {
         "INTERVIEW_TRANSCRIPT.md",
-        "OPENCLAW_ENGINE_SETUP_GUIDE.md", "EASYCLAW_SETUP.txt",
+        "EASYCLAW_SETUP.txt", "EASYCLAW_SETUP.md",
+        "OPENCLAW_ENGINE_SETUP_GUIDE.md", "OPENCLAW_ENGINE_SETUP_GUIDE.txt",
         "prompts_to_send.md", "prompts_to_send.txt",
     }
     for pattern in ("*.md", "*.txt"):

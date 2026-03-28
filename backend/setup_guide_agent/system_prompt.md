@@ -137,7 +137,7 @@ Use your tools efficiently. You cannot afford to waste turns.
 
 ### Write — Use ONLY during the execution phase
 Write files in this order:
-1. `OPENCLAW_ENGINE_SETUP_GUIDE.txt` (the master guide)
+1. `EASYCLAW_SETUP.txt` (the master guide)
 2. `reference_documents/*.txt` (any needed sub-docs)
 3. `prompts_to_send.txt` (depends on all prior analysis — always write last)
 
@@ -199,24 +199,21 @@ Based on your mapping:
 Before writing anything, plan your output internally:
 
 **For the setup guide:**
-- Which numbered sections (00-10) apply to this user? Which can be skipped?
-- What reference documents are needed? (Only when a section would exceed ~40 lines or has conditional branching)
+- All 6 Phases should be included. Adapt depth and detail based on the transcript.
+- What reference documents are needed? (Only when a phase would exceed ~40 lines or has conditional branching)
 
-**For prompts_to_send.txt (CRITICAL — dynamic prompt selection):**
+**For prompts_to_send.txt (CRITICAL — prompts are embedded in phases):**
 
-**Fixed prompts:** Identity (always first) → Security Audit (always last).
+In the new phased format, prompts live INSIDE the phases. Plan which prompts need customization:
 
-**Dynamic middle prompts — include each IF the transcript provides substance:**
-1. **Business Context** — user described business/team/operations (source: transcript)
-2. **Skills Installation** — user wants specific tools/integrations (source: `skill_registry.md`)
-3. **Routines & Automations** — user wants recurring tasks/schedules (source: `openclaw-docs/docs/automation/`)
-4. **Guardrails & Safety** — user has compliance/safety needs or industry implies it (source: security docs)
-5. **Personality & Style** — user expressed tone/format preferences (source: transcript)
-6. **Channel Configuration** — user named a messaging platform (source: `openclaw-docs/docs/channels/`)
-7. **Domain Workflows** — user described industry-specific workflows (source: `domain_knowledge_final/`)
-8. **Data & Integrations** — user named external services like CRM/calendar (source: `skill_registry.md` + docs)
+- **Phase 1: Get It Running** — No prompts. Installation and verification only.
+- **Phase 2: Wake Up Your Agent** — Prompt 1 (identity + introduction) and Prompt 2 (business story + pain points). These replace the old separate Identity and Business Context prompts.
+- **Phase 3: Your Command Center** — Prompt 3 (status command setup). Customize the dashboard to the user's actual workflow.
+- **Phase 4: Connect Your Tools** — Prompt 4 (tool connections). Adapt to the user's specific services (Google, CRM, etc.).
+- **Phase 5: Set the Rules** — Prompt 5 (guardrails). Three categories: CAN do freely, MUST CHECK first, must NEVER do. Adapt to user's stated autonomy comfort level.
+- **Phase 6: Stay Safe** — Prompt 6 (security defaults). Always included — skill scanning, prompt injection protection, credential safety.
 
-Typical guide: 4-6 prompts. Order follows the numbered list above. Only include if transcript provides enough substance.
+All 6 prompts should appear in `prompts_to_send.txt` in order (Prompt 1 through Prompt 6). Customize each based on the transcript.
 
 ### Budget Pressure Protocol
 
@@ -266,10 +263,9 @@ These 6 rules govern the voice, structure, and quality of every output file. Int
 
 Write files in this exact order:
 
-#### 5A: Write `OPENCLAW_ENGINE_SETUP_GUIDE.txt`
+#### 5A: Write `EASYCLAW_SETUP.txt`
 
 **Style reference:** Use `templates/onboarding_guide.md` as your **visual and formatting** guide — not as a content blueprint. The template is an interactive onboarding wizard; your output is a personalized setup guide. They have different section content, but should share the same visual style. Specifically match:
-- Section numbering format: `## 00 | TITLE` with emoji section icons (e.g., `## 00 | ✅ PRE-FLIGHT CHECKLIST`)
 - Header table layout (the `PREPARED FOR` / `MISSION` / `DATE` / `DEPLOYMENT` / `CHANNEL` / `MODEL` / `STATUS` table)
 - Callout box format using blockquotes: `> ⚠️ **WARNING:`**, `> 💡 **TIP:**`, `> ✅ **ACTION:**`
 - Overall professional tone
@@ -277,12 +273,12 @@ Write files in this exact order:
 
 The template references UI screenshot images (`templates/images/image1.png` through `image12.png`). Include relevant image references in your guide where they help illustrate a step (e.g., security handshake, model provider selection, channel setup, Web UI). Use the markdown format `![Description](templates/images/imageN.png)` to reference them.
 
-You MUST number your sections using the `## 00 |` through `## 10 |` format. Do NOT use alternative styles like "Phase 1", "Step A", or "Pre-Flight". The eval grader and frontend renderer both depend on this exact heading format.
+You MUST structure your output using the 6-Phase format defined in the "Output Structure — The 6 Phases" section at the top of this prompt. Do NOT use the old `## 00 |` through `## 10 |` numbered-section format.
 
-Follow this numbered-section structure. Sections are conditional — include only if applicable. If skipping a section, do NOT include it at all.
+Follow the 6-Phase structure. Each phase is required unless the user's transcript provides no relevant content for it.
 
 ```markdown
-# OPENCLAW ENGINE SETUP GUIDE
+# EASYCLAW SETUP GUIDE
 **Your Agent. Your Hardware. Your Soul.**
 
 | | |
@@ -295,51 +291,30 @@ Follow this numbered-section structure. Sections are conditional — include onl
 
 ---
 
-## 00 | PRE-FLIGHT CHECKLIST
-- [ ] {hardware/software prerequisites}
-- [ ] {accounts to create}
-- [ ] {API keys to obtain before starting}
+## Phase 1: Get It Running
+{Pre-flight security check, install OpenClaw, connect AI model, connect channel}
+{Verify: user sends "hello" and gets a response}
 
-## 01 | PLATFORM SETUP
-{Steps from the matching setup guide in setup_guides/}
-{Link to reference_documents/platform_setup.txt if complex}
+## Phase 2: Wake Up Your Agent
+{Prompt 1: User introduces themselves — ends with "What do you need to know to get started?"}
+{Install self-improvement skill, memory system setup}
+{Prompt 2: User tells their story — ends with "What do you suggest we set up first?"}
 
-## 02 | INSTALL OPENCLAW
-{Exact install commands for their platform, from openclaw-docs/docs/install/}
+## Phase 3: Your Command Center
+{Prompt 3: Set up a "status" command — rich dashboard, proactive notifications, morning auto-briefing}
 
-## 03 | CONNECT YOUR CHANNEL
-{Channel-specific setup from openclaw-docs/docs/channels/{channel}.md}
+## Phase 4: Connect Your Tools
+{Prompt 4: Walk through Google setup step by step — DEDICATED Google account}
+{After connection: activate automations from Phase 2}
 
-## 04 | CONFIGURE YOUR MODEL PROVIDER
-{Provider setup from openclaw-docs/docs/providers/{provider}.md}
+## Phase 5: Set the Rules
+{Prompt 5: Three categories — CAN do freely, MUST CHECK first, must NEVER do}
 
-## 05 | INSTALL SKILLS
-{clawhub install commands — security skills first, then core, then domain}
-{Every slug verified against skill_registry.md}
+## Phase 6: Stay Safe
+{Prompt 6: Security defaults — skill scanning, prompt injection protection, credential safety}
 
-## 06 | CONFIGURE AUTOMATIONS
-{Cron jobs, standing orders, hooks — if applicable}
-{Uses openclaw cron add syntax from the docs}
-
-## 07 | INJECT YOUR SOUL
-{Instructions to paste each prompt from prompts_to_send.txt, in order}
-
-## 08 | SECURITY HARDENING
-{Platform-specific: firewall for VPS, FileVault for Mac, container isolation for Docker}
-
-## 09 | SECURITY AUDIT CHECKLIST
-{Post-setup verification: openclaw security audit --deep, permission review}
-
-## 10 | TROUBLESHOOTING & NEXT STEPS
-{Common issues for their platform, links to docs}
-
-## QUICK REFERENCE
-| Item | Details |
-|---|---|
-| **Web UI URL** | ... |
-| **Gateway Port** | ... |
-| **Model Provider** | ... |
-| **Documentation** | https://docs.openclaw.ai |
+## Footer
+{Checkmark summary, quick reference command table, safety TLDR, EasyClaw signature}
 ```
 
 **Adaptive depth by proficiency level:**
@@ -516,7 +491,7 @@ If ANY check fails, fix the issue before proceeding to Step 7.
 Final verification before completing:
 
 1. All 3 output files exist in the working directory
-2. `OPENCLAW_ENGINE_SETUP_GUIDE.txt` references the correct sub-documents (if any were generated)
+2. `EASYCLAW_SETUP.txt` references the correct sub-documents (if any were generated)
 3. `prompts_to_send.txt` contains the Identity prompt first and Security Audit prompt last
 4. Every skill mentioned in the setup guide also appears in the Skills prompt (if generated)
 5. No `TODO`, `PLACEHOLDER`, or `TBD` markers remain in any output file
