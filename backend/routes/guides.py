@@ -76,12 +76,19 @@ def _anthropic_available() -> bool:
 
 
 async def _generate_guide_smart(formatted_transcript: str, event_queue=None, guide_id=None) -> dict:
-    """Auto-select Claude or Gemini based on API key availability."""
+    """Auto-select Claude or Gemini based on API key availability.
+
+    NOTE: Gemini 2.5 Pro fallback is disabled while on the free tier (429 quota errors).
+    TODO(production): Re-enable Gemini fallback once Google AI billing is activated.
+    """
     if _anthropic_available():
         return await generate_guide(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
     else:
-        logger.warning("[GUIDE] Anthropic key unavailable — using Gemini 2.5 Pro fallback")
-        return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
+        # Gemini fallback disabled — free tier quota exhausted
+        # To re-enable: uncomment below and enable billing at https://ai.google.dev
+        # logger.warning("[GUIDE] Anthropic key unavailable — using Gemini 2.5 Pro fallback")
+        # return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
+        raise RuntimeError("ANTHROPIC_API_KEY is required for guide generation (Gemini fallback disabled)")
 
 
 async def _run_guide_agent(guide_id: str, formatted_transcript: str):
@@ -91,7 +98,23 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
         result = await _generate_guide_smart(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
         if result.get("status") == "complete" and result.get("outputs"):
             result["scorecard"] = compute_scorecard(result["outputs"])
-        await guide_store.set(guide_id, {**result, "guide_id": guide_id})
+
+        # Flatten nested structures so _to_row maps them to Supabase columns
+        outputs = result.pop("outputs", {}) or {}
+        agent_info = result.pop("agent", {}) or {}
+        flat = {
+            **result,
+            "guide_id": guide_id,
+            "setup_guide": outputs.get("setup_guide"),
+            "reference_documents": outputs.get("reference_documents", []),
+            "prompts_to_send": outputs.get("prompts_to_send"),
+            "formatted_transcript": formatted_transcript,
+            "agent_session_id": agent_info.get("session_id"),
+            "agent_cost_usd": agent_info.get("cost_usd"),
+            "agent_turns": agent_info.get("turns"),
+            "agent_duration_ms": agent_info.get("duration_ms"),
+        }
+        await guide_store.set(guide_id, flat)
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
         await guide_store.set(guide_id, {

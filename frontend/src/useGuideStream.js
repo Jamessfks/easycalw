@@ -100,9 +100,14 @@ export default function useGuideStream(formattedTranscript, selectedOutputs) {
                         if (cancelled) return;
                         receivedEventsRef.current = true;
                         const payload = JSON.parse(e.data);
-                        setGuideData(payload);
-                        setLoading(false);
-                        es.close();
+                        // The agent sends a lightweight "complete" event (no outputs),
+                        // then guide_store sends the full one. Only accept if it has outputs.
+                        if (payload.outputs?.setup_guide || payload.status === 'error') {
+                            setGuideData(payload);
+                            setLoading(false);
+                            es.close();
+                        }
+                        // Otherwise wait for the next complete event with full data
                     });
 
                     es.addEventListener('error', (e) => {
@@ -118,6 +123,12 @@ export default function useGuideStream(formattedTranscript, selectedOutputs) {
                     es.onerror = () => {
                         // If we never received any events, SSE isn't working — fall back
                         if (!receivedEventsRef.current) {
+                            es.close();
+                            eventSourceRef.current = null;
+                            startPolling(guideId);
+                        } else {
+                            // SSE closed after receiving events but before full data —
+                            // do a final poll to get the complete guide
                             es.close();
                             eventSourceRef.current = null;
                             startPolling(guideId);
