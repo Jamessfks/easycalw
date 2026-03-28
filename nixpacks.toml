@@ -2,7 +2,11 @@
 nixPkgs = ["python311", "nodejs_20"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt", "cd frontend && npm ci && npm run build"]
+cmds = [
+  "python -m ensurepip --upgrade",
+  "python -m pip install -r requirements.txt",
+  "cd frontend && npm ci && npm run build",
+]
 
 [start]
-cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
