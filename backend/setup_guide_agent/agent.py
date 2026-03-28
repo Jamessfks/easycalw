@@ -192,7 +192,7 @@ async def generate_guide(
                 max_turns=40,
                 max_budget_usd=3.0,
                 model=MODEL,
-                cli_path="/opt/homebrew/bin/claude",  # Use authenticated system Claude Code
+                cli_path=os.getenv("CLAUDE_CLI_PATH", "/opt/homebrew/bin/claude"),
             ),
         ):
             # Stream intermediate progress to SSE queue

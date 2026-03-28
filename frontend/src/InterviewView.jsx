@@ -4,8 +4,8 @@ import useVapi from './useVapi';
 import AgentPresence from './components/AgentPresence';
 import Transcript from './components/Transcript';
 
-const MIN_TRANSCRIPT_LENGTH = 400;
-const MIN_WORD_COUNT = 50;
+const MIN_TRANSCRIPT_LENGTH = 100;
+const MIN_WORD_COUNT = 15;
 
 const TALKING_POINTS = [
     'Name + what your business does',
@@ -74,13 +74,23 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
             const finalEntries = transcript.filter(e => e.isFinal);
             if (finalEntries.length === 0) return;
 
+            // Wait for formattedTranscript from the /format API before proceeding.
+            // If it arrives, use it; otherwise fall back to raw text after a timeout.
+            if (formattedTranscript) {
+                const timer = setTimeout(() => {
+                    onInterviewComplete(formattedTranscript);
+                }, 1500);
+                return () => clearTimeout(timer);
+            }
+
+            // Fallback: if /format hasn't responded in 8s, use raw transcript
             const rawText = finalEntries
                 .map(e => `${e.role === 'user' ? 'User' : 'Agent'}: ${e.text}`)
                 .join('\n');
-            const timer = setTimeout(() => {
-                onInterviewComplete(formattedTranscript || rawText);
-            }, 2500);
-            return () => clearTimeout(timer);
+            const fallback = setTimeout(() => {
+                onInterviewComplete(rawText);
+            }, 8000);
+            return () => clearTimeout(fallback);
         }
     }, [callStatus, error, isTooShort, onInterviewComplete, formattedTranscript, transcript]);
 

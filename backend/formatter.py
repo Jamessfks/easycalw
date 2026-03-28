@@ -128,11 +128,18 @@ def _regex_fallback(raw_transcript: str) -> str:
         if not line:
             continue
 
-        # Clean common ASR filler words
+        # Clean common ASR filler words (standalone only — not "like" as a verb)
         cleaned = re.sub(
-            r"\b(um|uh|uhh|umm|hmm|like,?\s)\b[,.]?\s*",
+            r"\b(um|uh|uhh|umm|hmm)\b[,.]?\s*",
             "",
             line,
+            flags=re.IGNORECASE,
+        )
+        # Remove filler "like" only when followed by comma or surrounded by pauses
+        cleaned = re.sub(
+            r",?\s*\blike,\s*",
+            ", ",
+            cleaned,
             flags=re.IGNORECASE,
         )
         # Collapse repeated words: "I I think" -> "I think"
