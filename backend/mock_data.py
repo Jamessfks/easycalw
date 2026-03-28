@@ -641,6 +641,36 @@ Your agent needs web search for checking documentation, npm advisories, and depl
 
 ---
 
+## Phase 2: Wake Up Your Agent
+
+### Agent Identity — SOUL.md
+
+Your agent needs a personality and operational boundaries. OpenClaw uses a SOUL.md file to define who your agent is, how it communicates, and what it is never allowed to do.
+
+> ✅ **ACTION:** The SOUL.md in your reference documents is pre-configured for your solo-dev DevOps workflow. Review it, customize the personality if desired, then paste it into the Web UI SOUL editor.
+
+> 💡 **TIP:** Your SOUL.md defines the agent's tone, expertise areas, and hard boundaries. The pre-configured version is tuned for a solo TypeScript/Next.js developer managing Docker containers and multi-platform deployments. Adjust the personality section to match how you want alerts written — terse and technical, or friendly and detailed.
+
+---
+
+## Phase 3: Your Command Center
+
+### Morning Briefing Configuration
+
+Your daily briefing runs at 8:00 AM and covers:
+
+- **Overnight CI status** — any failures across your ~20 workflows, their error context, and suggested fixes
+- **Open PRs** — age, review status, merge conflicts, CI pass/fail
+- **Deployment health** — Vercel preview deploy status, Railway service uptime, Supabase migration state
+- **Dependency alerts** — new Dependabot PRs, npm audit findings, severity ratings
+- **Flaky test tracker** — tests that failed then passed on retry in the last 7 days
+
+> 💡 **TIP:** Customize the briefing time in Settings → Automations → Morning Briefing. As a solo dev, schedule it 30 minutes before you usually sit down — so the context is ready when you open Discord.
+
+> ✅ **ACTION:** Verify the briefing schedule in the Web UI under Settings → Automations. Adjust the time and channel (`#dev-briefing`) to your preference.
+
+---
+
 ## Phase 4: Connect Your Tools
 
 ### Skills & Hooks Configuration
@@ -673,36 +703,6 @@ Your agent needs web search for checking documentation, npm advisories, and depl
 
 ---
 
-## Phase 2: Wake Up Your Agent
-
-### Agent Identity — SOUL.md
-
-Your agent needs a personality and operational boundaries. OpenClaw uses a SOUL.md file to define who your agent is, how it communicates, and what it is never allowed to do.
-
-> ✅ **ACTION:** The SOUL.md in your reference documents is pre-configured for your solo-dev DevOps workflow. Review it, customize the personality if desired, then paste it into the Web UI SOUL editor.
-
-> 💡 **TIP:** Your SOUL.md defines the agent's tone, expertise areas, and hard boundaries. The pre-configured version is tuned for a solo TypeScript/Next.js developer managing Docker containers and multi-platform deployments. Adjust the personality section to match how you want alerts written — terse and technical, or friendly and detailed.
-
----
-
-## Phase 3: Your Command Center
-
-### Morning Briefing Configuration
-
-Your daily briefing runs at 8:00 AM and covers:
-
-- **Overnight CI status** — any failures across your ~20 workflows, their error context, and suggested fixes
-- **Open PRs** — age, review status, merge conflicts, CI pass/fail
-- **Deployment health** — Vercel preview deploy status, Railway service uptime, Supabase migration state
-- **Dependency alerts** — new Dependabot PRs, npm audit findings, severity ratings
-- **Flaky test tracker** — tests that failed then passed on retry in the last 7 days
-
-> 💡 **TIP:** Customize the briefing time in Settings → Automations → Morning Briefing. As a solo dev, schedule it 30 minutes before you usually sit down — so the context is ready when you open Discord.
-
-> ✅ **ACTION:** Verify the briefing schedule in the Web UI under Settings → Automations. Adjust the time and channel (`#dev-briefing`) to your preference.
-
----
-
 ## Phase 5: Set the Rules
 
 ### Verification & First Run
@@ -726,6 +726,23 @@ Expected output:
 > ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
 
 > ⚠️ **WARNING:** If GitHub shows fewer than 20 workflows, check that your fine-grained PAT has `actions:read` scope on all 3 repos. Re-run `openclaw verify` after updating the token.
+
+---
+
+## Phase 6: Stay Safe
+
+### Ongoing Security & Maintenance
+
+Your agent is live — here's how to keep it secure:
+
+- **Weekly:** Review the audit trail in Settings → Audit Log
+- **Monthly:** Run `openclaw security audit --deep` and review the report
+- **Quarterly:** Rotate API keys and tokens, review skill permissions
+- **Always:** Keep your machine's OS and OpenClaw installation up to date
+
+> 💡 **TIP:** Set a recurring calendar reminder for monthly security audits. It takes 5 minutes and keeps your agent boundary airtight.
+
+> ⚠️ **WARNING:** If you suspect unauthorized access to your machine or agent, immediately run `openclaw lockdown` to revoke all active sessions and rotate credentials.
 
 ---
 
@@ -966,37 +983,6 @@ Your agent needs web search for checking tax regulation updates, IRS deadline ch
 
 ---
 
-## Phase 4: Connect Your Tools
-
-### Skills & Hooks Configuration
-
-### Recommended Skills
-
-| Skill | Purpose | Tier |
-|-------|---------|------|
-| `gog` | Gmail scanning for invoices & receipts | 3 — Communication |
-| `csv-tools` | Parse and generate CSV exports for accountant | 1 — Core |
-| `summarize` | Condense bank statements & expense reports | 1 — Core |
-| `google-sheets` | Read/write expense tracking spreadsheets | 8 — Productivity |
-| `calendar` | Tax deadline reminders & client billing cycles | 8 — Productivity |
-| `agent-audit-trail` | Hash-chained action logs for financial compliance | 5 — Security |
-
-### Automation Hooks
-
-| Hook | Trigger | Action |
-|------|---------|--------|
-| Receipt Detected | Gmail scan (new receipt email) | Auto-categorize → log to expense sheet → Telegram confirmation |
-| Invoice Overdue | 48 hours past due date | Telegram alert with client name, amount, and days overdue |
-| Weekly Expense Report | Cron: 9:00 AM Monday | Categorized expense summary → Telegram + Google Sheet update |
-| Quarterly Tax Prep | Cron: 1st of Mar, Jun, Sep, Dec | Aggregate quarter expenses → generate CSV → email to accountant |
-| Budget Alert | Category spend > 90% of monthly target | Immediate Telegram alert with category, spend, and remaining budget |
-
-> ✅ **ACTION:** Install skills via the Web UI Skills panel: select each skill, review permissions, and confirm.
-
-> 💳 **PCI Note:** The `gog` skill requests read-only access to Gmail. Grant access only to your business email, not personal accounts. Use Gmail filters to label business invoices with "OpenClaw" so the agent scans only relevant emails.
-
----
-
 ## Phase 2: Wake Up Your Agent
 
 ### Agent Identity — SOUL.md
@@ -1049,6 +1035,37 @@ Two weeks before each estimated payment deadline (Apr 15, Jun 15, Sep 15, Jan 15
 
 ---
 
+## Phase 4: Connect Your Tools
+
+### Skills & Hooks Configuration
+
+### Recommended Skills
+
+| Skill | Purpose | Tier |
+|-------|---------|------|
+| `gog` | Gmail scanning for invoices & receipts | 3 — Communication |
+| `csv-tools` | Parse and generate CSV exports for accountant | 1 — Core |
+| `summarize` | Condense bank statements & expense reports | 1 — Core |
+| `google-sheets` | Read/write expense tracking spreadsheets | 8 — Productivity |
+| `calendar` | Tax deadline reminders & client billing cycles | 8 — Productivity |
+| `agent-audit-trail` | Hash-chained action logs for financial compliance | 5 — Security |
+
+### Automation Hooks
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| Receipt Detected | Gmail scan (new receipt email) | Auto-categorize → log to expense sheet → Telegram confirmation |
+| Invoice Overdue | 48 hours past due date | Telegram alert with client name, amount, and days overdue |
+| Weekly Expense Report | Cron: 9:00 AM Monday | Categorized expense summary → Telegram + Google Sheet update |
+| Quarterly Tax Prep | Cron: 1st of Mar, Jun, Sep, Dec | Aggregate quarter expenses → generate CSV → email to accountant |
+| Budget Alert | Category spend > 90% of monthly target | Immediate Telegram alert with category, spend, and remaining budget |
+
+> ✅ **ACTION:** Install skills via the Web UI Skills panel: select each skill, review permissions, and confirm.
+
+> 💳 **PCI Note:** The `gog` skill requests read-only access to Gmail. Grant access only to your business email, not personal accounts. Use Gmail filters to label business invoices with "OpenClaw" so the agent scans only relevant emails.
+
+---
+
 ## Phase 5: Set the Rules
 
 ### Verification & First Run
@@ -1073,6 +1090,23 @@ Expected output:
 > ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
 
 > ⚠️ **WARNING:** Before trusting automated categorization, run a one-week test period. Forward 10-15 receipts to your Telegram bot and manually verify each categorization. Adjust your SOUL.md category rules if the agent consistently miscategorizes a vendor.
+
+---
+
+## Phase 6: Stay Safe
+
+### Ongoing Security & Maintenance
+
+Your agent is live — here's how to keep it secure:
+
+- **Weekly:** Review the audit trail in Settings → Audit Log
+- **Monthly:** Run `openclaw security audit --deep` and review the report
+- **Quarterly:** Rotate API keys and tokens, review skill permissions
+- **Always:** Keep your machine's OS and OpenClaw installation up to date
+
+> 💡 **TIP:** Set a recurring calendar reminder for monthly security audits. It takes 5 minutes and keeps your agent boundary airtight.
+
+> ⚠️ **WARNING:** If you suspect unauthorized access to your machine or agent, immediately run `openclaw lockdown` to revoke all active sessions and rotate credentials.
 
 ---
 
@@ -1321,37 +1355,6 @@ Your agent needs web search for checking trending topics, competitor content, an
 
 ---
 
-## Phase 4: Connect Your Tools
-
-### Skills & Hooks Configuration
-
-### Recommended Skills
-
-| Skill | Purpose | Tier |
-|-------|---------|------|
-| `summarize` | Distill long-form video transcripts into key points | 1 — Core |
-| `notion` | Sync with content calendar, idea backlog, and publishing schedule | 1 — Core |
-| `tavily-web-search` | Research trending topics, competitor content, audience questions | 1 — Core |
-| `slack` | Read/post/manage Slack messages & channels | 3 — Communication |
-| `youtube-toolkit` | Fetch video metadata, transcripts, and analytics | 13 — Creative |
-| `social-scheduler` | Draft and queue social posts across platforms | 13 — Creative |
-| `newsletter-writer` | Generate Substack-formatted newsletter drafts | 13 — Creative |
-| `content-analytics` | Aggregate engagement metrics across platforms | 2 — Productivity |
-
-### Automation Hooks
-
-| Hook | Trigger | Action |
-|------|---------|--------|
-| Video Published | YouTube webhook | Transcribe → generate 5 formats → post drafts to #content-pipeline |
-| Thread Draft | Manual or scheduled | Generate Twitter/X thread from latest video → post to #content-pipeline |
-| Newsletter Draft | Cron: Wednesday 9:00 AM | Compile weekly insights into Substack draft → post to #content-pipeline |
-| Weekly Metrics | Cron: Monday 8:00 AM | Aggregate platform analytics → post performance report to #weekly-metrics |
-| Trend Alert | Cron: Daily 10:00 AM | Scan trending topics in your content pillars → post ideas to #content-ideas |
-
-> ✅ **ACTION:** Install skills via the Web UI Skills panel: select each skill, review permissions, and confirm. Start with the Core tier, then add Creative and Productivity skills.
-
----
-
 ## Phase 2: Wake Up Your Agent
 
 ### Agent Identity — SOUL.md
@@ -1392,6 +1395,37 @@ Every Monday at 8:00 AM, your agent delivers:
 
 ---
 
+## Phase 4: Connect Your Tools
+
+### Skills & Hooks Configuration
+
+### Recommended Skills
+
+| Skill | Purpose | Tier |
+|-------|---------|------|
+| `summarize` | Distill long-form video transcripts into key points | 1 — Core |
+| `notion` | Sync with content calendar, idea backlog, and publishing schedule | 1 — Core |
+| `tavily-web-search` | Research trending topics, competitor content, audience questions | 1 — Core |
+| `slack` | Read/post/manage Slack messages & channels | 3 — Communication |
+| `youtube-toolkit` | Fetch video metadata, transcripts, and analytics | 13 — Creative |
+| `social-scheduler` | Draft and queue social posts across platforms | 13 — Creative |
+| `newsletter-writer` | Generate Substack-formatted newsletter drafts | 13 — Creative |
+| `content-analytics` | Aggregate engagement metrics across platforms | 2 — Productivity |
+
+### Automation Hooks
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| Video Published | YouTube webhook | Transcribe → generate 5 formats → post drafts to #content-pipeline |
+| Thread Draft | Manual or scheduled | Generate Twitter/X thread from latest video → post to #content-pipeline |
+| Newsletter Draft | Cron: Wednesday 9:00 AM | Compile weekly insights into Substack draft → post to #content-pipeline |
+| Weekly Metrics | Cron: Monday 8:00 AM | Aggregate platform analytics → post performance report to #weekly-metrics |
+| Trend Alert | Cron: Daily 10:00 AM | Scan trending topics in your content pillars → post ideas to #content-ideas |
+
+> ✅ **ACTION:** Install skills via the Web UI Skills panel: select each skill, review permissions, and confirm. Start with the Core tier, then add Creative and Productivity skills.
+
+---
+
 ## Phase 5: Set the Rules
 
 ### Verification & First Run
@@ -1413,6 +1447,23 @@ Expected output:
 ```
 
 > ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
+
+---
+
+## Phase 6: Stay Safe
+
+### Ongoing Security & Maintenance
+
+Your agent is live — here's how to keep it secure:
+
+- **Weekly:** Review the audit trail in Settings → Audit Log
+- **Monthly:** Run `openclaw security audit --deep` and review the report
+- **Quarterly:** Rotate API keys and tokens, review skill permissions
+- **Always:** Keep your machine's OS and OpenClaw installation up to date
+
+> 💡 **TIP:** Set a recurring calendar reminder for monthly security audits. It takes 5 minutes and keeps your agent boundary airtight.
+
+> ⚠️ **WARNING:** If you suspect unauthorized access to your machine or agent, immediately run `openclaw lockdown` to revoke all active sessions and rotate credentials.
 
 ---
 
@@ -1664,40 +1715,6 @@ Your agent needs web search for checking drug interaction databases, insurance p
 
 ---
 
-## Phase 4: Connect Your Tools
-
-### Skills & Hooks Configuration
-
-### Recommended Skills
-
-| Skill | Purpose | Tier |
-|-------|---------|------|
-| `google-calendar` | Sync appointment schedule for all providers | 1 — Core |
-| `gog` | Google Workspace integration (Calendar + Gmail) | 1 — Core |
-| `summarize` | Condense insurance documents for front-desk review | 1 — Core |
-| `whatsapp-twilio` | Send/receive patient messages via Twilio API | 3 — Communication |
-| `pdf-toolkit` | Parse and extract insurance PDFs and EOBs | 12 — Documents |
-| `tavily-web-search` | Search dental references and insurance portals | 1 — Core |
-| `agent-audit-trail` | Hash-chained action logs for HIPAA compliance | 5 — Security |
-| `apple-reminders` | Sync follow-up tasks to staff devices | 2 — Productivity |
-
-### Automation Hooks
-
-| Hook | Trigger | Action |
-|------|---------|--------|
-| 48h Reminder | Cron: 6:00 PM daily | Read tomorrow+1 schedule → send 48h reminders via WhatsApp |
-| 2h Reminder | Cron: rolling, per appointment | Send same-day reminder 2 hours before each appointment |
-| Morning Staff Brief | Cron: 7:30 AM Mon–Fri | Today's schedule summary → Gmail to all staff |
-| No-Show Follow-Up | Appointment marked missed | Draft reschedule message → review queue |
-| Post-Procedure Check | 24h after procedure | Draft follow-up message → review queue |
-| Weekly Metrics | Cron: Monday 8:00 AM | No-show rate, reminder effectiveness, recall compliance |
-
-> ✅ **ACTION:** Install skills via the Web UI Skills panel. Start with `google-calendar` — it's the backbone of the reminder system. Once connected, the agent automatically reads tomorrow's schedule each evening and queues reminders.
-
-> 💡 **TIP:** Install `agent-audit-trail` early. HIPAA requires you to demonstrate that patient data access is logged and traceable. This skill creates a tamper-evident log of every action your agent takes.
-
----
-
 ## Phase 2: Wake Up Your Agent
 
 ### Agent Identity — SOUL.md
@@ -1740,6 +1757,40 @@ Your Web UI dashboard at `http://127.0.0.1:18789` displays:
 
 ---
 
+## Phase 4: Connect Your Tools
+
+### Skills & Hooks Configuration
+
+### Recommended Skills
+
+| Skill | Purpose | Tier |
+|-------|---------|------|
+| `google-calendar` | Sync appointment schedule for all providers | 1 — Core |
+| `gog` | Google Workspace integration (Calendar + Gmail) | 1 — Core |
+| `summarize` | Condense insurance documents for front-desk review | 1 — Core |
+| `whatsapp-twilio` | Send/receive patient messages via Twilio API | 3 — Communication |
+| `pdf-toolkit` | Parse and extract insurance PDFs and EOBs | 12 — Documents |
+| `tavily-web-search` | Search dental references and insurance portals | 1 — Core |
+| `agent-audit-trail` | Hash-chained action logs for HIPAA compliance | 5 — Security |
+| `apple-reminders` | Sync follow-up tasks to staff devices | 2 — Productivity |
+
+### Automation Hooks
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| 48h Reminder | Cron: 6:00 PM daily | Read tomorrow+1 schedule → send 48h reminders via WhatsApp |
+| 2h Reminder | Cron: rolling, per appointment | Send same-day reminder 2 hours before each appointment |
+| Morning Staff Brief | Cron: 7:30 AM Mon–Fri | Today's schedule summary → Gmail to all staff |
+| No-Show Follow-Up | Appointment marked missed | Draft reschedule message → review queue |
+| Post-Procedure Check | 24h after procedure | Draft follow-up message → review queue |
+| Weekly Metrics | Cron: Monday 8:00 AM | No-show rate, reminder effectiveness, recall compliance |
+
+> ✅ **ACTION:** Install skills via the Web UI Skills panel. Start with `google-calendar` — it's the backbone of the reminder system. Once connected, the agent automatically reads tomorrow's schedule each evening and queues reminders.
+
+> 💡 **TIP:** Install `agent-audit-trail` early. HIPAA requires you to demonstrate that patient data access is logged and traceable. This skill creates a tamper-evident log of every action your agent takes.
+
+---
+
 ## Phase 5: Set the Rules
 
 ### Verification & First Run
@@ -1764,6 +1815,23 @@ Expected output:
 > ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
 
 > ⚕️ **HIPAA Note:** After verification, run `openclaw security audit --deep` and save the output. This document serves as evidence of your technical safeguards during HIPAA audits.
+
+---
+
+## Phase 6: Stay Safe
+
+### Ongoing Security & Maintenance
+
+Your agent is live — here's how to keep it secure:
+
+- **Weekly:** Review the audit trail in Settings → Audit Log
+- **Monthly:** Run `openclaw security audit --deep` and review the report
+- **Quarterly:** Rotate API keys and tokens, review skill permissions
+- **Always:** Keep your machine's OS and OpenClaw installation up to date
+
+> 💡 **TIP:** Set a recurring calendar reminder for monthly security audits. It takes 5 minutes and keeps your agent boundary airtight.
+
+> ⚠️ **WARNING:** If you suspect unauthorized access to your machine or agent, immediately run `openclaw lockdown` to revoke all active sessions and rotate credentials.
 
 ---
 
@@ -2026,6 +2094,32 @@ Register your 5 active repositories:
 
 ---
 
+## Phase 2: Wake Up Your Agent
+
+### Agent Identity — SOUL.md
+
+Your agent needs a personality and operational boundaries. OpenClaw uses a SOUL.md file for this.
+
+> ✅ **ACTION:** The SOUL.md in your reference documents is pre-configured for your workflow. Review it, customize the personality if desired, then paste it into the Web UI SOUL editor.
+
+---
+
+## Phase 3: Your Command Center
+
+### Morning Briefing Configuration
+
+Your daily briefing runs at 8:30 AM and covers:
+
+- **Overnight CI status** — any failures, their error context, and auto-suggested fixes
+- **Open PRs** — age, review status, merge conflicts, CI status
+- **Dependency alerts** — new Dependabot PRs, severity ratings
+- **Flaky test tracker** — tests that failed then passed on retry in the last 7 days
+- **Deploy log** — what shipped overnight, which environments were affected
+
+> 💡 **TIP:** Customize the briefing time in Settings → Automations → Morning Briefing. Most developers prefer 30 minutes before their usual start time.
+
+---
+
 ## Phase 4: Connect Your Tools
 
 ### Skills & Hooks Configuration
@@ -2057,32 +2151,6 @@ Register your 5 active repositories:
 
 ---
 
-## Phase 2: Wake Up Your Agent
-
-### Agent Identity — SOUL.md
-
-Your agent needs a personality and operational boundaries. OpenClaw uses a SOUL.md file for this.
-
-> ✅ **ACTION:** The SOUL.md in your reference documents is pre-configured for your workflow. Review it, customize the personality if desired, then paste it into the Web UI SOUL editor.
-
----
-
-## Phase 3: Your Command Center
-
-### Morning Briefing Configuration
-
-Your daily briefing runs at 8:30 AM and covers:
-
-- **Overnight CI status** — any failures, their error context, and auto-suggested fixes
-- **Open PRs** — age, review status, merge conflicts, CI status
-- **Dependency alerts** — new Dependabot PRs, severity ratings
-- **Flaky test tracker** — tests that failed then passed on retry in the last 7 days
-- **Deploy log** — what shipped overnight, which environments were affected
-
-> 💡 **TIP:** Customize the briefing time in Settings → Automations → Morning Briefing. Most developers prefer 30 minutes before their usual start time.
-
----
-
 ## Phase 5: Set the Rules
 
 ### Verification & First Run
@@ -2104,6 +2172,23 @@ Expected output:
 ```
 
 > ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
+
+---
+
+## Phase 6: Stay Safe
+
+### Ongoing Security & Maintenance
+
+Your agent is live — here's how to keep it secure:
+
+- **Weekly:** Review the audit trail in Settings → Audit Log
+- **Monthly:** Run `openclaw security audit --deep` and review the report
+- **Quarterly:** Rotate API keys and tokens, review skill permissions
+- **Always:** Keep your machine's OS and OpenClaw installation up to date
+
+> 💡 **TIP:** Set a recurring calendar reminder for monthly security audits. It takes 5 minutes and keeps your agent boundary airtight.
+
+> ⚠️ **WARNING:** If you suspect unauthorized access to your machine or agent, immediately run `openclaw lockdown` to revoke all active sessions and rotate credentials.
 
 ---
 
@@ -2403,6 +2488,34 @@ Register your key Notion databases:
 
 ---
 
+## Phase 2: Wake Up Your Agent
+
+### Agent Identity — SOUL.md
+
+Your agent needs a personality that matches your brand voice. The pre-configured SOUL.md in your reference documents sets up a professional, warm, detail-oriented assistant.
+
+> ✅ **ACTION:** Review the SOUL.md, customize the brand voice section to match your communication style, then paste it into the Web UI SOUL editor.
+
+---
+
+## Phase 3: Your Command Center
+
+### Invoice & Payment Workflow
+
+Your agent's invoice management works like this:
+
+1. **Creation:** When you complete a milestone, tell your agent: "Invoice [Client] for [Project] milestone 2 — $X,XXX"
+2. **Tracking:** Agent logs it in your Notion Invoices database with due date (Net 30 default)
+3. **Reminders:** 3 days before due date, agent drafts a friendly payment reminder
+4. **Follow-up:** If overdue, agent drafts a professional follow-up at Day 7, Day 14, and Day 30
+5. **Confirmation:** When payment arrives, tell your agent: "Payment received from [Client]" — it updates the status
+
+> 💡 **TIP:** Never chase invoices manually again. Your agent handles the awkward follow-ups with professional, pre-approved templates. You just review and hit send.
+
+> ⚠️ **WARNING:** The agent drafts all payment communications but NEVER sends them. You always review, edit if needed, and explicitly confirm before anything goes to a client.
+
+---
+
 ## Phase 4: Connect Your Tools
 
 ### Skills & Hooks Configuration
@@ -2436,34 +2549,6 @@ Register your key Notion databases:
 
 ---
 
-## Phase 2: Wake Up Your Agent
-
-### Agent Identity — SOUL.md
-
-Your agent needs a personality that matches your brand voice. The pre-configured SOUL.md in your reference documents sets up a professional, warm, detail-oriented assistant.
-
-> ✅ **ACTION:** Review the SOUL.md, customize the brand voice section to match your communication style, then paste it into the Web UI SOUL editor.
-
----
-
-## Phase 3: Your Command Center
-
-### Invoice & Payment Workflow
-
-Your agent's invoice management works like this:
-
-1. **Creation:** When you complete a milestone, tell your agent: "Invoice [Client] for [Project] milestone 2 — $X,XXX"
-2. **Tracking:** Agent logs it in your Notion Invoices database with due date (Net 30 default)
-3. **Reminders:** 3 days before due date, agent drafts a friendly payment reminder
-4. **Follow-up:** If overdue, agent drafts a professional follow-up at Day 7, Day 14, and Day 30
-5. **Confirmation:** When payment arrives, tell your agent: "Payment received from [Client]" — it updates the status
-
-> 💡 **TIP:** Never chase invoices manually again. Your agent handles the awkward follow-ups with professional, pre-approved templates. You just review and hit send.
-
-> ⚠️ **WARNING:** The agent drafts all payment communications but NEVER sends them. You always review, edit if needed, and explicitly confirm before anything goes to a client.
-
----
-
 ## Phase 5: Set the Rules
 
 ### Verification & First Run
@@ -2485,6 +2570,23 @@ Expected output:
 ```
 
 > ✅ **ACTION:** Run the verify command. If any check fails, the agent will suggest the specific fix.
+
+---
+
+## Phase 6: Stay Safe
+
+### Ongoing Security & Maintenance
+
+Your agent is live — here's how to keep it secure:
+
+- **Weekly:** Review the audit trail in Settings → Audit Log
+- **Monthly:** Run `openclaw security audit --deep` and review the report
+- **Quarterly:** Rotate API keys and tokens, review skill permissions
+- **Always:** Keep your machine's OS and OpenClaw installation up to date
+
+> 💡 **TIP:** Set a recurring calendar reminder for monthly security audits. It takes 5 minutes and keeps your agent boundary airtight.
+
+> ⚠️ **WARNING:** If you suspect unauthorized access to your machine or agent, immediately run `openclaw lockdown` to revoke all active sessions and rotate credentials.
 
 ---
 
