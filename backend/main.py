@@ -65,20 +65,26 @@ async def save_to_supabase(guide_id: str, result: dict) -> None:
     if not SUPABASE_URL or not SUPABASE_KEY:
         return
     outputs = result.get("outputs", {})
+    agent_info = result.get("agent", {}) or {}
     row = {
         "guide_id": guide_id,
         "status": result.get("status", "complete"),
+        "message": result.get("message"),
+        "formatted_transcript": result.get("formatted_transcript") or result.get("transcript"),
         "setup_guide": outputs.get("setup_guide", ""),
         "prompts_to_send": outputs.get("prompts_to_send", ""),
         "reference_documents": outputs.get("reference_documents", []),
         "scorecard": result.get("scorecard"),
         "quality_eval": result.get("quality_eval"),
         "model": result.get("model", "claude"),
+        "agent_cost_usd": agent_info.get("cost_usd"),
+        "agent_turns": agent_info.get("turns"),
+        "agent_duration_ms": agent_info.get("duration_ms"),
     }
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{SUPABASE_URL}/rest/v1/guides",
+                f"{SUPABASE_URL}/rest/v1/guides?on_conflict=guide_id",
                 headers={
                     "apikey": SUPABASE_KEY,
                     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -249,6 +255,7 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
         })
         # Dual write: persist flattened guide content to Supabase via REST
         if result.get("status") == "complete":
+            result["formatted_transcript"] = formatted_transcript
             await save_to_supabase(guide_id, result)
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
@@ -518,7 +525,7 @@ async def get_guide(guide_id: str):
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(
-                    f"{SUPABASE_URL}/rest/v1/guides",
+                    f"{SUPABASE_URL}/rest/v1/guides?on_conflict=guide_id",
                     headers={
                         "apikey": SUPABASE_KEY,
                         "Authorization": f"Bearer {SUPABASE_KEY}",
