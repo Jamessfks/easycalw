@@ -7,7 +7,7 @@ in a per-session directory. The agent has:
 - WRITE access to the output directory only (/tmp/openclaw-guides/<id>/)
 
 Output files:
-- OPENCLAW_ENGINE_SETUP_GUIDE.txt (main deliverable)
+- EASYCLAW_SETUP.txt (main deliverable)
 - reference_documents/*.txt (conditional sub-setup docs)
 - prompts_to_send.txt (messages to initialize the user's OpenClaw instance)
 """
@@ -85,7 +85,11 @@ def _classify_stage(msg) -> str:
 def _detect_doc_status(output_dir: Path) -> list[dict]:
     """Check which output docs exist and their sizes. Returns doc_status events."""
     statuses = []
-    guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.txt"
+    guide_path = output_dir / "EASYCLAW_SETUP.txt"
+    if not guide_path.exists():
+        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.txt"
+    if not guide_path.exists():
+        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
     if not guide_path.exists():
         guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
     if guide_path.exists():
@@ -118,7 +122,7 @@ def _build_selection_instruction(selected_outputs: list[str] | None) -> str:
 
     parts = []
     if "setup_guide" in sel:
-        parts.append("OPENCLAW_ENGINE_SETUP_GUIDE.txt")
+        parts.append("EASYCLAW_SETUP.txt")
     if "prompts" in sel:
         parts.append("prompts_to_send.txt")
     if "reference_docs" in sel:
@@ -233,7 +237,7 @@ async def generate_guide(
                 f"- templates/images/ — UI screenshot images (image1.png through image12.png) that illustrate the onboarding flow\n\n"
                 f"{semantic_block}"
                 f"Generate these output files in your working directory:\n"
-                f"1. OPENCLAW_ENGINE_SETUP_GUIDE.txt — the master setup guide\n"
+                f"1. EASYCLAW_SETUP.txt — the master setup guide\n"
                 f"2. reference_documents/*.txt — sub-step docs for complex procedures\n"
                 f"3. prompts_to_send.txt — initialization prompts for the user's OpenClaw\n\n"
                 f"{selection_instruction}"
@@ -429,7 +433,7 @@ def _collect_outputs(output_dir: Path) -> dict:
 
     known = {
         "INTERVIEW_TRANSCRIPT.md",
-        "OPENCLAW_ENGINE_SETUP_GUIDE.md", "OPENCLAW_ENGINE_SETUP_GUIDE.txt",
+        "OPENCLAW_ENGINE_SETUP_GUIDE.md", "EASYCLAW_SETUP.txt",
         "prompts_to_send.md", "prompts_to_send.txt",
     }
     for pattern in ("*.md", "*.txt"):
