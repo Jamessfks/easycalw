@@ -46,18 +46,18 @@ async def format_transcript(raw_transcript: str) -> str:
     if not raw_transcript or not raw_transcript.strip():
         return "# Interview Transcript\n\n> No transcript content available.\n"
 
-    gemini_key = os.environ.get("GEMINI_API_KEY")
+    # NOTE: Gemini Flash disabled — free tier quota exhausted (429).
+    # TODO(production): Re-enable once Google AI billing is activated.
+    # gemini_key = os.environ.get("GEMINI_API_KEY")
+    # if gemini_key:
+    #     try:
+    #         formatted = await _format_with_gemini(raw_transcript, gemini_key)
+    #         if formatted:
+    #             return formatted
+    #     except Exception as e:
+    #         logger.warning(f"[FORMATTER] Gemini API failed, trying Claude Haiku: {e}")
 
-    # Primary: Gemini 2.5 Flash
-    if gemini_key:
-        try:
-            formatted = await _format_with_gemini(raw_transcript, gemini_key)
-            if formatted:
-                return formatted
-        except Exception as e:
-            logger.warning(f"[FORMATTER] Gemini API failed, trying Claude Haiku: {e}")
-
-    # Fallback: Claude Haiku
+    # Primary: Claude Haiku
     try:
         return await _format_with_haiku(raw_transcript)
     except Exception as e:
@@ -128,11 +128,18 @@ def _regex_fallback(raw_transcript: str) -> str:
         if not line:
             continue
 
-        # Clean common ASR filler words
+        # Clean common ASR filler words (standalone only — not "like" as a verb)
         cleaned = re.sub(
-            r"\b(um|uh|uhh|umm|hmm|like,?\s)\b[,.]?\s*",
+            r"\b(um|uh|uhh|umm|hmm)\b[,.]?\s*",
             "",
             line,
+            flags=re.IGNORECASE,
+        )
+        # Remove filler "like" only when followed by comma or surrounded by pauses
+        cleaned = re.sub(
+            r",?\s*\blike,\s*",
+            ", ",
+            cleaned,
             flags=re.IGNORECASE,
         )
         # Collapse repeated words: "I I think" -> "I think"

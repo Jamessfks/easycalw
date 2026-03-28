@@ -46,8 +46,13 @@ export default function useVapi() {
         });
 
         vapi.on('call-end', () => {
-            setCallStatus('ended');
             setVoiceState('idle');
+
+            // Grace period — let any in-flight transcript messages arrive before
+            // we set 'ended' (which triggers the isTooShort check in InterviewView)
+            setTimeout(() => {
+                setCallStatus('ended');
+            }, 800);
 
             // POST accumulated transcript to formatter
             const accumulated = fullTranscriptRef.current;
@@ -112,7 +117,13 @@ export default function useVapi() {
         });
 
         // --- Transcript messages ---
+        // Track conversation-update messages as fallback for transcript extraction
+        const lastConversationRef = { current: [] };
+
         vapi.on('message', (msg) => {
+            console.log('[VAPI] message:', msg.type, msg);
+
+            // Primary: real-time transcript events
             if (msg.type === 'transcript') {
                 const role = msg.role === 'assistant' ? 'agent' : 'user';
                 const entry = {
@@ -134,7 +145,6 @@ export default function useVapi() {
                     });
                     fullTranscriptRef.current = [...fullTranscriptRef.current, entry];
 
-                    // Periodically save transcript backup for crash recovery
                     if (fullTranscriptRef.current.length % BACKUP_INTERVAL === 0) {
                         saveTranscriptBackup(fullTranscriptRef.current, null);
                     }
@@ -155,6 +165,43 @@ export default function useVapi() {
 
                     if (role === 'user') {
                         setVoiceState('user-speaking');
+                    }
+                }
+            }
+
+            // Fallback: conversation-update contains the full conversation history.
+            // If transcript events aren't arriving, we rebuild from this.
+            if (msg.type === 'conversation-update' && msg.conversation) {
+                lastConversationRef.current = msg.conversation;
+            }
+
+            // When call ends via status-update, check if we need to backfill
+            // transcript from conversation-update messages
+            if (msg.type === 'status-update' && msg.status === 'ended') {
+                const conv = lastConversationRef.current;
+                if (conv.length > 0 && fullTranscriptRef.current.length === 0) {
+                    console.log('[VAPI] No transcript events received — backfilling from conversation-update', conv);
+                    const backfilled = [];
+                    for (const turn of conv) {
+                        if (turn.role === 'assistant' || turn.role === 'user') {
+                            const content = typeof turn.content === 'string'
+                                ? turn.content
+                                : turn.content?.map(c => c.text || c.content || '').join(' ') || '';
+                            if (content.trim()) {
+                                const entry = {
+                                    role: turn.role === 'assistant' ? 'agent' : 'user',
+                                    text: content.trim(),
+                                    timestamp: Date.now(),
+                                    isFinal: true,
+                                };
+                                backfilled.push(entry);
+                            }
+                        }
+                    }
+                    if (backfilled.length > 0) {
+                        fullTranscriptRef.current = backfilled;
+                        setTranscript(backfilled);
+                        saveTranscriptBackup(backfilled, null);
                     }
                 }
             }
@@ -202,7 +249,9 @@ export default function useVapi() {
     const endCall = useCallback(() => {
         if (vapiRef.current && (callStatus === 'active' || callStatus === 'connecting')) {
             vapiRef.current.stop();
-            setCallStatus('ended');
+            // Don't set 'ended' here — the call-end event handler does it
+            // after an 800ms grace period for final transcript messages.
+            // Show a transitional state so the UI isn't stuck on 'active'.
             setVoiceState('idle');
         }
     }, [callStatus]);

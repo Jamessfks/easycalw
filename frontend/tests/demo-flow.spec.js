@@ -14,9 +14,9 @@ test.describe('Demo flow — end-to-end golden path', () => {
         await expect(page.getByRole('navigation').getByText('EasyClaw')).toBeVisible();
         await expect(page.locator('button', { hasText: 'Start Voice Interview' })).toBeVisible();
 
-        // 2. Click a demo to start the flow
+        // 2. Click a demo to start the flow (wait for cards to render)
         const demoButton = page.locator('button', { hasText: 'Scouts Coffee' });
-        await expect(demoButton).toBeVisible();
+        await expect(demoButton).toBeVisible({ timeout: 10000 });
         await demoButton.click();
 
         // 3. Verify loading screen appears with progress indicators

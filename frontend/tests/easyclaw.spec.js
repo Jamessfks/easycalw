@@ -49,7 +49,7 @@ test('error state — OutputDisplay renders error for invalid guide', async ({ p
     // OutputDisplay treats not_found as error and shows categorized error UI
     // Wait for either the error message text or the "Start New Interview" button
     await expect(
-        page.locator('text=/not found|Something went wrong|Generation Failed|Unknown Error|Start New Interview/i')
+        page.locator('text=/not found|Something went wrong|Generation Failed|Unknown Error|Start New Interview/i').first()
     ).toBeVisible({ timeout: 20000 });
 });
 

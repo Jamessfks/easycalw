@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, FileText, BookOpen, Search, Clock, Cpu } from 'lucide-react';
+import { Sparkles, FileText, BookOpen, Search, Clock, Cpu, CheckCircle2, Loader2 } from 'lucide-react';
 
 // Fallback stages when no real progress is available (polling mode)
 const FALLBACK_STAGES = [
@@ -172,6 +172,50 @@ function QualityMeter({ elapsed }) {
     );
 }
 
+const DOC_LABELS = {
+    setup_guide: 'Setup Guide',
+    prompts: 'System Prompts',
+    reference_docs: 'Reference Docs',
+};
+
+function DocChecklist({ docStatuses, selectedOutputs }) {
+    const docs = selectedOutputs || ['setup_guide', 'prompts', 'reference_docs'];
+    if (!docStatuses || Object.keys(docStatuses).length === 0) return null;
+
+    return (
+        <div className="w-64 mx-auto mt-5 text-left space-y-2">
+            {docs.map((doc) => {
+                const info = docStatuses[doc];
+                const label = DOC_LABELS[doc] || doc;
+                let icon, statusText, color;
+
+                if (info?.status === 'complete') {
+                    icon = <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />;
+                    const chars = info.chars ? `${(info.chars / 1000).toFixed(0)}k chars` : '';
+                    statusText = <span className="text-emerald-400/70">{chars ? `(${chars})` : ''} — done</span>;
+                    color = 'text-emerald-300';
+                } else if (info?.status === 'writing') {
+                    icon = <Loader2 size={14} className="text-cyan-400 animate-spin shrink-0" />;
+                    statusText = <span className="text-cyan-400/70">generating...</span>;
+                    color = 'text-cyan-300';
+                } else {
+                    icon = <span className="text-gray-600 shrink-0 text-xs">⏳</span>;
+                    statusText = <span className="text-gray-600">pending</span>;
+                    color = 'text-gray-500';
+                }
+
+                return (
+                    <div key={doc} className="flex items-center gap-2">
+                        {icon}
+                        <span className={`text-xs font-mono ${color}`}>{label}</span>
+                        <span className="text-[10px] font-mono ml-auto">{statusText}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 const LoadingScreen = ({ progress, isDemo }) => {
     const [fallbackIdx, setFallbackIdx] = useState(0);
     const [elapsed, setElapsed] = useState(0);
@@ -295,6 +339,11 @@ const LoadingScreen = ({ progress, isDemo }) => {
 
                 {/* Quality meter */}
                 <QualityMeter elapsed={elapsed} />
+
+                {/* Doc-level checklist */}
+                {hasRealProgress && progress.docStatuses && (
+                    <DocChecklist docStatuses={progress.docStatuses} />
+                )}
 
                 {/* Elapsed-based time estimate (always visible) */}
                 <div className="mt-3">

@@ -13,7 +13,7 @@ const MAX_POLL_ATTEMPTS = 200;
  *
  * Returns { guideData, loading, progress }
  */
-export default function useGuideStream(formattedTranscript) {
+export default function useGuideStream(formattedTranscript, selectedOutputs) {
     const [guideData, setGuideData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [progress, setProgress] = useState({
@@ -22,6 +22,7 @@ export default function useGuideStream(formattedTranscript) {
         maxTurns: 40,
         cost: 0,
         tokens: 0,
+        docStatuses: {},
     });
 
     const eventSourceRef = useRef(null);
@@ -43,7 +44,10 @@ export default function useGuideStream(formattedTranscript) {
                 const res = await fetch(`${API_BASE}/generate-guide`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ formatted_transcript: formattedTranscript }),
+                    body: JSON.stringify({
+                        formatted_transcript: formattedTranscript,
+                        ...(selectedOutputs ? { selected_outputs: selectedOutputs } : {}),
+                    }),
                 });
 
                 if (!res.ok) {
@@ -70,6 +74,7 @@ export default function useGuideStream(formattedTranscript) {
                         receivedEventsRef.current = true;
                         const payload = JSON.parse(e.data);
                         setProgress(prev => ({
+                            ...prev,
                             stage: payload.stage || prev.stage,
                             turn: payload.turn ?? prev.turn,
                             maxTurns: payload.max_turns ?? prev.maxTurns,
@@ -78,13 +83,31 @@ export default function useGuideStream(formattedTranscript) {
                         }));
                     });
 
+                    es.addEventListener('doc_status', (e) => {
+                        if (cancelled) return;
+                        receivedEventsRef.current = true;
+                        const payload = JSON.parse(e.data);
+                        setProgress(prev => ({
+                            ...prev,
+                            docStatuses: {
+                                ...prev.docStatuses,
+                                [payload.doc]: { status: payload.status, chars: payload.chars, count: payload.count },
+                            },
+                        }));
+                    });
+
                     es.addEventListener('complete', (e) => {
                         if (cancelled) return;
                         receivedEventsRef.current = true;
                         const payload = JSON.parse(e.data);
-                        setGuideData(payload);
-                        setLoading(false);
-                        es.close();
+                        // The agent sends a lightweight "complete" event (no outputs),
+                        // then guide_store sends the full one. Only accept if it has outputs.
+                        if (payload.outputs?.setup_guide || payload.status === 'error') {
+                            setGuideData(payload);
+                            setLoading(false);
+                            es.close();
+                        }
+                        // Otherwise wait for the next complete event with full data
                     });
 
                     es.addEventListener('error', (e) => {
@@ -100,6 +123,12 @@ export default function useGuideStream(formattedTranscript) {
                     es.onerror = () => {
                         // If we never received any events, SSE isn't working — fall back
                         if (!receivedEventsRef.current) {
+                            es.close();
+                            eventSourceRef.current = null;
+                            startPolling(guideId);
+                        } else {
+                            // SSE closed after receiving events but before full data —
+                            // do a final poll to get the complete guide
                             es.close();
                             eventSourceRef.current = null;
                             startPolling(guideId);

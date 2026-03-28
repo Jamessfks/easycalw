@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import uuid
 import hmac
@@ -8,6 +9,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
@@ -29,10 +31,10 @@ def _anthropic_available() -> bool:
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     return bool(key) and not key.startswith("not-needed")
 
-async def generate_guide_smart(formatted_transcript: str, event_queue=None, guide_id=None) -> dict:
+async def generate_guide_smart(formatted_transcript: str, event_queue=None, guide_id=None, selected_outputs: list[str] | None = None) -> dict:
     """Auto-select Claude or Gemini based on API key availability."""
     if _anthropic_available():
-        return await generate_guide(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
+        return await generate_guide(formatted_transcript, event_queue=event_queue, guide_id=guide_id, selected_outputs=selected_outputs)
     else:
         logger.warning("[GUIDE] Anthropic key unavailable — using Gemini 2.5 Pro fallback")
         return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
@@ -47,6 +49,126 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Supabase credentials (for direct REST writes alongside GuideStore)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+
+
+
+def extract_user_info(transcript: str) -> dict:
+    """Extract structured user info from formatted transcript."""
+    info = {}
+    text = transcript.lower()
+    
+    # Name - look for "my name is X" or "I'm X" or "I am X"
+    name_match = re.search(r"(?:my name is|i'?m|i am)\s+([A-Z][a-z]+)", transcript, re.IGNORECASE)
+    if name_match:
+        info["user_name"] = name_match.group(1).strip()
+    
+    # Industry keywords
+    industries = {
+        "restaurant": ["restaurant", "cafe", "coffee", "bakery", "food", "catering", "bar"],
+        "real_estate": ["real estate", "realtor", "broker", "property", "listings", "tenant"],
+        "healthcare": ["dental", "doctor", "clinic", "therapy", "medical", "patient", "healthcare"],
+        "legal": ["law firm", "attorney", "lawyer", "legal"],
+        "ecommerce": ["ecommerce", "shopify", "amazon", "online store", "etsy"],
+        "consulting": ["consultant", "consulting", "freelance", "agency"],
+        "developer": ["developer", "devops", "coding", "software", "startup", "saas"],
+        "finance": ["accounting", "bookkeeping", "finance", "investment", "trading"],
+        "education": ["school", "teacher", "tutor", "education", "student"],
+        "content": ["content", "creator", "youtube", "podcast", "newsletter", "blog"],
+    }
+    for industry, keywords in industries.items():
+        if any(kw in text for kw in keywords):
+            info["industry"] = industry
+            break
+    
+    # Tech level
+    if any(kw in text for kw in ["docker", "ssh", "api", "self-host", "linux", "terminal"]):
+        info["tech_level"] = "power_user"
+    elif any(kw in text for kw in ["comfortable", "intermediate", "follow instructions", "can use"]):
+        info["tech_level"] = "intermediate"
+    elif any(kw in text for kw in ["not technical", "beginner", "never used", "simple"]):
+        info["tech_level"] = "beginner"
+    
+    # Channel
+    for ch in ["telegram", "whatsapp", "discord", "slack", "imessage"]:
+        if ch in text:
+            info["channel"] = ch
+            break
+    
+    # Environment
+    if "mac mini" in text:
+        info["environment"] = "mac_mini"
+    elif "docker" in text:
+        info["environment"] = "docker"
+    elif "vps" in text or "cloud" in text or "server" in text:
+        info["environment"] = "vps"
+    elif "mac" in text or "laptop" in text:
+        info["environment"] = "existing_mac"
+    
+    # Autonomy
+    if any(kw in text for kw in ["fully auto", "handle it", "on its own", "autonomous"]):
+        info["autonomy_level"] = "full_auto"
+    elif any(kw in text for kw in ["draft", "approval", "check with me"]):
+        info["autonomy_level"] = "draft_approval"
+    elif any(kw in text for kw in ["flag", "notify", "just tell me"]):
+        info["autonomy_level"] = "notify_only"
+    
+    return info
+
+async def save_to_supabase(guide_id: str, result: dict) -> None:
+    """POST completed guide data directly to Supabase REST API.
+
+    This is a supplementary write that flattens outputs into top-level
+    columns. GuideStore.set() handles the primary upsert; this ensures
+    content fields (setup_guide, prompts_to_send, etc.) are persisted
+    even if the supabase-py client is unavailable.
+    """
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    outputs = result.get("outputs", {})
+    agent_info = result.get("agent", {}) or {}
+    row = {
+        "guide_id": guide_id,
+        "status": result.get("status", "complete"),
+        "message": result.get("message"),
+        "formatted_transcript": result.get("formatted_transcript") or result.get("transcript"),
+        "setup_guide": outputs.get("setup_guide", ""),
+        "prompts_to_send": outputs.get("prompts_to_send", ""),
+        "reference_documents": outputs.get("reference_documents", []),
+        "scorecard": result.get("scorecard"),
+        "quality_eval": result.get("quality_eval"),
+        "model": result.get("model", "claude"),
+        "agent_cost_usd": agent_info.get("cost_usd"),
+        "agent_turns": agent_info.get("turns"),
+        "agent_duration_ms": agent_info.get("duration_ms"),
+    }
+    # Extract structured user info from transcript
+    transcript_text = result.get("formatted_transcript", "") or ""
+    user_info = extract_user_info(transcript_text)
+    row.update(user_info)
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{SUPABASE_URL}/rest/v1/guides?on_conflict=guide_id",
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                },
+                json=row,
+            )
+            if resp.status_code < 300:
+                logger.info(f"[GUIDE {guide_id}] Saved to Supabase")
+            else:
+                logger.warning(f"[GUIDE {guide_id}] Supabase save failed: {resp.text}")
+    except Exception as e:
+        logger.error(f"[GUIDE {guide_id}] Supabase save error: {e}")
+
 
 # ========================================
 # Application Initialization
@@ -158,6 +280,7 @@ class FormatRequest(BaseModel):
 
 class GenerateGuideRequest(BaseModel):
     formatted_transcript: str
+    selected_outputs: list[str] = ["setup_guide", "prompts", "reference_docs"]
 
     @field_validator("formatted_transcript")
     @classmethod
@@ -184,7 +307,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Background Task Runner
 # ========================================
 
-async def _run_guide_agent(guide_id: str, formatted_transcript: str):
+async def _run_guide_agent(guide_id: str, formatted_transcript: str, selected_outputs: list[str] | None = None):
     """Run the Setup Guide Agent in the background.
 
     Streams progress events to an asyncio.Queue (if an SSE client is connected),
@@ -192,7 +315,7 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
     """
     event_queue = _event_queues.get(guide_id)
     try:
-        result = await generate_guide_smart(formatted_transcript, event_queue=event_queue, guide_id=guide_id)
+        result = await generate_guide_smart(formatted_transcript, event_queue=event_queue, guide_id=guide_id, selected_outputs=selected_outputs)
         # Attach scorecard to completed guides
         if result.get("status") == "complete" and result.get("outputs"):
             result["scorecard"] = compute_scorecard(result["outputs"])
@@ -200,6 +323,10 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
             **result,
             "guide_id": guide_id,
         })
+        # Dual write: persist flattened guide content to Supabase via REST
+        if result.get("status") == "complete":
+            result["formatted_transcript"] = formatted_transcript
+            await save_to_supabase(guide_id, result)
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
         await guide_store.set(guide_id, {
@@ -364,7 +491,7 @@ async def generate_guide_endpoint(
     # Create event queue for SSE streaming
     _event_queues[guide_id] = asyncio.Queue()
 
-    background_tasks.add_task(_run_guide_agent, guide_id, req.formatted_transcript)
+    background_tasks.add_task(_run_guide_agent, guide_id, req.formatted_transcript, req.selected_outputs)
 
     return {"guide_id": guide_id, "status": "generating"}
 
@@ -457,11 +584,47 @@ async def get_guide(guide_id: str):
     guide_dir = os.path.join(
         os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output"), guide_id
     )
-    guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
-    if os.path.isfile(guide_file):
+    guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.txt")
+    guide_file_md = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
+    if os.path.isfile(guide_file) or os.path.isfile(guide_file_md):
         result = _load_guide_from_disk(guide_id, guide_dir)
         await guide_store.set(guide_id, result)
         return result
+
+    # Fallback: check Supabase directly (e.g. after server restart with no disk)
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{SUPABASE_URL}/rest/v1/guides?on_conflict=guide_id",
+                    headers={
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_KEY}",
+                    },
+                    params={"guide_id": f"eq.{guide_id}", "select": "*"},
+                )
+                if resp.status_code < 300:
+                    rows = resp.json()
+                    if rows:
+                        row = rows[0]
+                        # Re-nest outputs for API consistency
+                        result = {
+                            "guide_id": row.get("guide_id", guide_id),
+                            "status": row.get("status", "complete"),
+                            "outputs": {
+                                "setup_guide": row.get("setup_guide", ""),
+                                "prompts_to_send": row.get("prompts_to_send", ""),
+                                "reference_documents": row.get("reference_documents", []),
+                            },
+                            "scorecard": row.get("scorecard"),
+                            "quality_eval": row.get("quality_eval"),
+                            "model": row.get("model"),
+                        }
+                        await guide_store.set(guide_id, result)
+                        logger.info(f"[GUIDE {guide_id}] Recovered from Supabase")
+                        return result
+        except Exception as e:
+            logger.warning(f"[GUIDE {guide_id}] Supabase fallback lookup failed: {e}")
 
     return {
         "guide_id": guide_id,
@@ -480,8 +643,14 @@ def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
         except FileNotFoundError:
             return ""
 
-    setup_guide = _read(os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md"))
-    prompts = _read(os.path.join(guide_dir, "prompts_to_send.md"))
+    # Prefer .txt, fall back to .md
+    setup_txt = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.txt")
+    setup_md = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
+    setup_guide = _read(setup_txt) if os.path.isfile(setup_txt) else _read(setup_md)
+
+    prompts_txt = os.path.join(guide_dir, "prompts_to_send.txt")
+    prompts_md = os.path.join(guide_dir, "prompts_to_send.md")
+    prompts = _read(prompts_txt) if os.path.isfile(prompts_txt) else _read(prompts_md)
 
     ref_docs = []
     ref_dir = os.path.join(guide_dir, "reference_documents")

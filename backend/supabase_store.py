@@ -20,7 +20,7 @@ _COLUMN_FIELDS = {
     "guide_id", "status", "message", "formatted_transcript",
     "agent_session_id", "agent_cost_usd", "agent_turns",
     "agent_duration_ms", "setup_guide", "reference_documents",
-    "prompts_to_send", "scorecard",
+    "prompts_to_send", "scorecard", "quality_eval", "model",
 }
 
 
@@ -81,11 +81,11 @@ class GuideStore:
                 await sb.table("guides")
                 .select("*")
                 .eq("guide_id", guide_id)
-                .maybe_single()
+                .limit(1)
                 .execute()
             )
             if result.data:
-                return _from_row(result.data)
+                return _from_row(result.data[0])
             return None
         except Exception as e:
             logger.error(f"[GuideStore] get({guide_id}) failed: {e}")
@@ -203,7 +203,7 @@ class GuideStore:
             sb = await self._get_client()
             result = (
                 await sb.table("guides")
-                .select("guide_id, status, created_at, metadata")
+                .select("guide_id, status, created_at")
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
                 .execute()
@@ -213,7 +213,6 @@ class GuideStore:
                     "guide_id": r.get("guide_id"),
                     "status": r.get("status"),
                     "created_at": r.get("created_at"),
-                    "business_name": (r.get("metadata") or {}).get("business_name"),
                 }
                 for r in result.data
             ]

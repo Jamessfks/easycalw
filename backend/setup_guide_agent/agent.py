@@ -7,7 +7,7 @@ in a per-session directory. The agent has:
 - WRITE access to the output directory only (/tmp/openclaw-guides/<id>/)
 
 Output files:
-- OPENCLAW_ENGINE_SETUP_GUIDE.md (main deliverable)
+- EASYCLAW_SETUP.md (main deliverable)
 - reference_documents/*.md (conditional sub-setup docs)
 - prompts_to_send.md (messages to initialize the user's OpenClaw instance)
 """
@@ -62,7 +62,6 @@ def _load_system_prompt() -> str:
 
 def _classify_stage(msg) -> str:
     """Map an intermediate agent message to a human-readable stage label."""
-    # Try to extract what the agent is doing from the message
     cls_name = type(msg).__name__
 
     if cls_name == "TaskStartedMessage":
@@ -83,10 +82,70 @@ def _classify_stage(msg) -> str:
     return "Working..."
 
 
+def _detect_doc_status(output_dir: Path) -> list[dict]:
+    """Check which output docs exist and their sizes. Returns doc_status events."""
+    statuses = []
+    guide_path = output_dir / "EASYCLAW_SETUP.md"
+    if not guide_path.exists():
+        guide_path = output_dir / "EASYCLAW_SETUP.txt"
+    if not guide_path.exists():
+        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
+    if not guide_path.exists():
+        guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.txt"
+    if guide_path.exists():
+        statuses.append({"type": "doc_status", "doc": "setup_guide", "status": "complete", "chars": len(guide_path.read_text())})
+
+    prompts_path = output_dir / "prompts_to_send.md"
+    if not prompts_path.exists():
+        prompts_path = output_dir / "prompts_to_send.txt"
+    if prompts_path.exists():
+        statuses.append({"type": "doc_status", "doc": "prompts", "status": "complete", "chars": len(prompts_path.read_text())})
+
+    ref_dir = output_dir / "reference_documents"
+    if ref_dir.is_dir():
+        ref_files = list(ref_dir.glob("*.txt")) + list(ref_dir.glob("*.md"))
+        if ref_files:
+            total_chars = sum(len(f.read_text()) for f in ref_files)
+            statuses.append({"type": "doc_status", "doc": "reference_docs", "status": "complete", "chars": total_chars, "count": len(ref_files)})
+
+    return statuses
+
+
+def _build_selection_instruction(selected_outputs: list[str] | None) -> str:
+    """Build a prompt instruction limiting which output files the agent generates."""
+    if not selected_outputs:
+        return ""
+    sel = set(selected_outputs)
+    all_three = {"setup_guide", "prompts", "reference_docs"}
+    if sel >= all_three:
+        return ""  # default — generate everything
+
+    parts = []
+    if "setup_guide" in sel:
+        parts.append("EASYCLAW_SETUP.md")
+    if "prompts" in sel:
+        parts.append("prompts_to_send.md")
+    if "reference_docs" in sel:
+        parts.append("reference_documents/*.md")
+
+    skip = []
+    if "prompts" not in sel:
+        skip.append("prompts_to_send.md")
+    if "reference_docs" not in sel:
+        skip.append("reference_documents/")
+
+    instruction = f"\n\n⚠️ SELECTIVE GENERATION: Generate ONLY {', '.join(parts)}."
+    if skip:
+        instruction += f" Do NOT generate {', '.join(skip)}."
+    instruction += " This saves budget — skip reading/planning for excluded outputs.\n"
+    return instruction
+
+
 async def generate_guide(
     formatted_transcript: str,
     event_queue = None,
     guide_id: str = None,
+    selected_outputs: list[str] | None = None,
 ) -> dict:
     """Generate an OpenClaw setup guide from a formatted interview transcript.
     Falls back to Gemini if Claude Agent SDK is unavailable.
@@ -157,6 +216,8 @@ async def generate_guide(
                 f"the knowledge base if needed.\n\n"
             )
 
+        selection_instruction = _build_selection_instruction(selected_outputs)
+
         async for msg in query(
             prompt=(
                 f"Your working directory contains INTERVIEW_TRANSCRIPT.md — the formatted "
@@ -176,9 +237,10 @@ async def generate_guide(
                 f"- templates/images/ — UI screenshot images (image1.png through image12.png) that illustrate the onboarding flow\n\n"
                 f"{semantic_block}"
                 f"Generate these output files in your working directory:\n"
-                f"1. OPENCLAW_ENGINE_SETUP_GUIDE.md — the master setup guide\n"
+                f"1. EASYCLAW_SETUP.md — the master setup guide\n"
                 f"2. reference_documents/*.md — sub-step docs for complex procedures\n"
                 f"3. prompts_to_send.md — initialization prompts for the user's OpenClaw\n\n"
+                f"{selection_instruction}"
                 f"Start by reading the transcript, then explore the knowledge base, "
                 f"then generate all output files."
             ),
@@ -192,7 +254,7 @@ async def generate_guide(
                 max_turns=40,
                 max_budget_usd=3.0,
                 model=MODEL,
-                cli_path="/opt/homebrew/bin/claude",  # Use authenticated system Claude Code
+                cli_path=os.getenv("CLAUDE_CLI_PATH", "/opt/homebrew/bin/claude"),
             ),
         ):
             # Stream intermediate progress to SSE queue
@@ -233,6 +295,12 @@ async def generate_guide(
                     "tokens": tokens,
                     "duration_ms": duration,
                 })
+
+                # Emit doc_status events when agent writes files
+                last_tool = getattr(msg, "last_tool_name", None) if hasattr(msg, "last_tool_name") else None
+                if last_tool == "Write":
+                    for doc_event in _detect_doc_status(output_dir):
+                        await event_queue.put(doc_event)
 
         # Collect all output files the agent wrote
         outputs = _collect_outputs(output_dir)
@@ -308,15 +376,16 @@ async def generate_guide(
     except Exception as e:
         err_msg = str(e)
         logger.error(f"[GUIDE {guide_id}] Agent session failed: {e}")
-        # Auto-fallback to Gemini if Claude SDK fails (auth/CLI issues)
-        if any(x in err_msg for x in ["exit code", "Command failed", "authentication", "bundled"]):
-            logger.warning(f"[GUIDE {guide_id}] Claude SDK failed — switching to Gemini 2.5 Pro fallback")
-            try:
-                from setup_guide_agent.gemini_agent import generate_guide_gemini
-                return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
-            except Exception as gemini_err:
-                logger.error(f"[GUIDE {guide_id}] Gemini fallback failed: {gemini_err}")
-                err_msg = f"Claude and Gemini both failed: {gemini_err}"
+        # NOTE: Gemini 2.5 Pro fallback disabled — free tier quota exhausted (429).
+        # TODO(production): Re-enable once Google AI billing is activated.
+        # if any(x in err_msg for x in ["exit code", "Command failed", "authentication", "bundled"]):
+        #     logger.warning(f"[GUIDE {guide_id}] Claude SDK failed — switching to Gemini 2.5 Pro fallback")
+        #     try:
+        #         from setup_guide_agent.gemini_agent import generate_guide_gemini
+        #         return await generate_guide_gemini(formatted_transcript, event_queue=event_queue)
+        #     except Exception as gemini_err:
+        #         logger.error(f"[GUIDE {guide_id}] Gemini fallback failed: {gemini_err}")
+        #         err_msg = f"Claude and Gemini both failed: {gemini_err}"
         if event_queue is not None:
             await event_queue.put({"type": "error", "message": err_msg})
         return {
@@ -328,35 +397,54 @@ async def generate_guide(
 
 
 def _collect_outputs(output_dir: Path) -> dict:
-    """Walk the output directory and collect all generated files."""
+    """Walk the output directory and collect all generated files (.md preferred, .txt fallback)."""
     outputs = {
         "setup_guide": None,
         "reference_documents": [],
         "prompts_to_send": None,
     }
 
-    guide_path = output_dir / "OPENCLAW_ENGINE_SETUP_GUIDE.md"
-    if guide_path.exists():
-        outputs["setup_guide"] = guide_path.read_text()
+    # Setup guide — prefer new name, fall back to old
+    for name in ("EASYCLAW_SETUP.md", "EASYCLAW_SETUP.txt",
+                 "OPENCLAW_ENGINE_SETUP_GUIDE.md", "OPENCLAW_ENGINE_SETUP_GUIDE.txt"):
+        guide_path = output_dir / name
+        if guide_path.exists():
+            outputs["setup_guide"] = guide_path.read_text()
+            break
 
+    # Reference documents — collect both .txt and .md
     ref_dir = output_dir / "reference_documents"
     if ref_dir.is_dir():
-        for f in sorted(ref_dir.glob("*.md")):
-            outputs["reference_documents"].append({
-                "name": f.name,
-                "content": f.read_text(),
-            })
+        seen = set()
+        for ext in ("*.md", "*.txt"):
+            for f in sorted(ref_dir.glob(ext)):
+                stem = f.stem
+                if stem not in seen:
+                    seen.add(stem)
+                    outputs["reference_documents"].append({
+                        "name": f.name,
+                        "content": f.read_text(),
+                    })
 
-    prompts_path = output_dir / "prompts_to_send.md"
-    if prompts_path.exists():
-        outputs["prompts_to_send"] = prompts_path.read_text()
+    # Prompts — prefer .md, fall back to .txt
+    for ext in (".md", ".txt"):
+        prompts_path = output_dir / f"prompts_to_send{ext}"
+        if prompts_path.exists():
+            outputs["prompts_to_send"] = prompts_path.read_text()
+            break
 
-    known = {"INTERVIEW_TRANSCRIPT.md", "OPENCLAW_ENGINE_SETUP_GUIDE.md", "prompts_to_send.md"}
-    for f in output_dir.glob("*.md"):
-        if f.name not in known:
-            outputs.setdefault("other_files", []).append({
-                "name": f.name,
-                "content": f.read_text(),
-            })
+    known = {
+        "INTERVIEW_TRANSCRIPT.md",
+        "EASYCLAW_SETUP.txt", "EASYCLAW_SETUP.md",
+        "OPENCLAW_ENGINE_SETUP_GUIDE.md", "OPENCLAW_ENGINE_SETUP_GUIDE.txt",
+        "prompts_to_send.md", "prompts_to_send.txt",
+    }
+    for pattern in ("*.md", "*.txt"):
+        for f in output_dir.glob(pattern):
+            if f.name not in known:
+                outputs.setdefault("other_files", []).append({
+                    "name": f.name,
+                    "content": f.read_text(),
+                })
 
     return outputs
