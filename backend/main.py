@@ -8,6 +8,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
@@ -47,6 +48,52 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Supabase credentials (for direct REST writes alongside GuideStore)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+
+async def save_to_supabase(guide_id: str, result: dict) -> None:
+    """POST completed guide data directly to Supabase REST API.
+
+    This is a supplementary write that flattens outputs into top-level
+    columns. GuideStore.set() handles the primary upsert; this ensures
+    content fields (setup_guide, prompts_to_send, etc.) are persisted
+    even if the supabase-py client is unavailable.
+    """
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    outputs = result.get("outputs", {})
+    row = {
+        "guide_id": guide_id,
+        "status": result.get("status", "complete"),
+        "setup_guide": outputs.get("setup_guide", ""),
+        "prompts_to_send": outputs.get("prompts_to_send", ""),
+        "reference_documents": outputs.get("reference_documents", []),
+        "scorecard": result.get("scorecard"),
+        "quality_eval": result.get("quality_eval"),
+        "model": result.get("model", "claude"),
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{SUPABASE_URL}/rest/v1/guides",
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                },
+                json=row,
+            )
+            if resp.status_code < 300:
+                logger.info(f"[GUIDE {guide_id}] Saved to Supabase")
+            else:
+                logger.warning(f"[GUIDE {guide_id}] Supabase save failed: {resp.text}")
+    except Exception as e:
+        logger.error(f"[GUIDE {guide_id}] Supabase save error: {e}")
+
 
 # ========================================
 # Application Initialization
@@ -200,6 +247,9 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str):
             **result,
             "guide_id": guide_id,
         })
+        # Dual write: persist flattened guide content to Supabase via REST
+        if result.get("status") == "complete":
+            await save_to_supabase(guide_id, result)
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
         await guide_store.set(guide_id, {
@@ -462,6 +512,41 @@ async def get_guide(guide_id: str):
         result = _load_guide_from_disk(guide_id, guide_dir)
         await guide_store.set(guide_id, result)
         return result
+
+    # Fallback: check Supabase directly (e.g. after server restart with no disk)
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{SUPABASE_URL}/rest/v1/guides",
+                    headers={
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_KEY}",
+                    },
+                    params={"guide_id": f"eq.{guide_id}", "select": "*"},
+                )
+                if resp.status_code < 300:
+                    rows = resp.json()
+                    if rows:
+                        row = rows[0]
+                        # Re-nest outputs for API consistency
+                        result = {
+                            "guide_id": row.get("guide_id", guide_id),
+                            "status": row.get("status", "complete"),
+                            "outputs": {
+                                "setup_guide": row.get("setup_guide", ""),
+                                "prompts_to_send": row.get("prompts_to_send", ""),
+                                "reference_documents": row.get("reference_documents", []),
+                            },
+                            "scorecard": row.get("scorecard"),
+                            "quality_eval": row.get("quality_eval"),
+                            "model": row.get("model"),
+                        }
+                        await guide_store.set(guide_id, result)
+                        logger.info(f"[GUIDE {guide_id}] Recovered from Supabase")
+                        return result
+        except Exception as e:
+            logger.warning(f"[GUIDE {guide_id}] Supabase fallback lookup failed: {e}")
 
     return {
         "guide_id": guide_id,
