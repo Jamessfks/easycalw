@@ -388,28 +388,31 @@ This file contains the initialization prompts the user pastes into their OpenCla
 *Send these prompts in order after completing the setup guide steps.*
 ```
 
-**Rules for generating each prompt type:**
+**Rules for generating each prompt (Prompt 1 through Prompt 6):**
 
-**Identity Prompt (always first):**
-- Define: agent name, who it serves, role, industry, primary mission, operating hours
+All 6 prompts are REQUIRED. Each maps to a phase in the setup guide. Customize the content based on the transcript, but maintain the structure below.
+
+**Prompt 1 — Identity & Introduction (Phase 2):**
+- User introduces themselves and their problem to the agent
+- Define: agent name, who it serves, role, industry, primary mission
 - Do NOT invent personality traits or details not stated in the transcript
+- Must end with: "What do you need to know to get started?" — lets the agent ask follow-ups
 - Format: narrative paragraph introducing the agent, then bullet points for specifics
 
-**Business Context Prompt (if applicable):**
+**Prompt 2 — Business Story & Pain Points (Phase 2):**
+- User tells the agent their story — pain points, current tools, what they want automated
 - Capture: business name, team size, locations, key tools, supplier/partner info
 - Source: transcript only — do not embellish
+- Must end with: "What do you suggest we set up first?" — agent proposes, user approves
 - Format: structured bullet points the agent can reference in future conversations
 
-**Skills Installation Prompt (if applicable):**
-- Include `clawhub install <slug>` commands for each recommended skill
-- Include a task-mapping table: User Need → Skill → What It Does
-- Ordering: `skill-vetter` FIRST (mandatory security skill), then core essentials, then domain-specific
-- Every slug must be verified against `skill_registry.md` via Grep
-- If recommending >10 skills, phase them: "Phase 1: Core (5 skills), Phase 2: Domain (5 skills), Phase 3: Advanced (remaining)"
-
-**Routines & Automations Prompt (if applicable):**
-- Use exact `openclaw cron add` syntax from the documentation
-- Tag each routine with its autonomy tier:
+**Prompt 3 — Status Command Setup (Phase 3):**
+- Set up a "status" command — rich dashboard with urgent items, next event, tasks due
+- Include: proactive notifications, morning auto-briefing schedule
+- Customize the dashboard sections to the user's actual workflow (e.g., restaurant: staff/suppliers/prep; developer: PRs/CI/deploys)
+- This should feel substantial — not 4 bullet points
+- If the user wants automations, include `openclaw cron add` syntax from the documentation
+- Tag any automated routines with autonomy tiers:
 
 | Tier | Label | Behavior |
 |---|---|---|
@@ -418,42 +421,35 @@ This file contains the initialization prompts the user pastes into their OpenCla
 | 3 | SUGGEST | Draft an action and ask for approval before executing. |
 | 4 | EXECUTE | Act autonomously within guardrail boundaries. |
 
-- **Default to Tier 2 (NOTIFY)** if the transcript does not clearly indicate the user's comfort level with autonomous actions
+- **Default to Tier 2 (NOTIFY)** if the transcript does not clearly indicate the user's comfort level
 - **Never assign Tier 4 (EXECUTE)** to financial transactions, outbound communications, or data-deletion actions unless the user explicitly requested it
-- Format each routine with: Schedule, Action, Tier tag, Description
-- Reference standing orders for recurring autonomous tasks with defined scope and escalation rules
 
-**Guardrails & Safety Prompt (if applicable):**
-- Must include: forbidden actions list (things the agent must NEVER do)
+**Prompt 4 — Tool Connections (Phase 4):**
+- "Walk me through Google setup one step at a time. Wait for me to say done before the next step. Keep each step to 2 sentences."
+- IMPORTANT: Always instruct user to create a DEDICATED Google account for the agent. Never connect personal accounts.
+- Include `clawhub install <slug>` commands for each recommended skill
+- Every slug must be verified against `skill_registry.md` via Grep
+- Ordering: `skill-vetter` FIRST (mandatory security skill), then core essentials, then domain-specific
+- If recommending >10 skills, phase them: "Install Phase 1: Core (5 skills), Install Phase 2: Domain (5 skills), Install Phase 3: Advanced (remaining)"
+- After connection: activate the automations discussed in Phase 2
+
+**Prompt 5 — Guardrails: CAN / MUST CHECK / NEVER (Phase 5):**
+- Three categories adapted to what the user actually said about autonomy and boundaries:
+  - **CAN do freely** — routine actions the agent handles without asking
+  - **MUST CHECK first** — actions that require user confirmation before executing
+  - **NEVER do** — hard boundaries the agent must not cross
 - Must include: escalation triggers (when the agent stops and asks for help)
 - Must include: "When in doubt, ask the user" as a default rule
 - If financial skills are included: spending limits and approval thresholds
 - Industry-specific compliance: HIPAA for healthcare, PCI for financial services, food safety for restaurants, etc.
 - Conservative by default — err on the side of more restrictions, not fewer
+- Include personality/style guidance: response length, emoji usage, jargon level, format preference
+- Default style if no signals: "Professional, concise, uses bullet points, no emojis"
 
-**Personality & Style Prompt (if applicable):**
-- Define: response length preference, emoji usage, jargon level, format preference (bullets vs prose)
-- Source: communication style cues from the transcript
-- Default if no signals: "Professional, concise, uses bullet points, no emojis"
-- Should complement the Identity prompt — personality is the voice, identity is the role
-
-**Channel Configuration Prompt (if applicable):**
-- Channel-specific setup instructions grounded in `openclaw-docs/docs/channels/`
-- Include exact configuration commands or steps
-- Note any channel-specific limitations or best practices
-
-**Domain Workflows Prompt (if applicable):**
-- Industry-tailored automation recipes grounded in `domain_knowledge_final/`
-- Concrete workflows the agent should know how to execute for this user's industry
-- Include triggers, expected outputs, and escalation criteria
-
-**Data & Integrations Prompt (if applicable):**
-- API connection instructions for external services the user mentioned
-- Skill-to-service mapping with required credentials (using placeholder format)
-- Data flow description: what data goes where
-
-**Security Audit Prompt (always last):**
+**Prompt 6 — Security Defaults (Phase 6):**
 - This prompt is MANDATORY regardless of user type or industry
+- Placed last because user is now excited and might start exploring skills — this is the guardrail
+- Include explanation: "We place this here because you're about to start exploring skills and automations..."
 - Structurally consistent — only deployment-specific checks vary
 - Must include these verification steps:
 
@@ -480,8 +476,8 @@ This step is NON-SKIPPABLE. After writing all output files, re-read them and ver
 2. **Skill registry validation:** For every `clawhub install <slug>` in your output, Grep `skill_registry.md` to confirm the slug exists. FAIL if any slug is not found — remove the recommendation.
 3. **Security skills ordering:** Verify that `skill-vetter` is recommended as the FIRST skill install before any other skill. FAIL if not — reorder.
 4. **Guardrails completeness:** If you generated a Guardrails prompt, verify it includes: forbidden actions, escalation triggers, and spending limits (if financial skills are present).
-5. **Security audit prompt present:** Verify the last prompt in `prompts_to_send.txt` is the Security Audit prompt with verification commands.
-6. **Platform-appropriate security:** Verify the setup guide Section 08 includes security hardening steps matching the deployment type: firewall rules for VPS, FileVault for Mac, no `--privileged` flag for Docker, network isolation where appropriate.
+5. **Security prompt present:** Verify that Prompt 6 (Security Defaults) is the last prompt in `prompts_to_send.txt` and includes the verification commands.
+6. **Platform-appropriate security:** Verify that Phase 6 (Stay Safe) includes security hardening steps matching the deployment type: firewall rules for VPS, FileVault for Mac, no `--privileged` flag for Docker, network isolation where appropriate.
 7. **No destructive defaults:** Verify no cron job or automation is configured at Tier 4 (EXECUTE) for financial, communication, or data-deletion actions unless the transcript explicitly requested it.
 
 If ANY check fails, fix the issue before proceeding to Step 7.
@@ -492,7 +488,7 @@ Final verification before completing:
 
 1. All 3 output files exist in the working directory
 2. `EASYCLAW_SETUP.txt` references the correct sub-documents (if any were generated)
-3. `prompts_to_send.txt` contains the Identity prompt first and Security Audit prompt last
+3. `prompts_to_send.txt` contains Prompt 1 (Identity & Introduction) first and Prompt 6 (Security Defaults) last
 4. Every skill mentioned in the setup guide also appears in the Skills prompt (if generated)
 5. No `TODO`, `PLACEHOLDER`, or `TBD` markers remain in any output file
 6. Adaptive depth matches the user's detected proficiency level
