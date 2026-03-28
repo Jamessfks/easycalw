@@ -46,8 +46,13 @@ export default function useVapi() {
         });
 
         vapi.on('call-end', () => {
-            setCallStatus('ended');
             setVoiceState('idle');
+
+            // Grace period — let any in-flight transcript messages arrive before
+            // we set 'ended' (which triggers the isTooShort check in InterviewView)
+            setTimeout(() => {
+                setCallStatus('ended');
+            }, 800);
 
             // POST accumulated transcript to formatter
             const accumulated = fullTranscriptRef.current;
@@ -202,7 +207,9 @@ export default function useVapi() {
     const endCall = useCallback(() => {
         if (vapiRef.current && (callStatus === 'active' || callStatus === 'connecting')) {
             vapiRef.current.stop();
-            setCallStatus('ended');
+            // Don't set 'ended' here — the call-end event handler does it
+            // after an 800ms grace period for final transcript messages.
+            // Show a transitional state so the UI isn't stuck on 'active'.
             setVoiceState('idle');
         }
     }, [callStatus]);

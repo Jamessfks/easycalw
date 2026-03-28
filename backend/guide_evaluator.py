@@ -64,7 +64,17 @@ async def evaluate_guide(guide: str, transcript: str, threshold: float = 3.5) ->
         messages=[{"role": "user", "content": EVAL_PROMPT.format(transcript=transcript, guide=guide)}],
     )
 
-    raw = json.loads(response.content[0].text)
+    try:
+        raw = json.loads(response.content[0].text)
+    except (json.JSONDecodeError, IndexError) as e:
+        logger.error(f"[EVAL] Failed to parse evaluator response: {e}")
+        return EvalResult(
+            scores={c: 3 for c in ["completeness", "personalization", "technical_accuracy", "structure_clarity", "actionability"]},
+            rationales={c: "Evaluation parse failed — defaulting to neutral score" for c in ["completeness", "personalization", "technical_accuracy", "structure_clarity", "actionability"]},
+            mean_score=3.0,
+            passed=False,
+            overall_notes=f"Evaluation JSON parse error: {e}",
+        )
     criteria = [
         "completeness",
         "personalization",
@@ -72,8 +82,12 @@ async def evaluate_guide(guide: str, transcript: str, threshold: float = 3.5) ->
         "structure_clarity",
         "actionability",
     ]
-    scores = {c: raw[c]["score"] for c in criteria}
-    rationales = {c: raw[c]["rationale"] for c in criteria}
+    scores = {}
+    rationales = {}
+    for c in criteria:
+        entry = raw.get(c, {})
+        scores[c] = entry.get("score", 3) if isinstance(entry, dict) else 3
+        rationales[c] = entry.get("rationale", "No rationale provided") if isinstance(entry, dict) else "No rationale provided"
     mean = sum(scores.values()) / len(scores)
 
     result = EvalResult(
