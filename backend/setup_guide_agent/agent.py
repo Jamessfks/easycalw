@@ -327,13 +327,13 @@ async def generate_guide(
     try:
         from setup_guide_agent.kb_search import kb_index
         await kb_index.build()
-        relevant_docs = await kb_index.search(formatted_transcript, top_k=12)
+        relevant_docs = await kb_index.search(formatted_transcript, top_k=10)
 
         lines = ["## Pre-selected Knowledge Base (most relevant)\n"]
-        for item in relevant_docs[:12]:
+        for item in relevant_docs[:10]:
             fpath = _CONTEXT_DIR / item["path"]
             if fpath.exists():
-                content = fpath.read_text()[:3000]
+                content = fpath.read_text()[:4000]
                 lines.append(f"### {item['path']} (score: {item['score']:.2f})\n{content}\n")
         semantic_context = "\n".join(lines)
         logger.info(f"[GUIDE {guide_id}] KB retrieval: {len(relevant_docs)} docs")
@@ -384,13 +384,23 @@ async def generate_guide(
         while turn_count < MAX_TURNS:
             turn_count += 1
 
-            response = await client.messages.create(
-                model=MODEL,
-                max_tokens=MAX_TOKENS_PER_TURN,
-                system=system_prompt,
-                tools=TOOLS,
-                messages=messages,
-            )
+            # Retry with backoff for rate limits
+            for attempt in range(4):
+                try:
+                    response = await client.messages.create(
+                        model=MODEL,
+                        max_tokens=MAX_TOKENS_PER_TURN,
+                        system=system_prompt,
+                        tools=TOOLS,
+                        messages=messages,
+                    )
+                    break
+                except anthropic.RateLimitError as e:
+                    if attempt == 3:
+                        raise
+                    wait = (attempt + 1) * 15  # 15s, 30s, 45s
+                    logger.warning(f"[GUIDE {guide_id}] Rate limited, waiting {wait}s...")
+                    await asyncio.sleep(wait)
 
             total_input_tokens += response.usage.input_tokens
             total_output_tokens += response.usage.output_tokens
