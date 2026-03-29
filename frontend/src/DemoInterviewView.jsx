@@ -120,44 +120,31 @@ export default function DemoInterviewView({ onInterviewComplete, onBack }) {
     const callStatus = allRevealed ? 'ended' : visibleCount > 0 ? 'active' : 'idle';
 
     return (
-        <div className="w-screen h-screen bg-surface-0 text-gray-100 flex flex-col overflow-hidden relative">
-            {/* Background */}
-            <div className="fixed inset-0 grid-bg opacity-30" />
-            <div className="ambient-glow bg-cyan-500 top-[-50px] right-[20%] opacity-10" />
+        <div className="w-screen h-screen bg-surface-0 text-stone-100 flex flex-col overflow-hidden relative">
+            <div className="fixed inset-0 grid-bg opacity-20" />
+            <div className="ambient-glow bg-accent-primary top-[-50px] right-[20%] opacity-10" />
 
             {/* Header */}
-            <header className="relative z-20 h-16 border-b border-white/[0.06] glass flex items-center justify-between px-6 shrink-0">
-                <div className="flex items-center gap-4">
+            <header className="relative z-20 h-14 border-b border-white/[0.06] glass flex items-center justify-between px-6 shrink-0">
+                <div className="flex items-center gap-3">
                     {onBack && (
-                        <button
-                            onClick={onBack}
-                            className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
-                        >
+                        <button onClick={onBack} className="p-2 rounded-full hover:bg-white/5 transition-colors text-stone-400 hover:text-white">
                             <ArrowLeft size={18} />
                         </button>
                     )}
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl">🐾</span>
-                        <div>
-                            <p className="section-label leading-none mb-0.5">EasyClaw</p>
-                            <p className="text-sm font-display font-semibold text-white leading-none">
-                                Demo Interview
-                            </p>
-                        </div>
-                    </div>
+                    <span className="font-display font-semibold text-white text-sm">Demo Interview</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Persona selector */}
                     {PERSONAS.map(p => (
                         <button
                             key={p.id}
                             onClick={() => switchPersona(p)}
                             title={p.label}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer
+                            className={`px-2.5 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer
                                 ${persona.id === p.id
-                                    ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-300'
-                                    : 'bg-white/[0.03] border border-white/[0.06] text-gray-500 hover:text-white hover:border-white/10'
+                                    ? 'bg-accent-primary/15 border border-accent-primary/40 text-accent-soft'
+                                    : 'bg-white/[0.03] border border-stone-800 text-stone-500 hover:text-white hover:border-stone-700'
                                 }`}
                         >
                             <span className="mr-1">{p.emoji}</span>
@@ -166,15 +153,15 @@ export default function DemoInterviewView({ onInterviewComplete, onBack }) {
                     ))}
                     <span className={`status-badge ml-1 ${
                         allRevealed
-                            ? 'border-cyan-500/50 text-cyan-400 bg-cyan-500/10'
+                            ? 'border-accent-primary/50 text-accent-primary bg-accent-primary/10'
                             : visibleCount > 0
                             ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10'
-                            : 'border-gray-600/50 text-gray-400 bg-gray-500/10'
+                            : 'border-stone-700 text-stone-400 bg-stone-500/10'
                     }`}>
                         {!allRevealed && visibleCount > 0 && (
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         )}
-                        {allRevealed ? 'Complete' : visibleCount > 0 ? 'Playing' : 'Demo Mode'}
+                        {allRevealed ? 'Complete' : visibleCount > 0 ? 'Playing' : 'Demo'}
                     </span>
                 </div>
             </header>
@@ -183,40 +170,30 @@ export default function DemoInterviewView({ onInterviewComplete, onBack }) {
             {allRevealed && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-surface-0/80 backdrop-blur-md">
                     <div className="text-center animate-fade-up">
-                        <div className="w-20 h-20 rounded-full bg-surface-2 border-2 border-cyan-500/30 flex items-center justify-center mx-auto mb-6">
-                            <Play size={36} className="text-cyan-400 ml-1" />
+                        <div className="w-20 h-20 rounded-full bg-accent-primary/10 border-2 border-accent-primary/30 flex items-center justify-center mx-auto mb-6">
+                            <Play size={36} className="text-accent-primary ml-1" />
                         </div>
-                        <h2 className="text-3xl font-display font-bold text-white mb-3">
-                            Demo Interview Complete
-                        </h2>
-                        <p className="text-gray-400 font-mono text-sm mb-8 max-w-md">
-                            This pre-recorded transcript is ready. Generate a personalized setup guide from it.
+                        <h2 className="text-3xl font-display font-bold text-white mb-3">Demo Complete</h2>
+                        <p className="text-stone-400 font-mono text-sm mb-8 max-w-md">
+                            Ready to generate a personalized setup guide from this transcript.
                         </p>
                         <div className="flex items-center justify-center gap-3">
-                            <button
-                                onClick={handleGenerateGuide}
-                                className="btn-primary flex items-center gap-2.5 text-base"
-                            >
-                                Generate Guide
-                                <ArrowRight size={16} />
+                            <button onClick={handleGenerateGuide} className="btn-primary flex items-center gap-2.5 text-base">
+                                Generate Guide <ArrowRight size={16} />
                             </button>
-                            <button onClick={onBack} className="btn-ghost !py-2.5 !px-5 !text-sm">
-                                Back
-                            </button>
+                            <button onClick={onBack} className="btn-ghost !py-2.5 !px-5 !text-sm">Back</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Two-panel layout — stacks vertically on mobile */}
-            <div className="relative z-10 flex-1 flex flex-col md:flex-row overflow-hidden">
-                {/* Left — Agent Presence */}
-                <div className="w-full md:w-2/5 shrink-0 border-b md:border-b-0 md:border-r border-white/[0.04] bg-surface-0/50 h-48 md:h-auto">
+            {/* Centered layout */}
+            <div className="relative z-10 flex-1 flex flex-col items-center overflow-hidden">
+                <div className="w-full max-w-sm pt-6 pb-2 shrink-0">
                     <AgentPresence voiceState={voiceState} callStatus={callStatus} />
                 </div>
-
-                {/* Right — Transcript */}
-                <div className="flex-1 w-full md:w-3/5 bg-surface-1/30">
+                <div className="flex-1 w-full max-w-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-surface-0 to-transparent z-10 pointer-events-none" />
                     <Transcript entries={transcriptEntries} />
                 </div>
             </div>

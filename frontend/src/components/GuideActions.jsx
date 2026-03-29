@@ -11,8 +11,8 @@ export function CopyButton({ text }) {
     return (
         <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono
-                       border border-white/10 text-gray-400 hover:text-white hover:border-white/20
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono
+                       border border-stone-700 text-stone-400 hover:text-white hover:border-stone-600
                        transition-all duration-200"
         >
             {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
@@ -34,8 +34,8 @@ export function DownloadButton({ content, filename, label }) {
     return (
         <button
             onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono
-                       border border-white/10 text-gray-400 hover:text-white hover:border-white/20
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono
+                       border border-stone-700 text-stone-400 hover:text-white hover:border-stone-600
                        transition-all duration-200"
         >
             <Download size={12} />
@@ -68,9 +68,9 @@ export function CopyAllPromptsButton({ prompts }) {
     return (
         <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono
-                       border border-cyan-500/20 text-cyan-400 hover:text-cyan-300 hover:border-cyan-500/40
-                       bg-cyan-500/5 hover:bg-cyan-500/10 transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono
+                       border border-accent-primary/20 text-accent-primary hover:text-accent-soft hover:border-accent-primary/40
+                       bg-accent-primary/5 hover:bg-accent-primary/10 transition-all duration-200"
         >
             {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
             {copied ? 'All Prompts Copied' : 'Copy All Prompts'}

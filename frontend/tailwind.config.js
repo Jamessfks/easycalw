@@ -7,17 +7,22 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+                display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
                 mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
             },
             colors: {
                 surface: {
-                    0: '#0a0e17',
-                    1: '#0f1420',
-                    2: '#151b2b',
-                    3: '#1c2438',
+                    0: '#0C0A09',
+                    1: '#1C1917',
+                    2: '#292524',
+                    3: '#44403C',
                 },
                 accent: {
+                    primary: '#F97316',
+                    hover: '#EA580C',
+                    soft: '#FFEDD5',
+                    glow: '#FB923C',
+                    secondary: '#8B5CF6',
                     cyan: '#22d3ee',
                     blue: '#3b82f6',
                     green: '#34d399',
@@ -35,6 +40,9 @@ export default {
                 'progress': 'progress 4s ease-in-out infinite',
                 'orbit': 'orbit 12s linear infinite',
                 'waveform': 'waveform 1.2s ease-in-out infinite',
+                'claw-idle': 'claw-idle 4s ease-in-out infinite',
+                'claw-snap': 'claw-snap 0.3s ease-in-out',
+                'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
             },
             keyframes: {
                 float: {
@@ -69,6 +77,21 @@ export default {
                 waveform: {
                     '0%, 100%': { transform: 'scaleY(0.3)' },
                     '50%': { transform: 'scaleY(1)' },
+                },
+                'claw-idle': {
+                    '0%, 100%': { transform: 'rotateY(0deg) rotateX(5deg)' },
+                    '25%': { transform: 'rotateY(15deg) rotateX(0deg)' },
+                    '50%': { transform: 'rotateY(0deg) rotateX(-5deg)' },
+                    '75%': { transform: 'rotateY(-15deg) rotateX(0deg)' },
+                },
+                'claw-snap': {
+                    '0%': { transform: 'rotate(0deg)' },
+                    '40%': { transform: 'rotate(-15deg)' },
+                    '100%': { transform: 'rotate(0deg)' },
+                },
+                'glow-pulse': {
+                    '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+                    '50%': { opacity: '0.7', transform: 'scale(1.1)' },
                 },
             },
         },
