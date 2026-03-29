@@ -13,7 +13,7 @@ EasyClaw is a two-phase AI system: voice interview (Vapi) → personalized OpenC
 - **Backend:** FastAPI, Python 3.11+, `uv` package manager
 - **Frontend:** React 18 + Vite + Tailwind CSS (dark mode)
 - **Voice:** Vapi SDK (`@vapi-ai/web`) — no WebSocket/audio code in our repo
-- **Agent:** `claude-agent-sdk` with 40-turn / $3.00 budget
+- **Agent:** Direct Anthropic API (single-pass, no CLI dependency)
 - **DB:** Supabase (async client) with in-memory fallback
 - **Embeddings:** FAISS + Gemini embeddings for KB semantic search
 - **Deploy:** Railway (backend) + Vercel (frontend option)
@@ -35,22 +35,25 @@ EasyClaw is a two-phase AI system: voice interview (Vapi) → personalized OpenC
 - Wrap sync SDK calls: `await asyncio.to_thread(client.messages.create, ...)`
 - Use the existing `GuideStore` for persistence (not raw dicts or new stores)
 - Validate Supabase column names against `backend/SUPABASE_SETUP.md` schema
-- Test formatter changes with all 3 tiers: Gemini Flash → Claude Haiku → regex fallback
+- Formatter is regex-only now — no LLM call needed
 - Use SSE events for any long-running operation the frontend needs to track
 
 ## Architecture Quick Reference
 
 ```
-Voice (Vapi) → /webhook → Formatter (Gemini Flash / Haiku / regex)
+Voice (Vapi) → /webhook → Formatter (regex, no API call)
                                ↓
-                    Setup Guide Agent (Claude Agent SDK)
-                    ├── Reads: context/ (KB, 499 docs, FAISS-indexed)
+                    Python Context Gatherer (reads KB files directly)
+                    ├── Detects: deployment, channel, industry from transcript
+                    ├── Loads: setup guide, channel docs, skills, security, template
+                               ↓
+                    Single Claude API Call (all context in prompt)
                     └── Writes: guide_output/<id>/
                          ├── EASYCLAW_SETUP.md
                          ├── reference_documents/*.md
                          └── prompts_to_send.md
                                ↓
-                    Frontend (SSE stream → OutputDisplay)
+                    Frontend (SSE → OutputDisplay, React + R3F + Framer Motion)
 ```
 
 ## Key File Paths
@@ -61,8 +64,8 @@ Voice (Vapi) → /webhook → Formatter (Gemini Flash / Haiku / regex)
 | `backend/routes/guides.py` | Guide CRUD, generation trigger, SSE streaming |
 | `backend/routes/webhook.py` | Vapi webhook receiver |
 | `backend/formatter.py` | Transcript cleanup (3-tier fallback) |
-| `backend/setup_guide_agent/agent.py` | Claude Agent SDK orchestration |
-| `backend/setup_guide_agent/system_prompt.md` | 545-line reasoning chain (CRITICAL) |
+| `backend/setup_guide_agent/agent.py` | Single-pass Anthropic API guide generation |
+| `backend/setup_guide_agent/system_prompt.md` | Original multi-turn prompt (archived, not used by single-pass) |
 | `backend/setup_guide_agent/context/KNOWLEDGE_INDEX.md` | KB routing table — read FIRST |
 | `backend/setup_guide_agent/context/skill_registry.md` | 435 skills — Grep only |
 | `backend/supabase_store.py` | Async Supabase + in-memory fallback |
@@ -105,4 +108,5 @@ cd frontend && npx playwright test             # e2e tests
 2. `list_guides` queries nonexistent `metadata` column in Supabase
 3. `_cleanup_old_guides` uses `pop_sync` — never deletes from Supabase
 4. `created_at` never set in in-memory store — sorting broken in fallback mode
-5. Gemini formatter disabled (free tier quota) — Claude Haiku is current primary
+5. Gemini free tier quota exhausted — KB search falls back to keyword matching
+6. `backend/.env` is tracked in git — should be removed (`git rm --cached backend/.env`)

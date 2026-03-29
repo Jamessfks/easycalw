@@ -1,8 +1,9 @@
 # OpenClaw Concierge — Technical Architecture
 
-**Version:** 4.3 (2026-03-24)
-**Authors:** Travis, Zi Cheng, Zixuan
+**Version:** 5.0 (2026-03-28)
+**Authors:** Travis, Zi Cheng, Zixuan, James Zhao
 **Voice layer:** [Vapi](https://vapi.ai/) (voice AI platform)
+**See also:** [changelog-v5.md](changelog-v5.md) for detailed v5.0 changes
 
 ---
 
@@ -19,22 +20,24 @@ OpenClaw Concierge is a **two-phase AI system** that interviews a user about the
 ```
 User (voice) ↔ Vapi Cloud (ASR + TTS + turn-taking) ↔ LLM (Interview Agent)
                                 ↓ transcript
-                    [Formatter LLM Call]
+                    [Regex Formatter — no API call]
                                 ↓ clean Markdown
-              [Setup Guide Creation Agent — backend-only]
+              [Python Context Gatherer — reads KB files directly]
+                                ↓ transcript + all relevant KB context
+              [Single Claude API Call — generates all output files]
                                 ↓
-              Output files → Frontend display
+              Output files → Frontend display (React + R3F + Framer Motion)
 ```
 
-**There is no validation layer between phases.** The Interview Agent decides when it has enough information. The Formatter cleans up the transcript. The Setup Guide Creation Agent produces the final output.
+**There is no validation layer between phases.** The Interview Agent decides when it has enough information. The Formatter cleans ASR artifacts via regex. The guide generator produces output in a single API call with pre-gathered context.
 
 ### 1.2 What each phase does
 
 | Phase | Agent | User interaction | Input | Output |
 |-------|-------|-----------------|-------|--------|
 | **Phase 1: Interview** | Vapi assistant (pre-built) | Yes — bi-directional voice via Vapi | User's spoken answers | Transcript (via Vapi's transcript events + end-of-call report) |
-| **Formatter** | Single LLM call (not an agent) | None | Raw transcript | `INTERVIEW_TRANSCRIPT.md` (clean Markdown) |
-| **Phase 2: Setup Guide Creation** | Setup Guide Creation Agent | None — runs on backend while frontend shows loading UI | Formatted transcript | Setup guide + reference docs + prompts |
+| **Formatter** | Regex cleanup (no API call) | None | Raw transcript | `INTERVIEW_TRANSCRIPT.md` (clean Markdown) |
+| **Phase 2: Setup Guide Creation** | Single Claude API call with pre-gathered KB context | None — runs on backend while frontend shows loading UI | Formatted transcript + KB context | Setup guide + reference docs + prompts |
 
 ### 1.3 Why Vapi (not raw ADK BIDI streaming)
 
@@ -138,7 +141,7 @@ We use (1) for the UI and (2) as the input to the Formatter.
 
 ## 3. Interview Formatter
 
-A single LLM call (not an agent, not interactive) that sits between the two phases.
+Regex-based cleanup (no API call) that sits between the two phases.
 
 **Input:** Complete interview transcript from Vapi's end-of-call report
 **Output:** `INTERVIEW_TRANSCRIPT.md` — clean, well-formatted Markdown
@@ -146,45 +149,65 @@ A single LLM call (not an agent, not interactive) that sits between the two phas
 **Rules:**
 - No intent changes — purely grammar cleanup, formatting, and parsing
 - Preserves all user statements and agent responses
-- Adds speaker labels and structure where missing
-- Cleans up ASR artifacts (repeated words, garbled text)
+- Bolds speaker labels, removes ASR filler words (um, uh, like), collapses stutters
 
-**Implementation:** Single Anthropic Claude API call. Falls back gracefully to raw transcript passthrough if the LLM is unavailable.
+**Implementation:** Regex-based (`formatter.py:_regex_fallback`). LLM-based formatters (Gemini Flash, Claude Haiku) still exist in code but are bypassed — the single-pass guide agent handles messy transcripts fine without pre-cleaning.
 
 ---
 
-## 4. Phase 2: Setup Guide Creation Agent
+## 4. Phase 2: Setup Guide Creation (Single-Pass)
 
 ### 4.1 How it runs
 
-This agent runs entirely on the **backend** — the user does not interact with it. While it runs, the frontend displays a loading UI with progress indication. Expected duration: up to ~5 minutes.
+This runs entirely on the **backend** — the user does not interact with it. While it runs, the frontend displays a loading UI with the 3D claw mascot. Expected duration: **30-60 seconds** (single API call).
 
-**Input:** The formatted transcript (`INTERVIEW_TRANSCRIPT.md`)
+**Input:** Formatted transcript + pre-gathered KB context
 
-### 4.2 Agent's knowledge base
+### 4.2 Context gathering (Python, no API calls)
 
-- **Its own system prompt** (separate from the Interview Agent's)
-- **The formatted transcript** — injected as input context
-- **OpenClaw Skill** — a standalone custom tool created by Travis
-- **Setup guides** — researched guides from the internet for OpenClaw setup patterns
+Python analyzes the transcript for keywords and loads relevant KB files directly:
+
+| Signal | Detection | Files loaded |
+|--------|-----------|-------------|
+| Deployment | "mac mini", "docker", "vps", "mac" | Matching setup guide (6-29KB) |
+| Channel | "telegram", "whatsapp", "discord", etc. | Channel docs (4KB) |
+| Industry | "dental", "restaurant", "developer", etc. | Domain knowledge file (3KB) |
+| Tools | "gmail", "crm", "dentrix", etc. | Skill registry grep results |
+| Always | — | Cron docs, security docs, template |
+
+Optional: KB semantic search adds 3 supplementary docs via FAISS (keyword fallback if Gemini unavailable).
 
 ### 4.3 Output files
 
 | Output | Description |
 |--------|-------------|
-| `OPENCLAW_ENGINE_SETUP_GUIDE.md` | The main setup guide. Primary deliverable. |
-| `reference_documents/` | Folder of sub-setup documents for conditional steps. Dynamically generated per user. |
-| `prompts_to_send.md` | Messages for the user to send to their OpenClaw instance after setup. Initializes personality, talking style, preferences. |
+| `EASYCLAW_SETUP.md` | The main setup guide. 6-phase structure. ~20K chars. |
+| `prompts_to_send.md` | 6 copy-paste prompts for OpenClaw initialization. ~8K chars. |
+| `reference_documents/*.md` | Optional sub-docs for complex procedures. |
 
-### 4.4 Pipeline orchestration (Claude Agent SDK)
+### 4.4 Pipeline orchestration (Direct Anthropic API)
 
-The Setup Guide Creation Agent uses the **Claude Agent SDK** (`claude-agent-sdk`) to orchestrate guide generation. The agent has read-only access to its knowledge base at `backend/setup_guide_agent/context/` and write access to an output directory. It produces 3 output files via Anthropic Claude:
+**One API call** with all context pre-gathered:
 
-1. **Main guide generation** — system prompt + transcript + references → `OPENCLAW_ENGINE_SETUP_GUIDE.md`
-2. **Reference docs generation** — main guide + transcript → `reference_documents/` (parsed into individual files)
-3. **Prompts generation** — transcript + guide context → `prompts_to_send.md`
+```
+[Python context gatherer]
+    ├── Transcript keywords → deployment, channel, industry
+    ├── Loads setup guide, channel docs, industry knowledge
+    ├── Greps skill registry for relevant skills
+    ├── Loads cron, security, template docs
+    └── Optional: FAISS/keyword KB search
+         ↓
+[Single Claude API call]
+    System: ~1,200 token prompt (6-phase structure + style rules)
+    User: transcript + all KB context (~20K tokens)
+    Response: <file> tagged output parsed into separate files
+         ↓
+[Parse + write files to disk]
+```
 
-Results are assembled in Python and stored in an in-memory dict for frontend retrieval.
+**Performance:** 1 API call, ~$0.14, ~30-60s. No multi-turn loop, no quality eval, no patch step.
+
+**Rate limiting:** Built-in retry with 20/40/60s backoff for 429 errors.
 
 ---
 
@@ -234,9 +257,10 @@ AGENTS.md                          # AI coding agent instructions (root)
 
 ### 5.1 Tech stack
 
-- **Frontend:** React + Vite + Tailwind, Vapi React SDK (`@vapi-ai/web`)
-- **Backend:** FastAPI (HTTP only, no WebSocket), Claude Agent SDK
+- **Frontend:** React 18 + Vite + Tailwind, Vapi React SDK (`@vapi-ai/web`), Framer Motion, React Three Fiber + drei (3D claw)
+- **Backend:** FastAPI (HTTP only, no WebSocket), Anthropic Python SDK (direct API, no CLI)
 - **Voice:** Vapi (ASR, TTS, streaming, interruption — all handled externally)
+- **KB Search:** FAISS + Gemini embeddings (with keyword fallback)
 
 ---
 
@@ -440,4 +464,4 @@ flowchart TB
 
 ---
 
-*Architecture v4.3 — 2026-03-24. Flattened repo structure; updated to reflect Claude Agent SDK implementation.*
+*Architecture v5.0 — 2026-03-28. Single-pass guide generation, frontend redesign with 3D claw, removed Claude Agent SDK dependency.*
