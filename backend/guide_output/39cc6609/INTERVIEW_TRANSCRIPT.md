@@ -1,1 +1,0 @@
-User: I run a coffee shop. I want AI help. Agent: What hardware? User: Mac Mini.

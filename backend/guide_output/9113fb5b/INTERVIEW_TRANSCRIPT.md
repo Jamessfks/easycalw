@@ -1,1 +1,0 @@
-User: I want to set up a claw machine for my coffee shop. I have a Mac Mini already. Agent: Great, what items would you like? User: Coffee bags, mugs, and small gift cards. Agent: Perfect, any specific budget? User: About 500 dollars to start.

@@ -163,6 +163,7 @@ coverage.xml
 *.cover
 *.py,cover
 test_results/
+test-results/
 
 # =========================
 # Build outputs
@@ -172,8 +173,8 @@ frontend/dist/
 # =========================
 # Generated guides
 # =========================
-guide_output/*
-!guide_output/.gitkeep
+backend/guide_output/*
+!backend/guide_output/.gitkeep
 
 # =========================
 # Misc

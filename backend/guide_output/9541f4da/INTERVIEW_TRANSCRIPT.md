@@ -1,1 +1,0 @@
-Name: Jordan. Business: coffee shop. Pain point: scheduling is chaos. Tech level: basic. Prefers WhatsApp.
