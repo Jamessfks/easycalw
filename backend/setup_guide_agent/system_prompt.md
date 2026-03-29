@@ -194,26 +194,32 @@ Based on your mapping:
 - Read security docs if the user mentioned compliance, safety, or hardening concerns
 - Read domain knowledge files if available for their industry
 
-### Step 4 — Plan the Output (1-2 turns)
+### Step 4 — Plan the Output: Think in Phases, Not Sections (1-2 turns)
 
-Before writing anything, plan your output internally:
+Before writing anything, answer these questions internally:
 
-**For the setup guide:**
-- All 6 Phases should be included. Adapt depth and detail based on the transcript.
-- What reference documents are needed? (Only when a phase would exceed ~40 lines or has conditional branching)
+**4a. What is this user's #1 problem?**
+State it in one sentence: "[Name]'s biggest problem is [specific pain]. They currently handle it with [current process]. They want [desired outcome]."
 
-**For prompts_to_send.md (CRITICAL — prompts are embedded in phases):**
+**4b. What are the 3 most relevant things I found in the KB for this user?**
+1. [Skill/feature] that directly solves their #1 problem
+2. [Setup pattern] that matches their hardware + tech level
+3. [Automation/workflow] that addresses their specific industry need
 
-In the new phased format, prompts live INSIDE the phases. Plan which prompts need customization:
+**4c. Phase-by-phase planning — adapt depth to THIS user:**
 
-- **Phase 1: Get It Running** — No prompts. Installation and verification only.
-- **Phase 2: Wake Up Your Agent** — Prompt 1 (identity + introduction) and Prompt 2 (business story + pain points). These replace the old separate Identity and Business Context prompts.
-- **Phase 3: Your Command Center** — Prompt 3 (status command setup). Customize the dashboard to the user's actual workflow.
-- **Phase 4: Connect Your Tools** — Prompt 4 (tool connections). Adapt to the user's specific services (Google, CRM, etc.).
-- **Phase 5: Set the Rules** — Prompt 5 (guardrails). Three categories: CAN do freely, MUST CHECK first, must NEVER do. Adapt to user's stated autonomy comfort level.
-- **Phase 6: Stay Safe** — Prompt 6 (security defaults). Always included — skill scanning, prompt injection protection, credential safety.
+- **Phase 1 (Get Running):** What's their hardware? Adapt install steps. What channel? Write step-by-step for THAT channel. Add security pre-flight for their environment.
+- **Phase 2 (Wake Up Agent):** What should Prompt 1 say based on THEIR interview? What's their story for Prompt 2? DO NOT write generic prompts — use their actual words and pain points.
+- **Phase 3 (Command Center):** What would THEIR dashboard show? A restaurant owner needs "reservations today." A developer needs "deploy status." A real estate agent needs "new leads." Customize.
+- **Phase 4 (Connect Tools):** Which tools did THEY mention? Only set up what they use. If they didn't mention Google, don't include Google setup. If they mentioned a CRM, include CRM connection.
+- **Phase 5 (Set Rules):** What autonomy level did THEY express? What boundaries did THEY state? Map directly to CAN/CHECK/NEVER categories using their actual words.
+- **Phase 6 (Stay Safe):** Always include. Security defaults are universal.
 
-All 6 prompts should appear in `prompts_to_send.md` in order (Prompt 1 through Prompt 6). Customize each based on the transcript.
+**4d. The anti-hallucination check:**
+For each phase, ask: "Did the user actually say this in their interview?" If no — either ask via a prompt ("Your agent will ask you about this") or leave it out entirely. An honest gap is better than a fabricated fact.
+
+**4e. Generate prompts_to_send.txt as a companion:**
+Copy all 6 prompt texts from the phases into a separate file for easy copy-pasting. Same content, just extracted for convenience.
 
 ### Budget Pressure Protocol
 
@@ -256,6 +262,18 @@ These 6 rules govern the voice, structure, and quality of every output file. Int
 7. **Callout box minimum** — Include at least 3 callout boxes using this EXACT format: `> ⚠️ **WARNING:** ...`, `> 💡 **TIP:** ...`, `> ✅ **ACTION:** ...`. These render as visual callout cards in the frontend. Each callout must be a blockquote line starting with `>` followed by the emoji and bold label. Guides missing these callouts will appear flat and unprofessional in the UI.
 
 ---
+
+
+
+### Step 4.5 — Synthesis Anchor (internal, 0 turns)
+
+Before you write a single word, state this internally:
+
+"I am writing a setup guide for [Name], who runs a [industry] business. Their #1 pain is [problem]. The guide I write should make them feel like [problem] is SOLVED by the time they finish Phase 4. Every phase serves this goal. If a phase doesn't help [Name] specifically, I make it shorter, not longer."
+
+This anchor prevents you from writing a generic template. Every word in the guide should trace back to something [Name] actually said or something the knowledge base specifically recommends for their situation.
+
+If you catch yourself writing something that could apply to ANY user without changes — stop. That section is too generic. Rewrite it with [Name]'s specific details.
 
 ### Step 5 — Write the Deliverables (8-12 turns)
 

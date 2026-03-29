@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import re
 import json
@@ -9,7 +10,6 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 
-import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
@@ -49,10 +49,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-# Supabase credentials (for direct REST writes alongside GuideStore)
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
 
 
@@ -118,56 +114,6 @@ def extract_user_info(transcript: str) -> dict:
         info["autonomy_level"] = "notify_only"
     
     return info
-
-async def save_to_supabase(guide_id: str, result: dict) -> None:
-    """POST completed guide data directly to Supabase REST API.
-
-    This is a supplementary write that flattens outputs into top-level
-    columns. GuideStore.set() handles the primary upsert; this ensures
-    content fields (setup_guide, prompts_to_send, etc.) are persisted
-    even if the supabase-py client is unavailable.
-    """
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        return
-    outputs = result.get("outputs", {})
-    agent_info = result.get("agent", {}) or {}
-    row = {
-        "guide_id": guide_id,
-        "status": result.get("status", "complete"),
-        "message": result.get("message"),
-        "formatted_transcript": result.get("formatted_transcript") or result.get("transcript"),
-        "setup_guide": outputs.get("setup_guide", ""),
-        "prompts_to_send": outputs.get("prompts_to_send", ""),
-        "reference_documents": outputs.get("reference_documents", []),
-        "scorecard": result.get("scorecard"),
-        "quality_eval": result.get("quality_eval"),
-        "model": result.get("model", "claude"),
-        "agent_cost_usd": agent_info.get("cost_usd"),
-        "agent_turns": agent_info.get("turns"),
-        "agent_duration_ms": agent_info.get("duration_ms"),
-    }
-    # Extract structured user info from transcript
-    transcript_text = result.get("formatted_transcript", "") or ""
-    user_info = extract_user_info(transcript_text)
-    row.update(user_info)
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{SUPABASE_URL}/rest/v1/guides?on_conflict=guide_id",
-                headers={
-                    "apikey": SUPABASE_KEY,
-                    "Authorization": f"Bearer {SUPABASE_KEY}",
-                    "Content-Type": "application/json",
-                    "Prefer": "resolution=merge-duplicates,return=minimal",
-                },
-                json=row,
-            )
-            if resp.status_code < 300:
-                logger.info(f"[GUIDE {guide_id}] Saved to Supabase")
-            else:
-                logger.warning(f"[GUIDE {guide_id}] Supabase save failed: {resp.text}")
-    except Exception as e:
-        logger.error(f"[GUIDE {guide_id}] Supabase save error: {e}")
 
 
 # ========================================
@@ -319,14 +265,13 @@ async def _run_guide_agent(guide_id: str, formatted_transcript: str, selected_ou
         # Attach scorecard to completed guides
         if result.get("status") == "complete" and result.get("outputs"):
             result["scorecard"] = compute_scorecard(result["outputs"])
+        # Enrich with transcript + extracted user info for Supabase columns
+        result["formatted_transcript"] = formatted_transcript
+        result.update(extract_user_info(formatted_transcript))
         await guide_store.set(guide_id, {
             **result,
             "guide_id": guide_id,
         })
-        # Dual write: persist flattened guide content to Supabase via REST
-        if result.get("status") == "complete":
-            result["formatted_transcript"] = formatted_transcript
-            await save_to_supabase(guide_id, result)
     except Exception as e:
         logger.error(f"[GUIDE {guide_id}] Background task failed: {e}", exc_info=True)
         await guide_store.set(guide_id, {
@@ -574,57 +519,24 @@ async def demo_stream(demo_id: str):
 async def get_guide(guide_id: str):
     """Retrieve generated output (guide + reference docs + prompts).
 
-    Frontend polls this endpoint. Falls back to reading from disk
-    if guide is not in memory (e.g. after a server restart).
+    Lookup order:
+    1. GuideStore (checks in-memory cache, then Supabase)
+    2. Disk fallback (for guides written before Supabase was set up)
     """
-    if guide_id in guide_store:
-        return guide_store.get_sync(guide_id)
+    # GuideStore.get() checks memory first, then Supabase automatically
+    entry = await guide_store.get(guide_id)
+    if entry:
+        return entry
 
-    # Fallback: try to recover from disk output directory
+    # Disk fallback — recover from output directory
     guide_dir = os.path.join(
         os.environ.get("GUIDE_OUTPUT_DIR", "./guide_output"), guide_id
     )
-    guide_file = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.txt")
-    guide_file_md = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
-    if os.path.isfile(guide_file) or os.path.isfile(guide_file_md):
+    if os.path.isdir(guide_dir):
         result = _load_guide_from_disk(guide_id, guide_dir)
-        await guide_store.set(guide_id, result)
-        return result
-
-    # Fallback: check Supabase directly (e.g. after server restart with no disk)
-    if SUPABASE_URL and SUPABASE_KEY:
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{SUPABASE_URL}/rest/v1/guides?on_conflict=guide_id",
-                    headers={
-                        "apikey": SUPABASE_KEY,
-                        "Authorization": f"Bearer {SUPABASE_KEY}",
-                    },
-                    params={"guide_id": f"eq.{guide_id}", "select": "*"},
-                )
-                if resp.status_code < 300:
-                    rows = resp.json()
-                    if rows:
-                        row = rows[0]
-                        # Re-nest outputs for API consistency
-                        result = {
-                            "guide_id": row.get("guide_id", guide_id),
-                            "status": row.get("status", "complete"),
-                            "outputs": {
-                                "setup_guide": row.get("setup_guide", ""),
-                                "prompts_to_send": row.get("prompts_to_send", ""),
-                                "reference_documents": row.get("reference_documents", []),
-                            },
-                            "scorecard": row.get("scorecard"),
-                            "quality_eval": row.get("quality_eval"),
-                            "model": row.get("model"),
-                        }
-                        await guide_store.set(guide_id, result)
-                        logger.info(f"[GUIDE {guide_id}] Recovered from Supabase")
-                        return result
-        except Exception as e:
-            logger.warning(f"[GUIDE {guide_id}] Supabase fallback lookup failed: {e}")
+        if result.get("outputs", {}).get("setup_guide"):
+            await guide_store.set(guide_id, result)
+            return result
 
     return {
         "guide_id": guide_id,
@@ -643,14 +555,21 @@ def _load_guide_from_disk(guide_id: str, guide_dir: str) -> dict:
         except FileNotFoundError:
             return ""
 
-    # Prefer .txt, fall back to .md
-    setup_txt = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.txt")
-    setup_md = os.path.join(guide_dir, "OPENCLAW_ENGINE_SETUP_GUIDE.md")
-    setup_guide = _read(setup_txt) if os.path.isfile(setup_txt) else _read(setup_md)
+    # Try filenames in priority order: new name first, then legacy
+    setup_guide = ""
+    for name in ("EASYCLAW_SETUP.md", "EASYCLAW_SETUP.txt",
+                 "OPENCLAW_ENGINE_SETUP_GUIDE.md", "OPENCLAW_ENGINE_SETUP_GUIDE.txt"):
+        path = os.path.join(guide_dir, name)
+        if os.path.isfile(path):
+            setup_guide = _read(path)
+            break
 
-    prompts_txt = os.path.join(guide_dir, "prompts_to_send.txt")
-    prompts_md = os.path.join(guide_dir, "prompts_to_send.md")
-    prompts = _read(prompts_txt) if os.path.isfile(prompts_txt) else _read(prompts_md)
+    prompts = ""
+    for name in ("prompts_to_send.md", "prompts_to_send.txt"):
+        path = os.path.join(guide_dir, name)
+        if os.path.isfile(path):
+            prompts = _read(path)
+            break
 
     ref_docs = []
     ref_dir = os.path.join(guide_dir, "reference_documents")

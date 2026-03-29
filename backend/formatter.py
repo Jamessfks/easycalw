@@ -46,23 +46,9 @@ async def format_transcript(raw_transcript: str) -> str:
     if not raw_transcript or not raw_transcript.strip():
         return "# Interview Transcript\n\n> No transcript content available.\n"
 
-    # NOTE: Gemini Flash disabled — free tier quota exhausted (429).
-    # TODO(production): Re-enable once Google AI billing is activated.
-    # gemini_key = os.environ.get("GEMINI_API_KEY")
-    # if gemini_key:
-    #     try:
-    #         formatted = await _format_with_gemini(raw_transcript, gemini_key)
-    #         if formatted:
-    #             return formatted
-    #     except Exception as e:
-    #         logger.warning(f"[FORMATTER] Gemini API failed, trying Claude Haiku: {e}")
-
-    # Primary: Claude Haiku
-    try:
-        return await _format_with_haiku(raw_transcript)
-    except Exception as e:
-        logger.warning(f"[FORMATTER] Claude Haiku failed, falling back to regex: {e}")
-        return _regex_fallback(raw_transcript)
+    # Use regex formatter by default — saves an API call + 1-2s latency.
+    # The single-pass guide agent handles messy transcripts fine.
+    return _regex_fallback(raw_transcript)
 
 
 async def _format_with_gemini(raw_transcript: str, api_key: str) -> str:
