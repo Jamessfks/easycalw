@@ -86,8 +86,22 @@ function ClickableHeading({ level, id, children, ...props }) {
     );
 }
 
+function stripChecklistMarkers(markdown) {
+    return markdown
+        .split(/(```[\s\S]*?```)/g)
+        .map((block) => {
+            if (block.startsWith('```')) return block;
+            return block
+                .replace(/^(\s*[-*+]\s+)\[\s*\]\s+/gm, '$1')
+                .replace(/^(\s*\d+\.\s+)\[\s*\]\s+/gm, '$1')
+                .replace(/^(\s*)\[\s*\]\s+/gm, '$1');
+        })
+        .join('');
+}
+
 export default function MarkdownRenderer({ content }) {
     if (!content) return null;
+    const normalizedContent = stripChecklistMarkers(content);
     return (
         <div className="prose prose-dark max-w-none text-[18px] leading-[1.7]">
             <ReactMarkdown
@@ -120,7 +134,7 @@ export default function MarkdownRenderer({ content }) {
                     },
                 }}
             >
-                {content}
+                {normalizedContent}
             </ReactMarkdown>
         </div>
     );
