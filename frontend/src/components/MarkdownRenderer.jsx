@@ -89,7 +89,7 @@ function ClickableHeading({ level, id, children, ...props }) {
 export default function MarkdownRenderer({ content }) {
     if (!content) return null;
     return (
-        <div className="prose prose-sm prose-dark max-w-none">
+        <div className="prose prose-dark max-w-none text-[18px] leading-[1.7]">
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{

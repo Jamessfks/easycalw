@@ -58,7 +58,16 @@ function mapErrorMessage(raw) {
 }
 
 export default function InterviewView({ onInterviewComplete, onBack }) {
-    const { callStatus, voiceState, transcript, formattedTranscript, error, startCall, endCall } = useVapi();
+    const {
+        callStatus,
+        voiceState,
+        transcript,
+        formattedTranscript,
+        error,
+        configStatus,
+        startCall,
+        endCall,
+    } = useVapi();
 
     // Check if user said enough (both character and word minimums)
     const userText = transcript
@@ -142,9 +151,13 @@ export default function InterviewView({ onInterviewComplete, onBack }) {
 
                     {/* Call controls */}
                     {callStatus === 'idle' && (
-                        <button onClick={startCall} className="btn-primary flex items-center gap-2 !py-2 !px-5 !text-sm">
-                            <Phone size={14} />
-                            Start
+                        <button
+                            onClick={startCall}
+                            disabled={configStatus === 'loading'}
+                            className="btn-primary flex items-center gap-2 !py-2 !px-5 !text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <Phone size={14} className={configStatus === 'loading' ? 'animate-pulse' : ''} />
+                            {configStatus === 'loading' ? 'Loading Voice' : 'Start'}
                         </button>
                     )}
                     {callStatus === 'connecting' && (

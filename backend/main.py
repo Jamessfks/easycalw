@@ -21,9 +21,11 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from supabase_store import GuideStore
-from routes import guides, webhook, demos
+from routes import client_config, guides, webhook, demos
 
 # Load environment variables
+_BACKEND_ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(_BACKEND_ENV_PATH)
 load_dotenv()
 
 # Configure logging
@@ -87,6 +89,7 @@ webhook.init(guide_store, _event_queues, guides._run_guide_agent)
 app.include_router(guides.router)
 app.include_router(webhook.router)
 app.include_router(demos.router)
+app.include_router(client_config.router)
 
 
 # ========================================

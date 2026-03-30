@@ -6,6 +6,7 @@ export default defineConfig({
     plugins: [react()],
     server: {
         proxy: {
+            '/client-config': 'http://localhost:8000',
             '/format': 'http://localhost:8000',
             '/generate-guide': 'http://localhost:8000',
             '/guide': 'http://localhost:8000',
