@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FileText, BookOpen, MessageSquare, ArrowLeft, Archive, Link2, Check, RefreshCw, AlertTriangle, XCircle, Clock, X, List } from 'lucide-react';
+import { FileText, BookOpen, MessageSquare, ArrowLeft, Archive, Link2, Check, RefreshCw, AlertTriangle, XCircle, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { addGuideToHistory } from '../lib/guideHistory';
 import Scorecard from './Scorecard';
-import MarkdownRenderer, { headingId } from './MarkdownRenderer';
+import MarkdownRenderer from './MarkdownRenderer';
 import { CopyButton, DownloadButton, CopyAllPromptsButton, BeforeAfterTeaser } from './GuideActions';
 import ReferenceDocCard from './ReferenceDocCard';
+import StepWizard from './StepWizard';
 
 const TABS = [
     { id: 'guide', label: 'Setup Guide', icon: FileText },
@@ -13,88 +14,6 @@ const TABS = [
     { id: 'prompts', label: 'Prompts', icon: MessageSquare },
 ];
 
-function GuideTableOfContents({ content }) {
-    const headings = useMemo(() => {
-        if (!content) return [];
-        const matches = [...content.matchAll(/^(#{2,3})\s+(.+)$/gm)];
-        return matches.map(([, hashes, text]) => ({
-            id: headingId(text),
-            label: text.replace(/^\d+\s*\|\s*/, ''),
-            level: hashes.length,
-        }));
-    }, [content]);
-
-    if (headings.length < 4) return null;
-
-    return (
-        <nav className="hidden xl:block sticky top-28 w-44 shrink-0 pr-4 border-r border-white/[0.04] self-start">
-            <p className="section-label mb-3">Contents</p>
-            <div className="space-y-0.5">
-                {headings.map(h => (
-                    <a key={h.id} href={`#${h.id}`}
-                        className={`block text-[11px] font-mono text-stone-500 hover:text-accent-primary transition-colors py-1 truncate ${h.level === 3 ? 'pl-3 text-stone-600' : ''}`}>
-                        {h.label}
-                    </a>
-                ))}
-            </div>
-        </nav>
-    );
-}
-
-function FloatingTocButton({ content }) {
-    const [open, setOpen] = useState(false);
-    const [visible, setVisible] = useState(false);
-
-    const headings = useMemo(() => {
-        if (!content) return [];
-        const matches = [...content.matchAll(/^(#{2,3})\s+(.+)$/gm)];
-        return matches.map(([, hashes, text]) => ({
-            id: headingId(text),
-            label: text.replace(/^\d+\s*\|\s*/, ''),
-            level: hashes.length,
-        }));
-    }, [content]);
-
-    useEffect(() => {
-        const onScroll = () => setVisible(window.scrollY > 300);
-        window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
-    }, []);
-
-    if (headings.length < 4 || !visible) return null;
-
-    return (
-        <>
-            <button
-                onClick={() => setOpen(true)}
-                className="xl:hidden fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full bg-accent-primary hover:bg-accent-hover text-white shadow-lg shadow-orange-500/25 flex items-center justify-center transition-all duration-200"
-                aria-label="Table of Contents"
-            >
-                <List size={20} />
-            </button>
-
-            {open && (
-                <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" onClick={() => setOpen(false)}>
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                    <nav className="relative z-50 w-full sm:w-96 max-h-[70vh] overflow-y-auto glass rounded-t-2xl sm:rounded-2xl p-6" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="section-label !mb-0">Contents</p>
-                            <button onClick={() => setOpen(false)} className="p-1 rounded-full hover:bg-white/10 text-stone-400"><X size={16} /></button>
-                        </div>
-                        <div className="space-y-0.5">
-                            {headings.map(h => (
-                                <a key={h.id} href={`#${h.id}`} onClick={() => setOpen(false)}
-                                    className={`block text-sm font-mono text-stone-400 hover:text-accent-primary transition-colors py-1.5 truncate ${h.level === 3 ? 'pl-4 text-stone-500 text-xs' : ''}`}>
-                                    {h.label}
-                                </a>
-                            ))}
-                        </div>
-                    </nav>
-                </div>
-            )}
-        </>
-    );
-}
 
 function categorizeError(message) {
     if (!message) return { type: 'unknown', label: 'Unknown Error', icon: XCircle, color: 'rose' };
@@ -342,16 +261,7 @@ const OutputDisplay = ({ guideData, onBack, onRestart }) => {
                             <DownloadButton content={guide} filename="OPENCLAW_ONBOARDING_GUIDE.md" />
                             <CopyButton text={guide} />
                         </div>
-                        <div className="flex gap-6">
-                            <GuideTableOfContents content={guide} />
-                            <div className="flex-1 min-w-0 glass rounded-2xl p-8 relative">
-                                <div className="max-h-[80vh] overflow-y-auto scroll-smooth pr-2" style={{ scrollbarGutter: 'stable' }}>
-                                    <MarkdownRenderer content={guide} />
-                                </div>
-                                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 rounded-b-2xl bg-gradient-to-t from-surface-1 to-transparent" />
-                            </div>
-                        </div>
-                        <FloatingTocButton content={guide} />
+                        <StepWizard content={guide} />
                     </motion.div>
                 )}
 
