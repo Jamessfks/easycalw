@@ -64,6 +64,10 @@ class KBIndex:
                 cached = {}
 
         to_embed = {r: t for r, t in contents.items() if r not in cached}
+        if to_embed and not os.environ.get("GEMINI_API_KEY"):
+            logger.warning("[KB] No GEMINI_API_KEY — skipping embedding, keyword search only")
+            self._built = False
+            raise RuntimeError("No GEMINI_API_KEY for embeddings")
         fresh = await self._embed_batch(to_embed) if to_embed else {}
 
         all_paths = sorted(contents.keys())
@@ -93,12 +97,18 @@ class KBIndex:
         """Search the index for documents most relevant to the query.
 
         Returns list of {"path": str, "score": float} sorted by relevance.
+        Falls back to keyword search if FAISS index is unavailable.
         """
         if not self._built:
-            await self.build()
+            try:
+                await self.build()
+            except Exception as e:
+                logger.warning(f"[KB] Index build failed, using keyword fallback: {e}")
+                return await self._keyword_search(query, top_k)
         qvec = await self._embed_single(query)
         if qvec is None:
-            return []
+            logger.warning("[KB] Embedding failed, using keyword fallback")
+            return await self._keyword_search(query, top_k)
         qvec = (qvec / np.linalg.norm(qvec)).reshape(1, -1).astype(np.float32)
         scores, indices = self._index.search(qvec, min(top_k, len(self._paths)))
         return [
@@ -106,6 +116,29 @@ class KBIndex:
             for s, i in zip(scores[0], indices[0])
             if i >= 0
         ]
+
+    async def _keyword_search(self, query: str, top_k: int = 15) -> list[dict]:
+        """Simple keyword fallback when Gemini embeddings are unavailable."""
+        keywords = [w.lower() for w in query.split() if len(w) > 2]
+        if not keywords:
+            return []
+
+        md_files = sorted(_CONTEXT_DIR.rglob("*.md"))
+        scored = []
+        for f in md_files:
+            try:
+                text = f.read_text(errors="ignore").lower()
+                hits = sum(text.count(kw) for kw in keywords)
+                name_hits = sum(3 for kw in keywords if kw in f.name.lower())
+                score = hits + name_hits
+                if score > 0:
+                    rel = str(f.relative_to(_CONTEXT_DIR))
+                    scored.append({"path": rel, "score": float(score)})
+            except Exception:
+                continue
+
+        scored.sort(key=lambda x: x["score"], reverse=True)
+        return scored[:top_k]
 
     async def _embed_single(self, text: str):
         """Embed a single query text using Gemini embeddings."""

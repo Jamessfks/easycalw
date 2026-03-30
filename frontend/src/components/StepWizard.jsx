@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -48,11 +48,11 @@ function InlineText({ text }) {
             if (key) {
                 output.push(
                     <a
-                        key={`term-${Math.random().toString(36).slice(2)}-${tm.index}`}
+                        key={`term-${tm.index}`}
                         href={KNOWN_LINKS[key]}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors"
+                        className="inline-flex items-center gap-0.5 text-accent-primary hover:text-accent-hover underline underline-offset-2 transition-colors"
                     >
                         {tm[0]}
                         <ExternalLink size={10} className="shrink-0" />
@@ -80,7 +80,7 @@ function InlineText({ text }) {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors"
+                className="inline-flex items-center gap-0.5 text-accent-primary hover:text-accent-hover underline underline-offset-2 transition-colors"
             >
                 {label}
                 <ExternalLink size={10} className="shrink-0" />
@@ -102,7 +102,7 @@ function InlineText({ text }) {
                             href="https://apps.apple.com/us/app/amphetamine/id937984704"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-0.5 text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors"
+                            className="inline-flex items-center gap-0.5 text-accent-primary hover:text-accent-hover underline underline-offset-2 transition-colors"
                         >
                             {part}
                             <ExternalLink size={10} className="shrink-0" />
@@ -236,16 +236,16 @@ function parseGuide(content) {
 // Top summary card (Key Moments or Pre-Flight)
 // ---------------------------------------------------------------------------
 
-function SummaryCard({ data, accentColor = 'cyan' }) {
+function SummaryCard({ data, accentColor = 'primary' }) {
     const accent = {
-        cyan:   { dot: 'bg-cyan-500/60',   border: 'border-cyan-500/20'   },
-        violet: { dot: 'bg-violet-500/60', border: 'border-violet-500/20' },
+        primary:   { dot: 'bg-accent-primary/60',   border: 'border-accent-primary/20'   },
+        secondary: { dot: 'bg-accent-secondary/60', border: 'border-accent-secondary/20' },
     }[accentColor];
 
     return (
         <div className={`flex-1 glass rounded-2xl border ${accent.border} flex flex-col overflow-hidden`}>
             <div className="px-6 pt-6 pb-4 border-b border-white/[0.06] text-center">
-                <p className="text-[30px] font-mono uppercase tracking-widest text-gray-500 mb-1">Overview</p>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-stone-500 mb-1">Overview</p>
                 <h3 className="text-2xl font-display font-bold text-white">{data.title}</h3>
             </div>
             <div className="px-6 py-5">
@@ -253,7 +253,7 @@ function SummaryCard({ data, accentColor = 'cyan' }) {
                     {data.bullets.map((b, i) => (
                         <li key={i} className="flex items-start gap-2.5">
                             <span className={`mt-2 shrink-0 w-1.5 h-1.5 rounded-full ${accent.dot}`} />
-                            <span className="text-[24px] text-gray-300 leading-relaxed">
+                            <span className="text-sm text-stone-300 leading-relaxed">
                                 {stripMdBasic(b)}
                             </span>
                         </li>
@@ -288,8 +288,8 @@ export default function StepWizard({ content }) {
             {/* ── Top overview: Key Moments + Pre-Flight side by side ── */}
             {(keyMoments || preflight) && (
                 <div className="flex flex-col sm:flex-row gap-4">
-                    {keyMoments && <SummaryCard data={keyMoments} accentColor="cyan" />}
-                    {preflight  && <SummaryCard data={preflight}  accentColor="violet" />}
+                    {keyMoments && <SummaryCard data={keyMoments} accentColor="primary" />}
+                    {preflight  && <SummaryCard data={preflight}  accentColor="secondary" />}
                 </div>
             )}
 
@@ -297,7 +297,7 @@ export default function StepWizard({ content }) {
             {steps.length > 0 && (
                 <div className="flex items-center gap-4">
                     <div className="flex-1 h-px bg-white/[0.06]" />
-                    <p className="text-[30px] font-mono uppercase tracking-widest text-cyan-300 shrink-0">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-accent-primary shrink-0">
                         Step-by-Step Setup
                     </p>
                     <div className="flex-1 h-px bg-white/[0.06]" />
@@ -308,25 +308,25 @@ export default function StepWizard({ content }) {
                 <>
                     {/* ── Progress ── */}
                     <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-gray-500 shrink-0">Step {current + 1} of {steps.length}</span>
+                        <span className="text-xs font-mono text-stone-500 shrink-0">Step {current + 1} of {steps.length}</span>
                         <div className="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-cyan-500 rounded-full transition-all duration-500"
+                                className="h-full bg-accent-primary rounded-full transition-all duration-500"
                                 style={{ width: `${((current + 1) / steps.length) * 100}%` }}
                             />
                         </div>
-                        <span className="text-xs font-mono text-gray-500 shrink-0">{Math.round(((current + 1) / steps.length) * 100)}%</span>
+                        <span className="text-xs font-mono text-stone-500 shrink-0">{Math.round(((current + 1) / steps.length) * 100)}%</span>
                     </div>
 
                     {/* ── Full step detail card ── */}
                     <div className="glass rounded-2xl overflow-hidden">
                         <div className="px-8 pt-8 pb-6 border-b border-white/[0.06]">
                             <div className="flex items-start gap-4">
-                                <span className="shrink-0 w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center text-lg font-display font-bold text-cyan-400">
+                                <span className="shrink-0 w-12 h-12 rounded-xl bg-accent-primary/15 border border-accent-primary/25 flex items-center justify-center text-lg font-display font-bold text-accent-primary">
                                     {(current + 1).toString().padStart(2, '0')}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-1">What to do</p>
+                                    <p className="text-[10px] font-mono uppercase tracking-widest text-stone-500 mb-1">What to do</p>
                                     <h2 className="text-xl font-display font-bold text-white leading-snug">{step.title}</h2>
                                 </div>
                             </div>
@@ -336,10 +336,10 @@ export default function StepWizard({ content }) {
                             <ul className="space-y-3">
                                 {step.bullets.map((b, idx) => (
                                     <li key={idx} className="flex items-start gap-3">
-                                        <span className="mt-1 shrink-0 w-5 h-5 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[10px] font-mono text-cyan-400">
+                                        <span className="mt-1 shrink-0 w-5 h-5 rounded-full bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center text-[10px] font-mono text-accent-primary">
                                             {idx + 1}
                                         </span>
-                                        <span className="text-sm text-gray-300 leading-relaxed">
+                                        <span className="text-sm text-stone-300 leading-relaxed">
                                             <InlineText text={b} />
                                         </span>
                                     </li>
@@ -355,8 +355,8 @@ export default function StepWizard({ content }) {
                             disabled={isFirst}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-display font-medium border transition-all duration-200
                                 ${isFirst
-                                    ? 'opacity-30 cursor-not-allowed border-white/[0.06] text-gray-600'
-                                    : 'border-white/[0.10] text-gray-300 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.18]'}`}
+                                    ? 'opacity-30 cursor-not-allowed border-white/[0.06] text-stone-600'
+                                    : 'border-white/[0.10] text-stone-300 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.18]'}`}
                         >
                             <ChevronLeft size={16} />
                             Back
@@ -366,9 +366,9 @@ export default function StepWizard({ content }) {
                             {steps.map((_, i) => (
                                 <button
                                     key={i}
-                                    onClick={() => { setCurrent(i); setExpanded(false); }}
+                                    onClick={() => setCurrent(i)}
                                     className={`rounded-full transition-all duration-200 ${
-                                        i === current ? 'w-6 h-2 bg-cyan-400' : 'w-2 h-2 bg-white/[0.12] hover:bg-white/[0.25]'
+                                        i === current ? 'w-6 h-2 bg-accent-primary' : 'w-2 h-2 bg-white/[0.12] hover:bg-white/[0.25]'
                                     }`}
                                     aria-label={`Go to step ${i + 1}`}
                                 />
@@ -380,8 +380,8 @@ export default function StepWizard({ content }) {
                             disabled={isLast}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-display font-medium border transition-all duration-200
                                 ${isLast
-                                    ? 'opacity-30 cursor-not-allowed border-white/[0.06] text-gray-600'
-                                    : 'border-cyan-500/30 text-cyan-400 hover:text-white hover:bg-cyan-500/10 hover:border-cyan-400/50'}`}
+                                    ? 'opacity-30 cursor-not-allowed border-white/[0.06] text-stone-600'
+                                    : 'border-accent-primary/30 text-accent-primary hover:text-white hover:bg-accent-primary/10 hover:border-accent-hover/50'}`}
                         >
                             Next
                             <ChevronRight size={16} />

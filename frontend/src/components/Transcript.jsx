@@ -21,12 +21,12 @@ const Transcript = ({ entries = [] }) => {
 
     if (entries.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center h-full gap-4 px-8">
-                <div className="w-16 h-16 rounded-full bg-surface-2 border border-white/[0.06] flex items-center justify-center">
-                    <MessageSquare size={24} className="text-gray-500" strokeWidth={1.5} />
+            <div className="flex flex-col items-center justify-center h-full gap-3 px-8">
+                <div className="w-12 h-12 rounded-full bg-surface-2 border border-white/[0.06] flex items-center justify-center">
+                    <MessageSquare size={20} className="text-stone-500" strokeWidth={1.5} />
                 </div>
-                <p className="text-sm text-gray-500 font-display text-center max-w-xs">
-                    Start the interview and your conversation will appear here in real time.
+                <p className="text-sm text-stone-500 font-display text-center max-w-xs">
+                    Your conversation will appear here.
                 </p>
             </div>
         );
@@ -35,17 +35,17 @@ const Transcript = ({ entries = [] }) => {
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="px-6 py-3 border-b border-white/[0.04] flex items-center justify-between shrink-0">
-                <p className="section-label">Live Transcript</p>
+            <div className="px-6 py-2.5 border-b border-white/[0.04] flex items-center justify-between shrink-0">
+                <p className="section-label">Transcript</p>
                 <div className="flex items-center gap-3">
-                    <span className="text-[11px] font-mono text-gray-600">
+                    <span className="text-[11px] font-mono text-stone-600">
                         {entries.filter(e => e.isFinal).length} messages
                     </span>
                     {entries.some(e => e.isFinal) && (
                         <button
                             onClick={handleCopyTranscript}
-                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-mono
-                                       border border-white/10 text-gray-500 hover:text-white hover:border-white/20
+                            className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-mono
+                                       border border-stone-800 text-stone-500 hover:text-white hover:border-stone-600
                                        transition-all duration-200"
                         >
                             {copied ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
@@ -56,48 +56,31 @@ const Transcript = ({ entries = [] }) => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
                 {entries.map((entry, i) => {
                     const isUser = entry.role === 'user';
                     const isPartial = !entry.isFinal;
 
                     return (
-                        <div
-                            key={i}
-                            className={`flex gap-3 animate-fade-in ${isPartial ? 'opacity-40' : ''}`}
-                        >
-                            {/* Role indicator */}
-                            <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold font-mono mt-0.5 ${
+                        <div key={i} className={`flex gap-3 animate-fade-in ${isPartial ? 'opacity-40' : ''}`}>
+                            <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold font-mono mt-0.5 ${
                                 isUser
                                     ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                                    : 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20'
+                                    : 'bg-accent-primary/15 text-accent-primary border border-accent-primary/20'
                             }`}>
                                 {isUser ? 'U' : 'A'}
                             </div>
-
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-baseline gap-2 mb-1">
-                                    <span className={`text-xs font-display font-semibold ${
-                                        isUser ? 'text-emerald-400' : 'text-cyan-400'
-                                    }`}>
+                                <div className="flex items-baseline gap-2 mb-0.5">
+                                    <span className={`text-xs font-display font-semibold ${isUser ? 'text-emerald-400' : 'text-accent-primary'}`}>
                                         {isUser ? 'You' : 'Agent'}
                                     </span>
-                                    <span className="text-[10px] font-mono text-gray-600">
-                                        {new Date(entry.timestamp).toLocaleTimeString([], {
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            second: '2-digit',
-                                        })}
+                                    <span className="text-[10px] font-mono text-stone-600">
+                                        {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                     </span>
-                                    {isPartial && (
-                                        <span className="text-[10px] font-mono text-gray-600 italic">
-                                            typing...
-                                        </span>
-                                    )}
+                                    {isPartial && <span className="text-[10px] font-mono text-stone-600 italic">typing...</span>}
                                 </div>
-                                <p className={`text-sm leading-relaxed ${
-                                    isUser ? 'text-gray-200' : 'text-gray-300'
-                                } ${isPartial ? 'italic' : ''}`}>
+                                <p className={`text-sm leading-relaxed ${isUser ? 'text-stone-200' : 'text-stone-300'} ${isPartial ? 'italic' : ''}`}>
                                     {entry.text}
                                 </p>
                             </div>

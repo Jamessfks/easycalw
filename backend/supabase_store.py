@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Supabase-backed guide store — drop-in replacement for in-memory dict.
 
 Usage:
@@ -20,27 +21,64 @@ _COLUMN_FIELDS = {
     "guide_id", "status", "message", "formatted_transcript",
     "agent_session_id", "agent_cost_usd", "agent_turns",
     "agent_duration_ms", "setup_guide", "reference_documents",
-    "prompts_to_send", "scorecard",
+    "prompts_to_send", "scorecard", "quality_eval", "model",
+    # Extracted user info fields
+    "user_name", "industry", "tech_level", "channel",
+    "environment", "autonomy_level",
 }
 
 
 def _to_row(guide_id: str, data: dict) -> dict:
-    """Convert an app-level dict to a Supabase row dict."""
+    """Convert an app-level dict to a Supabase row dict.
+
+    Handles nested structures from the agent result:
+    - data["outputs"]["setup_guide"] -> row["setup_guide"]
+    - data["agent"]["cost_usd"] -> row["agent_cost_usd"]
+    """
     row: dict = {"guide_id": guide_id}
+
+    # Flatten nested "outputs" dict into top-level columns
+    outputs = data.get("outputs") or {}
+    for key in ("setup_guide", "reference_documents", "prompts_to_send"):
+        if key in outputs:
+            row[key] = outputs[key]
+
+    # Flatten nested "agent" dict with agent_ prefix
+    agent = data.get("agent") or {}
+    for key in ("session_id", "cost_usd", "turns", "duration_ms"):
+        if key in agent:
+            row[f"agent_{key}"] = agent[key]
+
+    # Copy any remaining top-level column fields directly
     for key, value in data.items():
-        if key in _COLUMN_FIELDS:
+        if key in _COLUMN_FIELDS and key not in row:
             row[key] = value
+
     row.setdefault("status", "generating")
     return row
 
 
 def _from_row(row: dict) -> dict:
-    """Convert a Supabase row back to an app-level dict."""
+    """Convert a Supabase row back to an app-level dict.
+
+    Re-nests flat output columns into the ``outputs`` dict that the
+    frontend expects (e.g. ``outputs.setup_guide``).
+    """
     out = {}
     for key, value in row.items():
         if key == "id":
             continue
         out[key] = value
+
+    # Re-nest output columns into "outputs" for API consistency
+    _output_keys = ("setup_guide", "prompts_to_send", "reference_documents")
+    if any(k in out for k in _output_keys) and "outputs" not in out:
+        out["outputs"] = {
+            k: out.pop(k, None) for k in _output_keys if k in out
+        }
+        # Default reference_documents to empty list
+        out["outputs"].setdefault("reference_documents", [])
+
     return out
 
 
@@ -81,11 +119,11 @@ class GuideStore:
                 await sb.table("guides")
                 .select("*")
                 .eq("guide_id", guide_id)
-                .maybe_single()
+                .limit(1)
                 .execute()
             )
             if result.data:
-                return _from_row(result.data)
+                return _from_row(result.data[0])
             return None
         except Exception as e:
             logger.error(f"[GuideStore] get({guide_id}) failed: {e}")
@@ -203,7 +241,7 @@ class GuideStore:
             sb = await self._get_client()
             result = (
                 await sb.table("guides")
-                .select("guide_id, status, created_at, metadata")
+                .select("guide_id, status, created_at")
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
                 .execute()
@@ -213,7 +251,6 @@ class GuideStore:
                     "guide_id": r.get("guide_id"),
                     "status": r.get("status"),
                     "created_at": r.get("created_at"),
-                    "business_name": (r.get("metadata") or {}).get("business_name"),
                 }
                 for r in result.data
             ]

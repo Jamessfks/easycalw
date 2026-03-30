@@ -10,20 +10,19 @@ const ICON_MAP = {
 };
 
 const COLOR_MAP = {
-    amber: { border: 'border-amber-500/20', text: 'text-amber-400', bg: 'bg-amber-500/10', glow: 'group-hover:shadow-amber-500/10' },
-    cyan: { border: 'border-cyan-500/20', text: 'text-cyan-400', bg: 'bg-cyan-500/10', glow: 'group-hover:shadow-cyan-500/10' },
+    amber:   { border: 'border-amber-500/20', text: 'text-amber-400', bg: 'bg-amber-500/10', glow: 'group-hover:shadow-amber-500/10' },
+    cyan:    { border: 'border-accent-primary/20', text: 'text-accent-primary', bg: 'bg-accent-primary/10', glow: 'group-hover:shadow-orange-500/10' },
     emerald: { border: 'border-emerald-500/20', text: 'text-emerald-400', bg: 'bg-emerald-500/10', glow: 'group-hover:shadow-emerald-500/10' },
-    violet: { border: 'border-violet-500/20', text: 'text-violet-400', bg: 'bg-violet-500/10', glow: 'group-hover:shadow-violet-500/10' },
-    rose: { border: 'border-rose-500/20', text: 'text-rose-400', bg: 'bg-rose-500/10', glow: 'group-hover:shadow-rose-500/10' },
+    violet:  { border: 'border-violet-500/20', text: 'text-violet-400', bg: 'bg-violet-500/10', glow: 'group-hover:shadow-violet-500/10' },
+    rose:    { border: 'border-rose-500/20', text: 'text-rose-400', bg: 'bg-rose-500/10', glow: 'group-hover:shadow-rose-500/10' },
 };
 
-// Static fallback in case /demos endpoint is slow
 const FALLBACK_DEMOS = [
-    { demo_id: 'demo-restaurant', title: 'Restaurant Operations', subtitle: 'Multi-location scheduling & daily briefings', category: 'Small Business', icon: 'utensils', color: 'amber' },
-    { demo_id: 'demo-devops', title: 'Autonomous Dev Agent', subtitle: 'CI/CD monitoring, PR reviews & deployments', category: 'DevOps', icon: 'code', color: 'cyan' },
-    { demo_id: 'demo-finance', title: 'Expense Tracking', subtitle: 'Automated categorization & tax prep', category: 'Finance', icon: 'dollar', color: 'emerald' },
-    { demo_id: 'demo-content', title: 'Content Repurposing', subtitle: 'Transform long-form into social & newsletters', category: 'Content', icon: 'pen', color: 'violet' },
-    { demo_id: 'demo-healthcare', title: 'Dental Reminders', subtitle: 'Patient scheduling & follow-ups', category: 'Healthcare', icon: 'heart', color: 'rose' },
+    { demo_id: 'demo-restaurant', title: 'Scouts Coffee', subtitle: 'Staff scheduling & supplier automation', category: 'Small Business', icon: 'coffee', color: 'amber' },
+    { demo_id: 'demo-devops', title: 'Autonomous Dev Agent', subtitle: 'CI/CD monitoring & deployment', category: 'Developer Tools', icon: 'terminal', color: 'emerald' },
+    { demo_id: 'demo-finance', title: 'Expense Tracking', subtitle: 'Categorization & tax prep', category: 'Finance', icon: 'receipt', color: 'amber' },
+    { demo_id: 'demo-content', title: 'Content Pipeline', subtitle: 'Repurpose videos into social posts', category: 'Content', icon: 'pen-tool', color: 'violet' },
+    { demo_id: 'demo-healthcare', title: 'Dental Reminders', subtitle: 'Patient follow-ups & verification', category: 'Healthcare', icon: 'heart-pulse', color: 'rose' },
 ];
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -35,22 +34,19 @@ export default function DemoNavigator({ onSelectDemo }) {
         fetch(`${API_BASE}/demos`)
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (data) setDemos(data); })
-            .catch(() => {}); // keep fallback
+            .catch(() => {});
     }, []);
 
     return (
-        <section className="max-w-5xl mx-auto px-6 pb-20">
-            <div className="text-center mb-10">
-                <p className="section-label mb-3">Demo Outputs</p>
-                <h2 className="text-2xl font-display font-bold text-white">
+        <section className="max-w-4xl mx-auto px-6 pb-16">
+            <div className="text-center mb-8">
+                <p className="section-label mb-2">Demo Outputs</p>
+                <h2 className="text-xl font-display font-bold text-white">
                     See what EasyClaw generates
                 </h2>
-                <p className="text-sm text-gray-500 mt-2 max-w-lg mx-auto">
-                    Explore real output examples across different use cases
-                </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {demos.map((demo) => {
                     const Icon = ICON_MAP[demo.icon] || Code2;
                     const colors = COLOR_MAP[demo.color] || COLOR_MAP.cyan;
@@ -61,32 +57,19 @@ export default function DemoNavigator({ onSelectDemo }) {
                             onClick={() => onSelectDemo(demo.demo_id)}
                             className={`card group text-left relative overflow-hidden
                                        hover:scale-[1.02] active:scale-[0.98]
-                                       transition-all duration-300 shadow-lg shadow-transparent
-                                       ${colors.glow}`}
+                                       transition-all duration-200 shadow-lg shadow-transparent
+                                       ${colors.glow} !p-5`}
                         >
-                            {/* Icon */}
-                            <div className={`w-10 h-10 rounded-xl ${colors.bg} ${colors.border} border
-                                           flex items-center justify-center mb-4`}>
-                                <Icon size={20} className={colors.text} strokeWidth={1.5} />
+                            <div className={`w-9 h-9 rounded-xl ${colors.bg} ${colors.border} border flex items-center justify-center mb-3`}>
+                                <Icon size={18} className={colors.text} strokeWidth={1.5} />
                             </div>
-
-                            {/* Category badge */}
-                            <span className={`inline-block text-[10px] font-mono tracking-wider uppercase
-                                            px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} mb-3`}>
+                            <span className={`inline-block text-[9px] font-mono tracking-wider uppercase px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} mb-2`}>
                                 {demo.category}
                             </span>
-
-                            {/* Title + subtitle */}
-                            <h3 className="font-display font-semibold text-white text-base mb-1.5 group-hover:text-white/90">
-                                {demo.title}
-                            </h3>
-                            <p className="text-xs text-gray-500 leading-relaxed">
-                                {demo.subtitle}
-                            </p>
-
-                            {/* Arrow */}
-                            <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <ArrowRight size={16} className={colors.text} />
+                            <h3 className="font-display font-semibold text-white text-sm mb-1">{demo.title}</h3>
+                            <p className="text-xs text-stone-500 leading-relaxed">{demo.subtitle}</p>
+                            <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <ArrowRight size={14} className={colors.text} />
                             </div>
                         </button>
                     );
