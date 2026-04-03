@@ -14,6 +14,7 @@
         "@react-three/fiber": "^8.17.14",
         "@tailwindcss/typography": "^0.5.19",
         "@vapi-ai/web": "^2.2.0",
+        "@vercel/analytics": "^2.0.1",
         "framer-motion": "^12.38.0",
         "jszip": "^3.10.1",
         "lottie-react": "^2.4.1",

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Analytics } from '@vercel/analytics/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import EasyClawLanding from './EasyClawLanding';
 import InterviewView from './InterviewView';
@@ -183,6 +184,7 @@ function App() {
                     <Route path="*" element={<MainFlow />} />
                 </Routes>
             </BrowserRouter>
+            <Analytics />
         </ErrorBoundary>
     );
 }
